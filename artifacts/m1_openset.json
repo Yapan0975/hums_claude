@@ -1,0 +1,17 @@
+{
+  "config": {
+    "seq": "08",
+    "n_train": 80,
+    "n_val": 20,
+    "epochs": 20,
+    "unknown_classes": [
+      4,
+      5,
+      18,
+      17,
+      9
+    ]
+  },
+  "best_auroc": 0.8082173634253087,
+  "ckpt": "weights/pointnet_edl_openset.pt"
+}
