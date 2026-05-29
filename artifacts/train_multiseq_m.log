@@ -1,0 +1,47 @@
+device: cuda
+GPU:    NVIDIA GeForce RTX 5090
+n_points: 20000, k: 16, kl_end: 0.3, restart_period: 5
+
+train: 5671 frames total
+  seq 00: 600
+  seq 01: 600
+  seq 02: 600
+  seq 03: 600
+  seq 04: 271
+  seq 05: 600
+  seq 06: 600
+  seq 07: 600
+  seq 09: 600
+  seq 10: 600
+val:   100 / 100 frames from seq 08
+backbone: lite_v2, params: 0.494 M
+
+=== Train lite_v2 + warm-restart + bigger, 25 epochs ===
+
+  ep 1/25: lam=0.000 loss=0.4833 val_miou=0.2044 val_ece=0.0968 time=241.3s  [SAVED]
+  ep 2/25: lam=0.060 loss=0.5692 val_miou=0.2127 val_ece=0.2935 time=243.0s  [SAVED]
+  ep 3/25: lam=0.120 loss=0.5834 val_miou=0.2011 val_ece=0.3492 time=245.3s
+  ep 4/25: lam=0.180 loss=0.5957 val_miou=0.1952 val_ece=0.3502 time=247.7s
+  ep 5/25: lam=0.240 loss=0.5980 val_miou=0.1903 val_ece=0.3570 time=248.4s
+  ep 6/25: lam=0.000 loss=0.3084 val_miou=0.2169 val_ece=0.1017 time=243.5s  [SAVED]
+  ep 7/25: lam=0.060 loss=0.4256 val_miou=0.1983 val_ece=0.2376 time=246.2s
+  ep 8/25: lam=0.120 loss=0.4644 val_miou=0.2124 val_ece=0.3224 time=245.0s
+  ep 9/25: lam=0.180 loss=0.4864 val_miou=0.1987 val_ece=0.3146 time=247.4s
+  ep 10/25: lam=0.240 loss=0.4981 val_miou=0.1989 val_ece=0.3772 time=247.1s
+  ep 11/25: lam=0.000 loss=0.2594 val_miou=0.2152 val_ece=0.1110 time=238.9s
+  ep 12/25: lam=0.060 loss=0.3607 val_miou=0.2273 val_ece=0.2187 time=255.2s  [SAVED]
+  ep 13/25: lam=0.120 loss=0.3976 val_miou=0.2285 val_ece=0.2709 time=256.3s  [SAVED]
+  ep 14/25: lam=0.180 loss=0.4207 val_miou=0.2175 val_ece=0.3936 time=252.2s
+  ep 15/25: lam=0.240 loss=0.4354 val_miou=0.2173 val_ece=0.3663 time=251.3s
+  ep 16/25: lam=0.000 loss=0.2351 val_miou=0.2280 val_ece=0.1096 time=251.0s
+  ep 17/25: lam=0.060 loss=0.3208 val_miou=0.2240 val_ece=0.1989 time=254.6s
+  ep 18/25: lam=0.120 loss=0.3565 val_miou=0.2087 val_ece=0.2674 time=252.9s
+  ep 19/25: lam=0.180 loss=0.3804 val_miou=0.2102 val_ece=0.3030 time=246.9s
+  ep 20/25: lam=0.240 loss=0.3977 val_miou=0.2154 val_ece=0.3334 time=245.4s
+  ep 21/25: lam=0.000 loss=0.2249 val_miou=0.2336 val_ece=0.1267 time=242.4s  [SAVED]
+  ep 22/25: lam=0.060 loss=0.3014 val_miou=0.2273 val_ece=0.2078 time=249.2s
+  ep 23/25: lam=0.120 loss=0.3378 val_miou=0.2218 val_ece=0.2644 time=250.4s
+  ep 24/25: lam=0.180 loss=0.3649 val_miou=0.2158 val_ece=0.3363 time=246.0s
+  ep 25/25: lam=0.240 loss=0.3871 val_miou=0.2158 val_ece=0.3406 time=248.1s
+
+=== DONE — best val mIoU = 0.2336, total 6195.7s ===

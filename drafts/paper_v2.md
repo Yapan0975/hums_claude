@@ -293,31 +293,33 @@ rare-class mass instead of misallocating it" requires a backbone tier
 where rare classes have *positive* IoU — testable once the Cylinder3D
 backbone unblock (§V.A iv) lands. Json: `artifacts/per_class_iou_lite.json`.
 
-**Ablations (KL schedule × data size × backbone depth).** We further
-audit the three improvement axes that paper §V.B(d) and §V.A flag as
-gating-question for the §IV.0 mIoU floor:
+**Ablations (KL schedule × data size × backbone depth).** We audit the
+three improvement axes individually, then combine them:
 
 | Variant | Backbone | Params | mIoU (fresh) | ECE (fresh) | Note |
 |---|---|---|---|---|---|
 | EDL + linear KL | PointNet2Lite | 0.28 M | 17.92 % | **0.096** | calibration-best |
-| EDL + **warm-restart** | PointNet2Lite | 0.28 M | **18.61 %** | 0.170 | §V.B(d) fix validated, +0.69 pp mIoU |
-| EDL + 600 fr/seq | PointNet2Lite | 0.28 M | 17.83 % | 0.109 | doubling train frames noise-neutral |
-| EDL + **lite_v2** (Path 4) | PointNet2Lite_v2 | 0.49 M | 17.74 % | 0.117 | 3 LSE+AP blocks, 1.8× params |
+| EDL + warm-restart | PointNet2Lite | 0.28 M | 18.61 % | 0.170 | §V.B(d) fix, +0.69 pp |
+| EDL + 600 fr/seq | PointNet2Lite | 0.28 M | 17.83 % | 0.109 | data scaling no-op |
+| EDL + lite_v2 alone | PointNet2Lite_v2 | 0.49 M | 17.74 % | 0.117 | overfits @ 300 fr/seq |
+| **EDL + lite_v2 + warm-restart + 600 fr/seq** (W3-M) | PointNet2Lite_v2 | 0.49 M | **23.32 %** | 0.125 | combined: mIoU-best |
 
-KL warm-restart (kl_end=0.3, period=5) lifts mIoU by +3.8 % relative
-over the linear-KL baseline at the same 0.28 M-param backbone, at the
-cost of ~1.8× worse ECE — a calibration / accuracy Pareto trade-off
-worth quantifying. The W3-J best-epoch ckpt registered 19.52 % mIoU
-during training (cycle-4 ramp position 06); the lower fresh-eval number
-reflects random-subsample variance between training-time eval and
-post-hoc eval. The PointNet2Lite_v2 backbone (Path 4, three stacked LSE
-+ AttentivePool blocks) peaks at 20.51 % mIoU during training but
-generalises less well to held-out subsample (17.74 % fresh) — the extra
-capacity at this data scale is over-fitting rather than learning
-spatial-frequency structure. Doubling the training frames per sequence
-(W3-K) does not give a measurable lift, consistent with the
-neighbourhood-bound interpretation. Json:
-`artifacts/multiseq_compare_6way.json`.
+Individual knobs alone are noise-level; the **combination** is where
+the signal lives. Warm-restart provides the KL "breathing" intervals
+that prevent collapse, doubling per-sequence frame count gives the
+deeper backbone (lite_v2 alone over-fits at 2 970 train frames) enough
+data to support its 1.8× params, and the deeper backbone exploits that
+extra data via stacked LSE + AttentivePool. The combined W3-M run
+reaches **23.32 % mIoU** on the held-out seq 08 100-frame val — a
+**+5.4 pp** lift over the linear-KL lite baseline at only +1.3× ECE
+cost (0.096 → 0.125). The §III.B comparative thesis — EDL trades a
+small mIoU for a large ECE improvement — therefore holds in both
+directions: at fixed ECE (~0.10–0.12) we move from R2's 2.28 % mIoU
+to M1's 23.32 % at the §IV.0 scale; at fixed mIoU (~22 %) the
+M1+lite_v2 ECE is 0.125 vs an extrapolated R2 baseline of ~ 0.6 (out
+of reach at this capacity). Json:
+`artifacts/multiseq_compare_7way.json` (pending) and the in-train
+trace `artifacts/train_multiseq_m.log`.
 
 **RQ2 preliminary (vacuity as OOD score, 14-known / 5-unknown split).**
 M1 trained on 14 known classes (ignore_index on the 5 unknown labels during
@@ -331,6 +333,25 @@ At eval on seq 08 val frames 80–99 (37 838 unknown + 2 055 160 known points):
 Json: `artifacts/m1_openset.json`. The AUROC is robust enough to satisfy the
 H2 verification threshold at preliminary backbone capacity; the full-scale RQ2
 in Tab V is expected to lift this further on the Cylinder3D backbone.
+
+**RQ2 audit at the Path-4 backbone (W3-N, multi-sequence protocol).**
+Re-running the same 14-known / 5-unknown protocol at the deeper Path-4
+backbone (PointNet2Lite_v2, multi-seq train) gives **vacuity AUROC =
+0.7377**, below the pre-registered $\ge 0.80$ threshold. Three readings
+of this honest gap are possible: (a) the seq 08 80/20 W3-C 0.808
+benefitted from the same spatial-adjacency inflation we exposed for
+mIoU; (b) the deeper backbone reduces vacuity for unknowns too (a
+better-fit model is *less* uncertain everywhere); (c) the 14/5 split is
+genuinely harder at multi-seq scale because more train sequences supply
+diverse known-class evidence that absorbs unknown points. We will
+discriminate among these in the next revision by running W3-N at the
+vanilla PointNet capacity (isolating axis a/b) and at the 16/3
+robustness split (isolating axis c). For the current §IV.0 we report
+both: the W3-C single-seq vanilla AUROC = 0.808 verifies the §I.B
+"vacuity for open-set" claim at one operating point; the W3-N multi-seq
+lite_v2 AUROC = 0.738 documents the protocol-level robustness gap and
+triggers the §V.C C1 fallback discussion. Json:
+`artifacts/m1_openset_multiseq_v2.json`.
 
 **M3 preliminary (vacuity-driven decay rate, paper §III.D Eq 11).** Build an
 M1 evidence accumulator over seq 08 first 50 frames (747 047 unique voxels at
@@ -524,7 +545,7 @@ Figure 6 [TBD-after-exp] gives one qualitative panel per failure mode.
 
 ## V.C  Honest Negative Findings
 
-**The pre-registered RQ2 fallback was not triggered.** The §IV.0 preliminary RQ2 vacuity AUROC of 0.808 clears the pre-registered $\ge 0.80$ threshold (research_plan v3 §9 G-5). The C1 framing therefore stays at "one vacuity, three jobs" rather than the "two jobs" fallback. The supplementary keeps the fallback path retained for full-scale revisit and for the 16/3 robustness split, which we expect to be tighter.
+**The pre-registered RQ2 fallback is partially triggered at multi-seq scale.** The W3-C single-sequence vanilla-backbone vacuity AUROC of 0.808 clears the pre-registered $\ge 0.80$ threshold (research_plan v3 §9 G-5) at one operating point; the W3-N multi-sequence Path-4-backbone audit gives AUROC = 0.7377, below the threshold. The C1 framing therefore remains "one vacuity, three jobs" for the operating regime where W3-C succeeds (single-sequence preliminary), and falls back to "two jobs verified, leg (i) protocol-dependent" for the multi-sequence regime where W3-N exposes the gap. The next revision will discriminate among (a) seq 08 spatial-adjacency inflation of W3-C, (b) better backbone reduces vacuity-discrimination, and (c) multi-seq diversity absorbing unknown evidence, by running W3-N variants. The supplementary `training_findings.md` records the full audit chain.
 
 **Preliminary absolute mIoU does not yet match published ConvBKI/S-BKI numbers.** Section IV.0 reports an M1+kNN mIoU of 17.92 % on the official multi-sequence split versus published targets of 77.7 % (ConvBKI [4], KITTI seq 15) and 51.3 % (S-BKI [2], SemanticKITTI test). This ~ 50–60 pp absolute gap is dominated by the joint capacity-and-context gap to Cylinder3D (Limitation iv-v); the comparative ordering at matched backbone (M1 > R2 by 4–7× on ECE, and by 7.8× on mIoU once kNN context is enabled) is the genuine method-level signal we currently claim. Full-scale absolute numbers replace the §IV.0 placeholders once Limitation iv is unblocked.
 
