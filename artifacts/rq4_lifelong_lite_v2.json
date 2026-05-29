@@ -1,0 +1,50 @@
+{
+  "backbone": "lite_v2",
+  "ckpt_epoch": 21,
+  "ckpt_mIoU": 0.2335885795975671,
+  "seq": "08",
+  "session_a_frames": "0-49",
+  "session_b_frames": "50-99",
+  "voxel_size_m": 0.25,
+  "inter_session_gap_s": 600.0,
+  "tau_min_s": 60.0,
+  "tau_max_s": 3600.0,
+  "results_by_threshold": [
+    {
+      "threshold": 0.3,
+      "vacuity_threshold": 0.3,
+      "precision": 0.8095543580532033,
+      "recall": 0.46608993983765196,
+      "n_flagged_stale": 280584,
+      "n_correctly_flagged": 227148,
+      "n_a_only": 487348,
+      "n_a": 747047,
+      "n_b": 939905,
+      "overlap_count": 259699
+    },
+    {
+      "threshold": 0.5,
+      "vacuity_threshold": 0.5,
+      "precision": 0.9304677623261695,
+      "recall": 0.037755361671741754,
+      "n_flagged_stale": 19775,
+      "n_correctly_flagged": 18400,
+      "n_a_only": 487348,
+      "n_a": 747047,
+      "n_b": 939905,
+      "overlap_count": 259699
+    },
+    {
+      "threshold": 0.7,
+      "vacuity_threshold": 0.7,
+      "precision": 0.919327251995439,
+      "recall": 0.013234895803409473,
+      "n_flagged_stale": 7016,
+      "n_correctly_flagged": 6450,
+      "n_a_only": 487348,
+      "n_a": 747047,
+      "n_b": 939905,
+      "overlap_count": 259699
+    }
+  ]
+}

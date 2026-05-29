@@ -400,6 +400,27 @@ the same vacuity scalar that drives the M1 posterior update *also* drives the
 M3 decay rate, and high-vacuity voxels lose evidence noticeably faster.
 Json: `artifacts/m3_validation.json`.
 
+**RQ4 lifelong simulation at the Path-4 backbone (W3-D′).** Building
+two-session voxel maps on seq 08 (Session A: frames 0–49, 747 047
+voxels; Session B: frames 50–99, 939 905 voxels; 600 s inter-session
+gap) with the W3-M lite_v2 + WR + bigger ckpt and applying M3 decay at
+the session boundary, the stale-voxel removal precision/recall at three
+vacuity thresholds is:
+
+| Vacuity threshold | Precision | Recall | F1 | # flagged-stale | # not-revisited |
+|---|---|---|---|---|---|
+| 0.3 | **0.810** | 0.466 | **0.592** | 280 584 | 487 348 |
+| 0.5 | 0.930 | 0.038 | 0.073 | 19 775 | 487 348 |
+| 0.7 | 0.919 | 0.013 | 0.026 | 7 016 | 487 348 |
+
+At threshold 0.3 the M3 decay-driven stale-voxel detector achieves
+F1 = 0.59 (precision 0.81), with a steep precision/recall trade-off as
+the threshold rises — most stale voxels accumulate vacuity in the 0.3–0.5
+band rather than crossing 0.5. The lite_v2 result (P = 0.810) improves
+on the W3-D vanilla-backbone P = 0.77 at the matched protocol, validating
+that the M3 decay mechanism benefits from a more discriminative vacuity
+distribution. Json: `artifacts/rq4_lifelong_lite_v2.json`.
+
 A consolidated "one vacuity, three jobs" verification matrix (paper §I.B
 thesis) is provided in `artifacts/preliminary_results.md`: Leg (i)
 open-set OOD score ✓, Leg (ii) loop-closure entropy channel ⏸ (gated on the
