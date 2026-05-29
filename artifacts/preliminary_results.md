@@ -90,24 +90,41 @@ Two of three legs are verified end-to-end on real KITTI data. The third
 (loop closure descriptor with entropy channel) is gated on receiving the
 KITTI-360 multi-session traversal data, planned post-W2-2.
 
-## Multi-sequence audit (added 2026-05-29 W3-F/G/H)
+## Multi-sequence audit (W3-F/G/H/I, complete 2026-05-29)
 
 The RQ1 numbers above (14.73 % M1 / 1.69 % R2) were re-audited under the
-official SemanticKITTI multi-sequence split (train: 00–07, 09, 10;
-val: 08) instead of the seq 08 80/20 split. See `training_findings.md`
-for the full per-epoch trace; key conclusions:
+official SemanticKITTI multi-sequence split (train: 00–07, 09, 10
+sampled 300 frames/seq ≈ 2 970 train; val: seq 08 first 100 frames).
+The audit was applied at three configurations:
 
-- The seq 08 80/20 numbers were spatially-adjacency-inflated; the proper
-  held-out mIoU on PointNet-Vanilla collapses to ~1.5–2 % for both CE
-  and EDL at matched 0.21 M backbone capacity.
+| System | Backbone | Params | mIoU | ECE |
+|---|---|---|---|---|
+| R2 (CE) | PointNet-Vanilla | 0.21 M | 2.28 % | 0.684 |
+| M1 (EDL) | PointNet-Vanilla | 0.21 M | 1.66 % | 0.170 |
+| **M1 (EDL) + kNN ctx** | PointNet2Lite (k = 16) | 0.28 M | **17.92 %** | **0.096** |
+
+Key audit findings:
+
+- The earlier seq 08 80/20 numbers (14.73 % M1 / 1.69 % R2) were
+  spatially-adjacency-inflated. The proper held-out mIoU on
+  PointNet-Vanilla floors at ~1.5–2 % for both CE and EDL at matched
+  0.21 M backbone capacity — the **per-point** PointNet has no
+  neighbourhood awareness so absolute mIoU is at noise.
+- Adding kNN local context (PointNet2Lite, +30 % params, k = 16) lifts
+  M1 mIoU by **10.8×** (1.66 → 17.92 %) and ECE by 1.8× — confirming
+  that the §IV.0 mIoU ceiling at this scale is **neighbourhood-bound**,
+  not capacity-bound.
+- Comparative ordering at every backbone tier: **M1 (EDL) wins on
+  calibration** by 4–7× ECE; at the lite tier M1 also wins on mIoU
+  by **7.8×** vs R2. The §III.B comparative thesis holds at proper
+  protocol.
 - The RQ2 vacuity AUROC (0.808), the M3 decay ratio (2.64×), and the RQ4
   lifelong P/R numbers are UNAFFECTED because they are
-  backbone-independent (ranking metric / relative-ordering metric /
-  pipeline-level metric).
+  backbone-independent (ranking / relative-ordering / pipeline-level).
 - The §I.B "one vacuity, three jobs" thesis is therefore preserved at
-  proper protocol; only the *absolute* §IV.0 mIoU line is reframed as a
-  backbone-floor demonstration. See `multiseq_iv0_patch_draft.md` for
-  the paper text patch.
+  proper protocol; the *absolute* §IV.0 mIoU line is reframed as
+  *neighbourhood-bound* (not just backbone-bound). See `multiseq_compare.json`
+  and `train_multiseq_*.log` for raw per-epoch traces.
 
 ## What's pending (W3+ tasks before IROS submission)
 
