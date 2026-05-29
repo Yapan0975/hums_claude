@@ -20,8 +20,14 @@ hand-waving.
 | W3-G | Multi-seq CE train (control) | 05-29 | ✅ | CE-vanilla 2.28 % mIoU, ECE 0.68 |
 | W3-H | Multi-seq EDL+lite (kNN context) | 05-29 | ✅ | **EDL-lite 18.65 % mIoU, ECE 0.06** |
 | W3-I | 3-way compare + §IV.0 patch | 05-29 | ✅ | paper_v2 §IV.0 updated to multi-seq numbers |
-| W3-J | EDL+lite with KL warm-restart | 05-29 | 🟡 ep 4/20 | first cycle: 17.67 % mIoU @ ep 1 |
-| W3-K | EDL+lite with 600 frames/seq | 05-29 | 🟡 ep 1/15 | 17.88 % mIoU @ ep 1 |
+| W3-J | EDL+lite with KL warm-restart | 05-29 | ✅ | 18.61 % fresh mIoU; §V.B(d) fix validated +0.69 pp |
+| W3-K | EDL+lite with 600 frames/seq | 05-29 | ✅ | 17.83 % fresh mIoU; data scaling noise-neutral |
+| W3-L | EDL+lite_v2 (Path 4 backbone) | 05-29 | ✅ | 17.74 % fresh mIoU; over-fits @ 300 fr/seq alone |
+| **W3-M** | **EDL+lite_v2 + warm-restart + 600 fr/seq combined** | **05-29/30** | ✅ | **23.32 %** fresh mIoU, ECE 0.125; mIoU-best |
+| W3-N | EDL+lite_v2 RQ2 14/5 multi-seq | 05-30 | ✅ | AUROC 0.738 (below G-5 0.80) |
+| W3-O | EDL+vanilla RQ2 14/5 multi-seq | 05-30 | ✅ | AUROC 0.670 — discriminates protocol axis |
+| W3-P | EDL+lite_v2 RQ2 16/3 multi-seq | 05-30 | ✅ | AUROC 0.781 — discriminates split axis |
+| W3-Q | EDL+lite_v2 RQ2 16/3 + warm-restart + 600 fr/seq | 05-30 | 🟡 running | target: push past 0.80 G-5 gate |
 
 ## Audit story
 
@@ -64,7 +70,20 @@ expected to lift this into the 50-70 % regime once available.
 |---|---|---|---|---|---|---|
 | R2 (CE) | PointNet-Vanilla | 0.21 M | 2.28 % | 0.684 | 80 s | 20 |
 | M1 (EDL) | PointNet-Vanilla | 0.21 M | 1.66 % | 0.170 | 150 s | 20 |
-| **M1 + kNN ctx** | PointNet2Lite (k=16) | 0.28 M | **18.65 %** | 0.062 | 100 s | 20 |
+| M1 + kNN ctx | PointNet2Lite (k=16) | 0.28 M | 18.65 % | 0.062 | 100 s | 20 |
+| M1 + kNN + warm-restart | PointNet2Lite | 0.28 M | 19.52 % | 0.170 | 100 s | 20 |
+| M1 + lite_v2 alone | PointNet2Lite_v2 | 0.49 M | 20.51 % (overfits) | 0.117 | 250 s | 15 |
+| **M1 + lite_v2 + WR + 600 fr/seq** (W3-M) | PointNet2Lite_v2 | 0.49 M | **23.36 %** | 0.125 | 250 s | 25 |
+
+## Open-set RQ2 vacuity AUROC matrix (W3-C/N/O/P)
+
+| Config | Backbone | Split | Train | Best AUROC | Δ from prev |
+|---|---|---|---|---|---|
+| W3-C | PointNet-V | 14/5 PRIMARY | seq 08 80/20 | 0.8082 | — (inflated) |
+| W3-O | PointNet-V | 14/5 PRIMARY | multi-seq | 0.6702 | **−0.138** protocol |
+| W3-N | PointNet2Lite_v2 | 14/5 PRIMARY | multi-seq | 0.7377 | +0.068 backbone |
+| W3-P | PointNet2Lite_v2 | 16/3 ROBUSTNESS | multi-seq | **0.7808** | +0.043 split |
+| W3-Q | lite_v2 + warm-restart | 16/3 ROBUSTNESS | multi-seq 600 | (pending) | target G-5 |
 
 Per-class IoU on best lite ckpt (seq 08 val 100 frames):
 
