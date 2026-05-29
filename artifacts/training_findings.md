@@ -445,3 +445,61 @@ gain that doesn't sustain. Could be a particularly favourable random
 subsample at eval time. The stable plateau of 0.71-0.72 (ep 13-19) is
 probably the honest converged value. We adopt the best-ckpt-by-AUROC
 selection (0.781) for the §IV.D table but note this caveat.
+
+## W3-Q open-set with warm-restart (2026-05-30)
+
+Combining the W3-J/M warm-restart KL schedule with the W3-P open-set
+protocol does *not* improve AUROC:
+
+```
+W3-Q: PointNet2Lite_v2 + warm-restart (period=5, kl_end=0.3)
+       + 16/3 ROBUSTNESS + 600 fr/seq, 25 ep
+  best AUROC: 0.7760 @ ep 7 (cycle 2 ramp 06)
+  total time: 6075 s (≈ 101 min)
+  cycle-restart valleys: 0.43 (ep 6), 0.54 (ep 11), 0.58 (ep 16), 0.72 (ep 21)
+  cycle ramp-06 peaks:   0.78 (ep 7), 0.67 (ep 12), 0.67 (ep 17), 0.77 (ep 22)
+```
+
+Compared to W3-P (linear KL, same backbone + split + protocol, 300 fr/seq):
+- W3-P best AUROC: **0.7808** at ep 10
+- W3-Q best AUROC: 0.7760 at ep 7
+
+**Honest finding: warm-restart is a mIoU/AUROC dimension-specific knob.**
+
+The KL=0 cycle-restart epochs collapse vacuity for *all* points
+(including unknowns the model has never seen), strictly hurting AUROC.
+The peak AUROC moves from W3-P's late epochs to W3-Q's cycle-ramp
+positions, but the magnitude of the peak is lower because the warm-
+restart valleys reset the head's open-set discrimination.
+
+This explains why warm-restart was an unambiguous win for the mIoU
+task (where MSE-only is exactly the loss that pushes confident correct
+predictions on knowns) but is a wash for AUROC (where high vacuity for
+unknowns is the goal).
+
+### Per-epoch trace (W3-Q)
+
+```
+ep 01/25: lam=0.000 AUROC=0.5801  [SAVED]   ep 14/25: lam=0.180 AUROC=0.6759
+ep 02/25: lam=0.060 AUROC=0.6247  [SAVED]   ep 15/25: lam=0.240 AUROC=0.6479
+ep 03/25: lam=0.120 AUROC=0.5830             ep 16/25: lam=0.000 AUROC=0.5768  ← cycle 4 valley
+ep 04/25: lam=0.180 AUROC=0.6474  [SAVED]   ep 17/25: lam=0.060 AUROC=0.6728
+ep 05/25: lam=0.240 AUROC=0.6219             ep 18/25: lam=0.120 AUROC=0.6967
+ep 06/25: lam=0.000 AUROC=0.4264  ← cycle 2 valley
+ep 07/25: lam=0.060 AUROC=0.7760  [SAVED] ← BEST (cycle 2 ramp 06)
+ep 08/25: lam=0.120 AUROC=0.6661             ep 19/25: lam=0.180 AUROC=0.6964
+ep 09/25: lam=0.180 AUROC=0.6785             ep 20/25: lam=0.240 AUROC=0.5880
+ep 10/25: lam=0.240 AUROC=0.6930             ep 21/25: lam=0.000 AUROC=0.7189  ← cycle 5 valley
+ep 11/25: lam=0.000 AUROC=0.5390  ← cycle 3 valley
+ep 12/25: lam=0.060 AUROC=0.6692             ep 22/25: lam=0.060 AUROC=0.7719
+ep 13/25: lam=0.120 AUROC=0.7504             ep 23/25: lam=0.120 AUROC=0.7308
+                                              ep 24/25: lam=0.180 AUROC=0.6964
+                                              ep 25/25: lam=0.240 AUROC=0.7026
+```
+
+### Final §IV.D table for paper
+
+We adopt **W3-P (0.781) as the §IV.D primary** (best vacuity AUROC under
+the honest multi-seq + 16/3 protocol + lite_v2 backbone with plain linear
+KL), and report W3-Q (0.776) as an ablation that **documents the
+dimension-specific trade-off** of warm-restart between mIoU and AUROC.

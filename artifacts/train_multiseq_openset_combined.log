@@ -1,0 +1,48 @@
+device: cuda
+GPU:    NVIDIA GeForce RTX 5090
+unknown classes (ROBUSTNESS 16/3): [4, 5, 18]
+
+train: 5671 frames total
+  seq 00: 600
+  seq 01: 600
+  seq 02: 600
+  seq 03: 600
+  seq 04: 271
+  seq 05: 600
+  seq 06: 600
+  seq 07: 600
+  seq 09: 600
+  seq 10: 600
+val:   100 / 100 frames from seq 08
+backbone: lite_v2, params: 0.494 M
+
+=== W3-Q open-set combined (25 ep) ===
+
+  ep 1/25: lam=0.000 loss=0.4750 vacuity_AUROC=0.5801 (n_unk=18460, n_kn=1786667) time=248.2s  [SAVED]
+  ep 2/25: lam=0.060 loss=0.5593 vacuity_AUROC=0.6247 (n_unk=18541, n_kn=1787049) time=250.5s  [SAVED]
+  ep 3/25: lam=0.120 loss=0.5744 vacuity_AUROC=0.5830 (n_unk=18505, n_kn=1786623) time=254.5s
+  ep 4/25: lam=0.180 loss=0.5836 vacuity_AUROC=0.6474 (n_unk=18477, n_kn=1786756) time=254.2s  [SAVED]
+  ep 5/25: lam=0.240 loss=0.5876 vacuity_AUROC=0.6219 (n_unk=18270, n_kn=1786572) time=254.9s
+  ep 6/25: lam=0.000 loss=0.3006 vacuity_AUROC=0.4264 (n_unk=18506, n_kn=1786102) time=253.8s
+  ep 7/25: lam=0.060 loss=0.4161 vacuity_AUROC=0.7760 (n_unk=18499, n_kn=1785520) time=242.8s  [SAVED]
+  ep 8/25: lam=0.120 loss=0.4523 vacuity_AUROC=0.6661 (n_unk=18556, n_kn=1786473) time=239.2s
+  ep 9/25: lam=0.180 loss=0.4747 vacuity_AUROC=0.6785 (n_unk=18428, n_kn=1786314) time=239.5s
+  ep 10/25: lam=0.240 loss=0.4857 vacuity_AUROC=0.6930 (n_unk=18814, n_kn=1786896) time=239.3s
+  ep 11/25: lam=0.000 loss=0.2531 vacuity_AUROC=0.5390 (n_unk=18311, n_kn=1787049) time=239.3s
+  ep 12/25: lam=0.060 loss=0.3493 vacuity_AUROC=0.6692 (n_unk=18471, n_kn=1787055) time=239.6s
+  ep 13/25: lam=0.120 loss=0.3852 vacuity_AUROC=0.7504 (n_unk=18395, n_kn=1787407) time=239.2s
+  ep 14/25: lam=0.180 loss=0.4076 vacuity_AUROC=0.6759 (n_unk=18158, n_kn=1786785) time=239.0s
+  ep 15/25: lam=0.240 loss=0.4221 vacuity_AUROC=0.6479 (n_unk=18537, n_kn=1786646) time=239.5s
+  ep 16/25: lam=0.000 loss=0.2258 vacuity_AUROC=0.5768 (n_unk=18464, n_kn=1787159) time=239.8s
+  ep 17/25: lam=0.060 loss=0.3086 vacuity_AUROC=0.6728 (n_unk=18707, n_kn=1786679) time=239.1s
+  ep 18/25: lam=0.120 loss=0.3436 vacuity_AUROC=0.6967 (n_unk=18467, n_kn=1787237) time=239.1s
+  ep 19/25: lam=0.180 loss=0.3668 vacuity_AUROC=0.6964 (n_unk=18460, n_kn=1787020) time=239.4s
+  ep 20/25: lam=0.240 loss=0.3835 vacuity_AUROC=0.5880 (n_unk=18426, n_kn=1786386) time=239.6s
+  ep 21/25: lam=0.000 loss=0.2154 vacuity_AUROC=0.7189 (n_unk=18486, n_kn=1786734) time=239.2s
+  ep 22/25: lam=0.060 loss=0.2894 vacuity_AUROC=0.7719 (n_unk=18376, n_kn=1786949) time=239.2s
+  ep 23/25: lam=0.120 loss=0.3249 vacuity_AUROC=0.7308 (n_unk=18687, n_kn=1786888) time=239.0s
+  ep 24/25: lam=0.180 loss=0.3518 vacuity_AUROC=0.6964 (n_unk=18474, n_kn=1786802) time=244.7s
+  ep 25/25: lam=0.240 loss=0.3734 vacuity_AUROC=0.7026 (n_unk=18500, n_kn=1787099) time=242.6s
+
+=== DONE — best AUROC = 0.7760, total 6075.0s ===
+json: /home/server/Documents/yping/mapping/code/evidlife_map/artifacts/m1_openset_combined.json
