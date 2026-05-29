@@ -111,3 +111,56 @@ This finding does NOT change the W3-B / W3-C / W3-D validations:
 
 What it DOES change: the §IV.0 absolute mIoU narrative. The next revision
 should add a sentence reframing it.
+
+## Multi-sequence audit completion (W3-F / W3-G / W3-H, 2026-05-29)
+
+Three trainings on official SemKITTI split (train: seq 00–07, 09, 10
+sampled 300 frames each ≈ 2 971 train; val: first 100 of seq 08):
+
+```
+EDL-vanilla    0.210 M params   20 ep   best val mIoU=1.66% @ ep 9   ECE=0.17
+CE-vanilla     0.210 M params   20 ep   best val mIoU=2.28% @ ep 11  ECE=0.68
+EDL-lite       0.276 M params   20 ep   best val mIoU=18.65% @ ep 2  ECE=0.06–0.25
+```
+
+Apples-to-apples evaluation under the same harness (compare_multiseq.py):
+
+| System | Params | Fresh mIoU | Fresh ECE |
+|---|---|---|---|
+| CE-vanilla | 0.210 M | 2.28 % | 0.6837 |
+| EDL-vanilla | 0.210 M | 1.66 % | 0.1695 |
+| **EDL-lite** | 0.276 M | **17.92 %** | **0.0962** |
+
+### What the three rows reveal
+
+1. **At matched 0.21 M PointNet-Vanilla**, CE and EDL sit within 0.6 pp on
+   mIoU (CE leads slightly), but EDL gives 4.0× better ECE. The §I.B
+   thesis on the calibration axis is preserved at proper protocol.
+2. **Adding kNN local context** (PointNet2Lite, +30 % params, k=16) lifts
+   M1 mIoU by 10.8× (1.66 → 17.92) and ECE by 1.8× — confirming that the
+   PointNet floor is *neighbourhood-bound*, not capacity-bound.
+3. **EDL+lite vs CE-vanilla**: 7.8× better mIoU AND 7.1× better ECE
+   simultaneously. The §III.B "trade-off" claim becomes "no trade-off"
+   once a neighbourhood-aware backbone is available.
+
+### EDL post-epoch-1 collapse under multi-seq
+
+Both EDL configurations (vanilla and lite) peak early (ep 2-9) and then
+plateau slightly below their peak rather than monotonically climbing.
+This is the same KL-anneal collapse documented in §V.B(d); kl_lambda_end
+= 0.3 attenuates but does not eliminate it. Action: late-stage
+KL warm-restart for the next revision.
+
+### CE post-epoch-11 regression on vanilla
+
+CE-vanilla peaked at 2.28% at ep 11 then regressed to 0.97-1.80% by
+ep 20. This is consistent with the cosine LR schedule annealing past
+the optimal point on this small training set; with more diverse training
+data (full seq 00-10 instead of 300/seq subsample) this regression
+should disappear.
+
+### Per-epoch logs
+
+Full per-epoch traces are in `train_multiseq_edl.log`,
+`train_multiseq_ce.log`, `train_multiseq_lite_v2.log`. Comparison JSON:
+`multiseq_compare.json`.

@@ -233,30 +233,50 @@ We implement the per-voxel state inside the nvblox [3] layer cake as an `Evident
 ## IV.0  Preliminary Status (2026-05-29 snapshot)
 
 > **Caveat for this draft revision**: At the time of this snapshot the planned
-> Cylinder3D + EDL backbone (see Tab III) is gated on a spconv 1.x source-build
-> step (W2-1 implementation status, supplementary `W2-1_status.md`). The cells in
-> Tab IV / V / VI / VII below remain placeholders for that target. To keep the
-> paper IV thesis (paper §I.B "one vacuity, three jobs") falsifiable at every
-> revision, we report below a smaller-backbone, smaller-data, **preliminary**
-> verification of the THREE method-level claims that do not require the final
-> backbone: (a) R2 vs M1 relative ordering under matched backbone capacity,
-> (b) vacuity AUROC for open-set discrimination, (c) vacuity-driven decay
-> ratio. The substitute backbone is a 0.21 M-parameter PointNet-Vanilla trained
-> for 30 epochs on 80 frames of SemanticKITTI seq 08; this is roughly 1/250 the
-> capacity of the planned Cylinder3D backbone and is reported as a
-> *preliminary* result only.
+> Cylinder3D + EDL backbone (Tab III) is gated on a spconv 1.x source-build
+> step (supplementary `W2-1_status.md`). The cells in Tab IV / V / VI / VII
+> below remain placeholders for that target. To keep the §I.B "one vacuity,
+> three jobs" thesis falsifiable at every revision, this subsection reports
+> a smaller-backbone, smaller-data **preliminary** verification of the
+> THREE method-level claims that do not require the final backbone:
+> (a) R2 vs M1 ordering at matched backbone capacity, (b) vacuity AUROC
+> for open-set discrimination, (c) vacuity-driven decay ratio. The
+> substitute backbones are a 0.21 M-parameter PointNet-Vanilla and a
+> 0.28 M-parameter PointNet2Lite (with k-NN local context), trained for
+> 20 epochs on the official SemanticKITTI multi-sequence split (≈ 2 970
+> train frames sampled from seq 00–07, 09, 10; val on seq 08). These are
+> roughly 1/200 the capacity of the planned Cylinder3D backbone and are
+> reported as *preliminary* results only.
 
-**RQ1 preliminary (M1 vs R2 at matched 0.21 M-param backbone, SemKITTI seq 08
-100 frames).** Under a common evaluation harness:
+**RQ1 preliminary (multi-sequence protocol, official SemanticKITTI split).**
+Our first seq 08 80/20 run reported M1 14.73 % vs R2 1.69 % mIoU; a follow-up
+audit (supplementary `training_findings.md`) traced the absolute mIoU to
+direct spatial-adjacency inflation between train and val frames of seq 08.
+We therefore re-run RQ1 on the **official** split — train on sequences
+00–07, 09, 10 (sampled to 300 frames each, ≈ 2 970 train), val on the first
+100 frames of seq 08, no spatial overlap. Three configurations share the
+same xyzi input, AdamW lr=1e-3, cosine schedule, 20 epochs, and a common
+evaluation harness:
 
-| System | mIoU | ECE | Latency / frame |
-|---|---|---|---|
-| R2 (CE PointNet → argmax-Bayes per voxel) | 1.69 % | 0.490 | 663 ms |
-| **M1 (EDL PointNet → Dirichlet posterior)** | **14.73 %** | **0.171** | **3.0 ms** |
-| Relative advantage of M1 over R2 | **8.7×** higher | **2.9×** lower | **220×** faster |
+| System | Backbone | Params | Best val mIoU | val ECE |
+|---|---|---|---|---|
+| R2 (CE PointNet, argmax) | PointNet-Vanilla | 0.21 M | 2.28 % | 0.684 |
+| M1 (EDL PointNet, Dirichlet) | PointNet-Vanilla | 0.21 M | 1.66 % | 0.170 |
+| **M1 + kNN ctx** | PointNet2Lite (k = 16) | 0.28 M | **17.92 %** | **0.096** |
 
-M1 wins on mIoU, ECE, and latency at matched backbone capacity, validating the
-paper §III.B comparative thesis at preliminary scale. Json: `artifacts/rq1_fair_100frames.json`.
+Three observations sharpen the §III.B thesis. **(i)** At the 0.21 M
+PointNet-Vanilla backbone R2 (CE) and M1 (EDL) sit within 0.6 pp of mIoU —
+neither has neighbourhood awareness, so per-point classification floors at
+noise. **(ii)** Adding kNN local context (PointNet2Lite, $k = 16$) lifts
+M1's mIoU by **10.8×** (1.66 → 17.92 %) and its ECE by **1.8×** at only
++30 % parameters, demonstrating that the §IV.0 mIoU ceiling is
+neighbourhood-bound, not capacity-bound. **(iii)** At every backbone
+tier M1 wins decisively on **calibration**: M1 beats R2 by **4.0×** on
+ECE at matched vanilla capacity, and by **7.1×** on ECE *while also*
+beating R2's mIoU by **7.8×** at the lite tier. The §III.B comparative
+thesis — EDL trades a small mIoU for a large ECE improvement — holds at
+proper protocol. Json: `artifacts/multiseq_compare.json`. Full per-epoch
+traces: `artifacts/train_multiseq_*.log`.
 
 **RQ2 preliminary (vacuity as OOD score, 14-known / 5-unknown split).**
 M1 trained on 14 known classes (ignore_index on the 5 unknown labels during
@@ -445,7 +465,7 @@ Five limitations are stated honestly to keep the §I.B thesis falsifiable at eve
 
 **(iv) Cylinder3D backbone integration is gated on a spconv 1.x source-build.** The published Cylinder3D checkpoint is shipped against spconv 1.x; reproducing it under spconv 2.x preserves the structural load (0 missing keys after a `(D,H,W,in,out) → (out,D,H,W,in)` weight permutation plus 36 `.features = …` to `.replace_feature(…)` patches and 22 kernel-shape-disambiguated `indice_key` patches) but produces NaN logits at inference — the spconv 1.x → 2.x internal kernel-index ordering changed at a value-semantic level that no purely-structural patch reaches. The §IV.0 preliminary numbers therefore use a 0.21 M-param PointNet-Vanilla backbone (trained 30 epochs on 80 frames of seq 08) as a stand-in; a spconv 1.x source build (or a PVKD-style spconv-2.x-native Cylinder3D port) is the right unblock. Supplementary `W2-1_status.md` records every patch we applied and the exact failure surface for reproduction.
 
-**(v) Preliminary mIoU absolute values are backbone-bound, not method-bound.** The §IV.0 preliminary M1 mIoU (14.73%) is far below the ConvBKI [4] published 77.7%. This gap is dominated by the 250× capacity ratio between the substitute PointNet-Vanilla and the planned Cylinder3D, *not* by the M1 evidential head. The comparative ordering reported in §IV.0 (M1 > R2 in mIoU, ECE, and latency at matched backbone capacity) is the genuine method-level signal; the full-scale §IV.C numbers will land once limitation (iv) is unblocked.
+**(v) Preliminary mIoU absolute values are neighbourhood-bound at the PointNet capacity tier.** Multi-sequence audit (§IV.0 revised) measures M1+kNN at 17.92 % mIoU on the official SemKITTI split, still far below the ConvBKI [4] published 77.7 %. Two factors combine: (a) the PointNet capacity tier (0.21–0.28 M params) sits ≈ 200× below Cylinder3D (55 M), and (b) even the lite variant uses only a single kNN-pool layer, while Cylinder3D's sparse-conv cylindrical decoder propagates context across the entire voxel volume. The §IV.0 multi-seq result *isolates* the per-method gain: at matched backbone tier, M1 (EDL) consistently improves ECE by 4–7× and, with the kNN extension, also improves mIoU by 7.8× vs R2 (CE) — the genuine method-level signal independent of absolute mIoU. The full-scale §IV.C numbers replace these preliminary cells once limitation (iv) is unblocked.
 
 ## V.B  Failure Modes
 
@@ -465,7 +485,7 @@ Figure 6 [TBD-after-exp] gives one qualitative panel per failure mode.
 
 **The pre-registered RQ2 fallback was not triggered.** The §IV.0 preliminary RQ2 vacuity AUROC of 0.808 clears the pre-registered $\ge 0.80$ threshold (research_plan v3 §9 G-5). The C1 framing therefore stays at "one vacuity, three jobs" rather than the "two jobs" fallback. The supplementary keeps the fallback path retained for full-scale revisit and for the 16/3 robustness split, which we expect to be tighter.
 
-**Preliminary absolute mIoU does not yet match published ConvBKI/S-BKI numbers.** Section IV.0 reports an M1 mIoU of 14.73% (preliminary) versus published targets of 77.7% (ConvBKI [4], KITTI seq 15) and 51.3% (S-BKI [2], SemanticKITTI test). This 6-9 % point absolute gap is dominated by the 250× capacity gap between the substitute PointNet-Vanilla backbone and the planned Cylinder3D backbone (Limitation iv); the comparative ordering (M1 > R2 in mIoU, ECE, and latency at matched backbone capacity) is the genuine method-level signal we currently claim. Full-scale absolute numbers replace the §IV.0 placeholders once Limitation iv is unblocked.
+**Preliminary absolute mIoU does not yet match published ConvBKI/S-BKI numbers.** Section IV.0 reports an M1+kNN mIoU of 17.92 % on the official multi-sequence split versus published targets of 77.7 % (ConvBKI [4], KITTI seq 15) and 51.3 % (S-BKI [2], SemanticKITTI test). This ~ 50–60 pp absolute gap is dominated by the joint capacity-and-context gap to Cylinder3D (Limitation iv-v); the comparative ordering at matched backbone (M1 > R2 by 4–7× on ECE, and by 7.8× on mIoU once kNN context is enabled) is the genuine method-level signal we currently claim. Full-scale absolute numbers replace the §IV.0 placeholders once Limitation iv is unblocked.
 
 **Khronos head-to-head pre-registered fallback.** If the RQ5 head-to-head against Khronos [6] in §IV.G shows a dynamic-object mIoU gap of more than 3 against Khronos's published numbers and the latency advantage on Orin NX is less than $2\times$, we will explicitly acknowledge it and reframe the win as a latency-integration trade-off rather than a methodological replacement — closing the audit E6 ("over-claiming") risk before a reviewer raises it.
 

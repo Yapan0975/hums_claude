@@ -1,0 +1,40 @@
+device: cuda
+GPU:    NVIDIA GeForce RTX 5090
+train: 2971 frames total
+  seq 00: 300
+  seq 01: 300
+  seq 02: 300
+  seq 03: 300
+  seq 04: 271
+  seq 05: 300
+  seq 06: 300
+  seq 07: 300
+  seq 09: 300
+  seq 10: 300
+val:   100 / 100 frames from seq 08
+backbone: vanilla, params: 0.210 M
+
+=== Train CE on official SemKITTI splits ===
+
+  ep 1/20: loss=1.1847 val_miou=0.0004 time=48.9s  [SAVED]
+  ep 2/20: loss=0.9933 val_miou=0.0043 time=45.3s  [SAVED]
+  ep 3/20: loss=1.0139 val_miou=0.0099 time=43.3s  [SAVED]
+  ep 4/20: loss=1.0780 val_miou=0.0144 time=43.7s  [SAVED]
+  ep 5/20: loss=1.0698 val_miou=0.0144 time=43.5s
+  ep 6/20: loss=1.0792 val_miou=0.0166 time=45.0s  [SAVED]
+  ep 7/20: loss=1.0698 val_miou=0.0144 time=45.1s
+  ep 8/20: loss=1.0932 val_miou=0.0144 time=43.7s
+  ep 9/20: loss=1.1002 val_miou=0.0144 time=39.3s
+  ep 10/20: loss=1.1088 val_miou=0.0144 time=35.9s
+  ep 11/20: loss=1.0609 val_miou=0.0228 time=69.9s  [SAVED]
+  ep 12/20: loss=1.0469 val_miou=0.0166 time=78.6s
+  ep 13/20: loss=1.0303 val_miou=0.0144 time=80.7s
+  ep 14/20: loss=1.0258 val_miou=0.0166 time=80.4s
+  ep 15/20: loss=1.0187 val_miou=0.0166 time=90.6s
+  ep 16/20: loss=1.0153 val_miou=0.0166 time=79.6s
+  ep 17/20: loss=1.0011 val_miou=0.0144 time=87.8s
+  ep 18/20: loss=0.9957 val_miou=0.0097 time=82.0s
+  ep 19/20: loss=0.9881 val_miou=0.0180 time=58.0s
+  ep 20/20: loss=0.9814 val_miou=0.0099 time=34.2s
+
+=== DONE — best val mIoU = 0.0228, total 1175.6s ===

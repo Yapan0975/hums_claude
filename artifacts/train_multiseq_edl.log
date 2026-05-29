@@ -1,0 +1,44 @@
+device: cuda
+GPU:    NVIDIA GeForce RTX 5090 (30.8 GB free)
+
+train: 2971 frames total
+  seq 00: 300
+  seq 01: 300
+  seq 02: 300
+  seq 03: 300
+  seq 04: 271
+  seq 05: 300
+  seq 06: 300
+  seq 07: 300
+  seq 09: 300
+  seq 10: 300
+val:   100 / 100 frames from seq 08
+
+params: 0.210 M
+
+=== Train 20 epochs on official SemKITTI splits ===
+kl_lambda_end = 0.3, lr = 0.001
+
+  ep 1/20: loss=0.6069 val_miou=0.0154 val_ece=0.2297 time=53.8s  [SAVED]
+  ep 2/20: loss=0.6390 val_miou=0.0054 val_ece=0.6664 time=48.3s
+  ep 3/20: loss=0.6421 val_miou=0.0034 val_ece=0.4373 time=46.5s
+  ep 4/20: loss=0.6542 val_miou=0.0046 val_ece=0.5415 time=47.3s
+  ep 5/20: loss=0.6896 val_miou=0.0030 val_ece=0.4431 time=49.0s
+  ep 6/20: loss=0.7571 val_miou=0.0030 val_ece=0.0204 time=47.1s
+  ep 7/20: loss=0.7735 val_miou=0.0030 val_ece=0.0204 time=48.9s
+  ep 8/20: loss=0.7961 val_miou=0.0030 val_ece=0.4303 time=48.3s
+  ep 9/20: loss=0.8049 val_miou=0.0166 val_ece=0.1695 time=54.3s  [SAVED]
+  ep 10/20: loss=0.8038 val_miou=0.0166 val_ece=0.1695 time=60.7s
+  ep 11/20: loss=0.8028 val_miou=0.0166 val_ece=0.1695 time=61.6s
+  ep 12/20: loss=0.7991 val_miou=0.0166 val_ece=0.1695 time=56.2s
+  ep 13/20: loss=0.7978 val_miou=0.0166 val_ece=0.1695 time=56.9s
+  ep 14/20: loss=0.7975 val_miou=0.0166 val_ece=0.1695 time=60.1s
+  ep 15/20: loss=0.7982 val_miou=0.0166 val_ece=0.1695 time=55.5s
+  ep 16/20: loss=0.7964 val_miou=0.0035 val_ece=0.2583 time=90.2s
+  ep 17/20: loss=0.7944 val_miou=0.0166 val_ece=0.1695 time=156.6s
+  ep 18/20: loss=0.7951 val_miou=0.0166 val_ece=0.1695 time=167.4s
+  ep 19/20: loss=0.7957 val_miou=0.0166 val_ece=0.1695 time=154.2s
+  ep 20/20: loss=0.7975 val_miou=0.0166 val_ece=0.1695 time=150.3s
+
+=== DONE — best val mIoU = 0.0166, total 1513.2s ===
+ckpt: /home/server/Documents/yping/mapping/code/evidlife_map/weights/pointnet_edl_multiseq.pt

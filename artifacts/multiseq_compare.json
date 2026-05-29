@@ -1,0 +1,41 @@
+[
+  {
+    "name": "CE-vanilla",
+    "loss": "ce",
+    "backbone": "vanilla",
+    "params_M": 0.21,
+    "best_ep_val_miou": 0.0228,
+    "best_ep_val_ece": null,
+    "fresh_eval_miou": 0.0228,
+    "fresh_eval_ece": 0.6837,
+    "epoch": 11,
+    "eval_s": 2.5,
+    "ckpt": "weights/pointnet_ce_multiseq.pt"
+  },
+  {
+    "name": "EDL-vanilla",
+    "loss": "edl",
+    "backbone": "vanilla",
+    "params_M": 0.21,
+    "best_ep_val_miou": 0.0166,
+    "best_ep_val_ece": 0.1695,
+    "fresh_eval_miou": 0.0166,
+    "fresh_eval_ece": 0.1695,
+    "epoch": 9,
+    "eval_s": 2.2,
+    "ckpt": "weights/pointnet_edl_multiseq.pt"
+  },
+  {
+    "name": "EDL-lite",
+    "loss": "edl",
+    "backbone": "lite",
+    "params_M": 0.276,
+    "best_ep_val_miou": 0.1865,
+    "best_ep_val_ece": 0.1173,
+    "fresh_eval_miou": 0.1792,
+    "fresh_eval_ece": 0.0962,
+    "epoch": 2,
+    "eval_s": 64.2,
+    "ckpt": "weights/pointnet2lite_edl_multiseq.pt"
+  }
+]
