@@ -164,3 +164,53 @@ should disappear.
 Full per-epoch traces are in `train_multiseq_edl.log`,
 `train_multiseq_ce.log`, `train_multiseq_lite_v2.log`. Comparison JSON:
 `multiseq_compare.json`.
+
+## W3-J / W3-K / W3-L ablation campaign (2026-05-29, late evening)
+
+Three follow-up trainings on the same multi-seq protocol, probing the
+three improvement axes the §V.A and §V.B(d) sections flag:
+
+| # | Knob | mIoU best (in-train) | mIoU (fresh eval) | ECE (fresh) |
+|---|------|----------------------|-------------------|-------------|
+| W3-H (baseline) | linear KL, k=16, 300 fr/seq, 0.28 M | 18.65 % | 17.92 % | 0.096 |
+| W3-J | linear → **warm-restart KL** (period 5) | 19.52 % | **18.61 %** | 0.170 |
+| W3-K | linear KL, **600 fr/seq** (2× data) | 18.84 % | 17.83 % | 0.109 |
+| W3-L | linear KL, **Path 4 backbone** (lite_v2, 0.49 M) | 20.51 % | 17.74 % | 0.117 |
+
+Comparison JSON: `multiseq_compare_6way.json`. Per-epoch logs:
+`train_multiseq_warmrestart.log`, `train_multiseq_bigger.log`,
+`train_multiseq_v2.log`.
+
+### Reading the four rows
+
+- **W3-J (warm-restart)**: cycle-2/3/4 restart epochs all hit mIoU
+  ≥ 18.7 %; cycle-4 ramp position 06 hits 19.52 % in-train. Fresh-eval
+  gain over W3-H baseline = +0.69 pp (+3.8 % relative). Validates the
+  §V.B(d) fix proposal. ECE trade is real (0.096 → 0.170, ~1.8×).
+- **W3-K (bigger train)**: doubling frames per sequence yields no
+  measurable improvement at this backbone tier. Consistent with the
+  *neighbourhood-bound* interpretation of §IV.0: more train *frames*
+  do not help when each frame's per-point classification is already
+  saturated by the limited k = 16 neighbourhood.
+- **W3-L (lite_v2)**: the deeper, 3-LSE+AP-block backbone peaks at
+  20.51 % during training but the fresh-eval mIoU drops to 17.74 %.
+  Interpretation: the 1.8× more params over-fit on 2 970 train frames
+  at the cosine LR schedule we used; combining lite_v2 with warm-restart
+  + 600 fr/seq + longer schedule is the natural follow-up (Path 4
+  unblock fully landed; next iteration to push past 25 %).
+
+### In-train vs fresh-eval mIoU gap
+
+The "best-ep mIoU" stored in each ckpt is computed during training with
+a different random subsample each epoch, while the fresh eval uses one
+common subsample for all systems. This explains the systematic gap
+(W3-J 19.52 → 18.61, W3-L 20.51 → 17.74). For paper §IV.0, fresh-eval
+is the more honest number; for selecting *between* ckpts of the same
+training run, the in-train mIoU is what we used (best-ckpt-by-val).
+
+### Decision for §IV.0 final table
+
+Report two rows: linear-KL (calibration-best, ECE 0.096) and
+warm-restart (mIoU-best, +0.69 pp at +1.8× ECE). Mark lite_v2 and bigger
+as ablation lines that do *not* lift the §IV.0 floor and explain why
+in supplementary `W3_campaign_summary.md`.

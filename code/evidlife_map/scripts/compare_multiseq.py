@@ -46,6 +46,15 @@ def _load_edl(path: Path, *, backbone: str, num_classes: int, device) -> PointNe
     return model.to(device).eval(), state
 
 
+def _load_edl_v2(path: Path, *, num_classes: int, device):
+    """Load PointNet2Lite_v2 + EDL head."""
+    from scripts.train_pointnet2lite_v2_edl_multiseq import PointNetLiteV2EDL
+    model = PointNetLiteV2EDL(in_channels=4, num_classes=num_classes)
+    state = torch.load(path, map_location=device)
+    model.load_state_dict(state["state_dict"])
+    return model.to(device).eval(), state
+
+
 def _load_ce(path: Path, *, backbone: str, num_classes: int, device):
     if backbone == "vanilla":
         model = PointNetVanilla(in_channels=4, num_classes=num_classes)
@@ -93,7 +102,13 @@ def main():
     ap.add_argument("--edl-vanilla", type=Path,
                     default=Path("weights/pointnet_edl_multiseq.pt"))
     ap.add_argument("--edl-lite", type=Path,
-                    default=Path("weights/pointnet_edl_multiseq_lite.pt"))
+                    default=Path("weights/pointnet2lite_edl_multiseq.pt"))
+    ap.add_argument("--edl-lite-warmrestart", type=Path,
+                    default=Path("weights/pointnet2lite_edl_warmrestart.pt"))
+    ap.add_argument("--edl-lite-bigger", type=Path,
+                    default=Path("weights/pointnet2lite_edl_bigger.pt"))
+    ap.add_argument("--edl-lite-v2", type=Path,
+                    default=Path("weights/pointnet2lite_v2_edl_multiseq.pt"))
     args = ap.parse_args()
 
     device = torch.device(args.device)
@@ -109,16 +124,22 @@ def main():
 
     rows: list[dict] = []
     configs = [
-        ("CE-vanilla",     args.ce_vanilla,  "ce",  "vanilla"),
-        ("EDL-vanilla",    args.edl_vanilla, "edl", "vanilla"),
-        ("EDL-lite",       args.edl_lite,    "edl", "lite"),
+        ("CE-vanilla",         args.ce_vanilla,            "ce",  "vanilla"),
+        ("EDL-vanilla",        args.edl_vanilla,           "edl", "vanilla"),
+        ("EDL-lite-linear",    args.edl_lite,              "edl", "lite"),
+        ("EDL-lite-warmrest",  args.edl_lite_warmrestart,  "edl", "lite"),
+        ("EDL-lite-bigger",    args.edl_lite_bigger,       "edl", "lite"),
+        ("EDL-lite_v2",        args.edl_lite_v2,           "edl", "lite_v2"),
     ]
     for name, ckpt_path, loss_kind, backbone in configs:
         if not ckpt_path.exists():
-            print(f"[skip] {name:14s} (no ckpt at {ckpt_path})")
+            print(f"[skip] {name:18s} (no ckpt at {ckpt_path})")
             continue
         t0 = time.perf_counter()
-        if loss_kind == "edl":
+        if loss_kind == "edl" and backbone == "lite_v2":
+            model, state = _load_edl_v2(ckpt_path, num_classes=C, device=device)
+            metric = _eval(model, val_loader, device, num_classes=C)
+        elif loss_kind == "edl":
             model, state = _load_edl(ckpt_path, backbone=backbone, num_classes=C, device=device)
             metric = _eval(model, val_loader, device, num_classes=C)
         else:
@@ -140,15 +161,15 @@ def main():
             "ckpt": str(ckpt_path),
         }
         rows.append(row)
-        print(f"{name:14s} params={params_m:.3f}M  "
+        print(f"{name:18s} params={params_m:.3f}M  "
               f"fresh: mIoU={metric['miou']:.4f} ECE={metric['ece']:.4f}  "
               f"(best-ep mIoU in ckpt = {state.get('val_miou','?')})")
 
     # Pretty table
     print("\n=== Multi-seq comparison (official SemKITTI splits, val seq 08 100 frames) ===\n")
-    print(f"{'system':16s} {'params':>8s}  {'mIoU':>8s}  {'ECE':>8s}  {'ep':>4s}")
+    print(f"{'system':20s} {'params':>8s}  {'mIoU':>8s}  {'ECE':>8s}  {'ep':>4s}")
     for r in rows:
-        print(f"{r['name']:16s} {r['params_M']:>7.3f}M  "
+        print(f"{r['name']:20s} {r['params_M']:>7.3f}M  "
               f"{r['fresh_eval_miou']:>8.4f}  {r['fresh_eval_ece']:>8.4f}  {r['epoch']:>4d}")
 
     args.out.parent.mkdir(parents=True, exist_ok=True)

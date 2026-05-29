@@ -1,0 +1,37 @@
+device: cuda
+GPU:    NVIDIA GeForce RTX 5090 (25.3 GB free)
+n_points: 20000, k: 16, kl_end: 0.3
+
+train: 5671 frames total
+  seq 00: 600
+  seq 01: 600
+  seq 02: 600
+  seq 03: 600
+  seq 04: 271
+  seq 05: 600
+  seq 06: 600
+  seq 07: 600
+  seq 09: 600
+  seq 10: 600
+val:   100 / 100 frames from seq 08
+backbone: lite_v2, params: 0.494 M
+
+=== Train lite_v2 15 epochs, kl_end=0.3 ===
+
+  ep 1/15: loss=0.4830 val_miou=0.1787 val_ece=0.0799 time=311.8s  [SAVED]
+  ep 2/15: loss=0.4781 val_miou=0.1803 val_ece=0.1173 time=310.7s  [SAVED]
+  ep 3/15: loss=0.4768 val_miou=0.2051 val_ece=0.2004 time=313.6s  [SAVED]
+  ep 4/15: loss=0.4754 val_miou=0.2040 val_ece=0.2581 time=311.8s
+  ep 5/15: loss=0.4729 val_miou=0.1905 val_ece=0.2271 time=320.9s
+  ep 6/15: loss=0.4697 val_miou=0.1971 val_ece=0.2470 time=317.8s
+  ep 7/15: loss=0.4635 val_miou=0.1875 val_ece=0.3251 time=252.2s
+  ep 8/15: loss=0.4589 val_miou=0.1827 val_ece=0.3209 time=239.9s
+  ep 9/15: loss=0.4537 val_miou=0.1845 val_ece=0.3018 time=253.7s
+  ep 10/15: loss=0.4476 val_miou=0.1665 val_ece=0.3047 time=261.0s
+  ep 11/15: loss=0.4436 val_miou=0.1908 val_ece=0.3189 time=254.4s
+  ep 12/15: loss=0.4405 val_miou=0.2046 val_ece=0.3608 time=244.4s
+  ep 13/15: loss=0.4395 val_miou=0.1940 val_ece=0.3496 time=243.7s
+  ep 14/15: loss=0.4409 val_miou=0.1844 val_ece=0.3606 time=246.9s
+  ep 15/15: loss=0.4444 val_miou=0.1978 val_ece=0.3593 time=246.1s
+
+=== DONE — best val mIoU = 0.2051, total 4128.9s ===

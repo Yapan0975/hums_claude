@@ -1,0 +1,42 @@
+device: cuda
+GPU:    NVIDIA GeForce RTX 5090 (27.2 GB free)
+n_points: 20000, kl_end: 0.3, restart_period: 5
+
+train: 2971 frames total
+  seq 00: 300
+  seq 01: 300
+  seq 02: 300
+  seq 03: 300
+  seq 04: 271
+  seq 05: 300
+  seq 06: 300
+  seq 07: 300
+  seq 09: 300
+  seq 10: 300
+val:   100 / 100 frames from seq 08
+backbone: lite, params: 0.276 M
+
+=== Train lite warm-restart, period=5, kl_end=0.3, lr=0.001, 20 epochs ===
+
+  ep 1/20: lam=0.000 loss=0.5474 val_miou=0.1767 val_ece=0.0882 time=102.9s  [SAVED]
+  ep 2/20: lam=0.060 loss=0.6554 val_miou=0.1622 val_ece=0.1807 time=105.0s
+  ep 3/20: lam=0.120 loss=0.6763 val_miou=0.1252 val_ece=0.2309 time=107.2s
+  ep 4/20: lam=0.180 loss=0.6907 val_miou=0.1221 val_ece=0.3131 time=114.9s
+  ep 5/20: lam=0.240 loss=0.6966 val_miou=0.1440 val_ece=0.3141 time=106.3s
+  ep 6/20: lam=0.000 loss=0.3807 val_miou=0.1874 val_ece=0.0788 time=106.6s  [SAVED]
+  ep 7/20: lam=0.060 loss=0.5263 val_miou=0.1828 val_ece=0.2221 time=108.1s
+  ep 8/20: lam=0.120 loss=0.5701 val_miou=0.1505 val_ece=0.2259 time=107.5s
+  ep 9/20: lam=0.180 loss=0.5952 val_miou=0.1588 val_ece=0.3226 time=127.1s
+  ep 10/20: lam=0.240 loss=0.6100 val_miou=0.1553 val_ece=0.3119 time=157.6s
+  ep 11/20: lam=0.000 loss=0.3372 val_miou=0.1877 val_ece=0.0744 time=161.8s  [SAVED]
+  ep 12/20: lam=0.060 loss=0.4623 val_miou=0.1943 val_ece=0.1843 time=158.8s  [SAVED]
+  ep 13/20: lam=0.120 loss=0.5073 val_miou=0.1834 val_ece=0.2375 time=161.7s
+  ep 14/20: lam=0.180 loss=0.5343 val_miou=0.1685 val_ece=0.2532 time=159.8s
+  ep 15/20: lam=0.240 loss=0.5509 val_miou=0.1634 val_ece=0.2616 time=159.3s
+  ep 16/20: lam=0.000 loss=0.3202 val_miou=0.1788 val_ece=0.0635 time=160.2s
+  ep 17/20: lam=0.060 loss=0.4272 val_miou=0.1952 val_ece=0.1986 time=188.6s  [SAVED]
+  ep 18/20: lam=0.120 loss=0.4735 val_miou=0.1748 val_ece=0.2245 time=187.4s
+  ep 19/20: lam=0.180 loss=0.5063 val_miou=0.1749 val_ece=0.2531 time=191.6s
+  ep 20/20: lam=0.240 loss=0.5327 val_miou=0.1751 val_ece=0.2899 time=188.9s
+
+=== DONE — best val mIoU = 0.1952, total 2861.4s ===

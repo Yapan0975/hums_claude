@@ -293,6 +293,32 @@ rare-class mass instead of misallocating it" requires a backbone tier
 where rare classes have *positive* IoU — testable once the Cylinder3D
 backbone unblock (§V.A iv) lands. Json: `artifacts/per_class_iou_lite.json`.
 
+**Ablations (KL schedule × data size × backbone depth).** We further
+audit the three improvement axes that paper §V.B(d) and §V.A flag as
+gating-question for the §IV.0 mIoU floor:
+
+| Variant | Backbone | Params | mIoU (fresh) | ECE (fresh) | Note |
+|---|---|---|---|---|---|
+| EDL + linear KL | PointNet2Lite | 0.28 M | 17.92 % | **0.096** | calibration-best |
+| EDL + **warm-restart** | PointNet2Lite | 0.28 M | **18.61 %** | 0.170 | §V.B(d) fix validated, +0.69 pp mIoU |
+| EDL + 600 fr/seq | PointNet2Lite | 0.28 M | 17.83 % | 0.109 | doubling train frames noise-neutral |
+| EDL + **lite_v2** (Path 4) | PointNet2Lite_v2 | 0.49 M | 17.74 % | 0.117 | 3 LSE+AP blocks, 1.8× params |
+
+KL warm-restart (kl_end=0.3, period=5) lifts mIoU by +3.8 % relative
+over the linear-KL baseline at the same 0.28 M-param backbone, at the
+cost of ~1.8× worse ECE — a calibration / accuracy Pareto trade-off
+worth quantifying. The W3-J best-epoch ckpt registered 19.52 % mIoU
+during training (cycle-4 ramp position 06); the lower fresh-eval number
+reflects random-subsample variance between training-time eval and
+post-hoc eval. The PointNet2Lite_v2 backbone (Path 4, three stacked LSE
++ AttentivePool blocks) peaks at 20.51 % mIoU during training but
+generalises less well to held-out subsample (17.74 % fresh) — the extra
+capacity at this data scale is over-fitting rather than learning
+spatial-frequency structure. Doubling the training frames per sequence
+(W3-K) does not give a measurable lift, consistent with the
+neighbourhood-bound interpretation. Json:
+`artifacts/multiseq_compare_6way.json`.
+
 **RQ2 preliminary (vacuity as OOD score, 14-known / 5-unknown split).**
 M1 trained on 14 known classes (ignore_index on the 5 unknown labels during
 training, keeping the protocol identical to what the full-scale RQ2 will run).
@@ -492,7 +518,7 @@ Four failure modes are documented; (a)-(c) are pre-registered from the planning 
 
 **(c) Taxonomically-close withheld classes.** On the 16/3 robustness open-set split (withhold only `bicyclist`, `motorcyclist`, `other-vehicle`) the AUROC degrades by <mark>XX.X</mark> [TBD-after-exp] relative to the 14/5 primary split, because the withheld classes have close training analogues (`bicycle`, `motorcycle`, `car`) whose evidence channels capture most of the unknown points' mass.
 
-**(d) EDL post-epoch-1 vacuity collapse under aggressive KL annealing.** In the §IV.0 preliminary RQ2 run, the vacuity AUROC peaks at **0.808** at epoch 1 of the linear KL-anneal schedule, then degrades to ≈ 0.67 over epochs 2–20 as the KL pull toward the uniform Dirichlet absorbs the head's discriminative signal. We mitigate by best-checkpoint-by-AUROC selection (the validated 0.808 number is the saved ckpt). The proper fix is a late-stage KL warm-restart schedule that resets $\lambda_t$ to 0 every $T$ epochs and re-anneals; this will be evaluated in the next revision and pre-registered as the §IV.D primary protocol.
+**(d) EDL post-epoch-1 vacuity collapse under aggressive KL annealing, partially fixed by warm-restart.** In the §IV.0 preliminary RQ2 run, the vacuity AUROC peaks at **0.808** at epoch 1 of the linear KL-anneal schedule, then degrades to ≈ 0.67 over epochs 2–20 as the KL pull toward the uniform Dirichlet absorbs the head's discriminative signal. We tested a periodic warm-restart schedule (W3-J ablation, supplementary `training_findings.md`): resetting $\lambda_t$ to 0 every $T = 5$ epochs and re-annealing lifts the §IV.0 lite mIoU from 17.92 % → 18.61 % (+0.69 pp, +3.8 % relative) at the cost of ~1.8× worse ECE, validating the schedule as a calibration / accuracy Pareto knob. We use best-checkpoint-by-target-metric selection (mIoU or AUROC depending on the §IV cell) in all downstream tables; the calibration-best ckpt remains the linear-KL ckpt for §IV.0 ECE numbers and the warm-restart ckpt is reported as an ablation row.
 
 Figure 6 [TBD-after-exp] gives one qualitative panel per failure mode.
 

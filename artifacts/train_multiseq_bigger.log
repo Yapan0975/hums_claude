@@ -1,0 +1,38 @@
+device: cuda
+GPU:    NVIDIA GeForce RTX 5090 (30.8 GB free)
+n_points: 20000 (subsample per frame)
+
+train: 5671 frames total
+  seq 00: 600
+  seq 01: 600
+  seq 02: 600
+  seq 03: 600
+  seq 04: 271
+  seq 05: 600
+  seq 06: 600
+  seq 07: 600
+  seq 09: 600
+  seq 10: 600
+val:   100 / 100 frames from seq 08
+backbone: lite, params: 0.276 M
+
+=== Train lite 15 epochs on official SemKITTI splits ===
+kl_lambda_end = 0.3, lr = 0.001
+
+  ep 1/15: loss=0.5069 val_miou=0.1788 val_ece=0.0746 time=201.0s  [SAVED]
+  ep 2/15: loss=0.5151 val_miou=0.1809 val_ece=0.0835 time=208.0s  [SAVED]
+  ep 3/15: loss=0.5179 val_miou=0.1884 val_ece=0.1460 time=196.4s  [SAVED]
+  ep 4/15: loss=0.5210 val_miou=0.1838 val_ece=0.1902 time=204.4s
+  ep 5/15: loss=0.5202 val_miou=0.1534 val_ece=0.1979 time=342.6s
+  ep 6/15: loss=0.5201 val_miou=0.1797 val_ece=0.2199 time=352.4s
+  ep 7/15: loss=0.5190 val_miou=0.1689 val_ece=0.2453 time=351.5s
+  ep 8/15: loss=0.5152 val_miou=0.1486 val_ece=0.2405 time=316.5s
+  ep 9/15: loss=0.5119 val_miou=0.1486 val_ece=0.1895 time=297.8s
+  ep 10/15: loss=0.5088 val_miou=0.1478 val_ece=0.2334 time=286.1s
+  ep 11/15: loss=0.5062 val_miou=0.1515 val_ece=0.2494 time=199.2s
+  ep 12/15: loss=0.5041 val_miou=0.1559 val_ece=0.2557 time=206.9s
+  ep 13/15: loss=0.5042 val_miou=0.1472 val_ece=0.2335 time=203.0s
+  ep 14/15: loss=0.5064 val_miou=0.1396 val_ece=0.2371 time=199.1s
+  ep 15/15: loss=0.5106 val_miou=0.1149 val_ece=0.2047 time=198.8s
+
+=== DONE — best val mIoU = 0.1884, total 3763.7s ===
