@@ -380,7 +380,23 @@
     </table>
     <p>Three observations sharpen the §III.B thesis. <b>(i)</b> At the 0.21 M PointNet-Vanilla backbone R2 (CE) and M1 (EDL) sit within 0.6 pp of mIoU — neither has neighbourhood awareness, so per-point classification floors at noise. <b>(ii)</b> Adding kNN local context (PointNet2Lite, <i>k</i> = 16) lifts M1's mIoU by <b>10.8×</b> (1.66 → 17.92 %) and its ECE by <b>1.8×</b> at only +30 % parameters, demonstrating that the §IV.0 mIoU ceiling is neighbourhood-bound, not capacity-bound. <b>(iii)</b> At every backbone tier M1 wins decisively on <b>calibration</b>: M1 beats R2 by <b>4.0×</b> on ECE at matched vanilla capacity, and by <b>7.1×</b> on ECE <i>while also</i> beating R2's mIoU by <b>7.8×</b> at the lite tier. The §III.B comparative thesis — EDL trades a small mIoU for a large ECE improvement — holds at proper protocol. Json: <code>artifacts/multiseq_compare.json</code>. Full per-epoch traces: <code>artifacts/train_multiseq_*.log</code>.</p>
 
-    <p><b>Per-class IoU dump (best lite ckpt, paper §IV.C texture).</b> The 17.92 % mIoU is concentrated on the majority classes: <code>car</code> 0.652, <code>road</code> 0.678, <code>vegetation</code> 0.518, <code>sidewalk</code> 0.394, <code>building</code> 0.287, <code>terrain</code> 0.271; all minority classes (<code>bicycle</code>, <code>person</code>, <code>bicyclist</code>, <code>parking</code>, <code>fence</code>, <code>trunk</code>, <code>pole</code>, <code>traffic-sign</code>) score IoU = 0 on the seq 08 100-frame val set. The 4 PRIMARY-split unknown classes (<code>motorcycle</code>, <code>truck</code>, <code>other-vehicle</code>, <code>motorcyclist</code>) are <i>absent</i> from the val set so are excluded from mIoU rather than penalised. This is the well-known PointNet weakness on rare and small-scale objects: a per-point MLP with <i>k</i> = 16 neighbourhood cannot recover the spatial frequency a sparse-conv voxel-cylinder decoder would. The §IV.C analysis of "vacuity absorbs rare-class mass instead of misallocating it" requires a backbone tier where rare classes have <i>positive</i> IoU — testable once the Cylinder3D backbone unblock (§V.A iv) lands. Json: <code>artifacts/per_class_iou_lite.json</code>.</p>
+    <p><b>Per-class IoU dump (paper §IV.C texture).</b> Two snapshots — the calibration-best lite ckpt (W3-H, 17.92 % mIoU) and the mIoU-best combined ckpt (W3-M, 23.31 % mIoU) — show where the §IV.0 gain comes from:</p>
+    <table>
+      <thead><tr><th>Class</th><th>W3-H lite</th><th>W3-M lite_v2 + WR + bigger</th><th>Δ</th></tr></thead>
+      <tbody>
+        <tr><td>car</td><td>0.652</td><td>0.635</td><td>−0.02</td></tr>
+        <tr><td>road</td><td>0.678</td><td><b>0.746</b></td><td>+0.07</td></tr>
+        <tr><td>sidewalk</td><td>0.394</td><td><b>0.479</b></td><td>+0.08</td></tr>
+        <tr><td>building</td><td>0.287</td><td><b>0.442</b></td><td>+0.16</td></tr>
+        <tr><td>vegetation</td><td>0.518</td><td><b>0.628</b></td><td>+0.11</td></tr>
+        <tr><td>terrain</td><td>0.271</td><td><b>0.546</b></td><td>+0.28</td></tr>
+        <tr><td>parking</td><td>0.000</td><td>0.003</td><td>(barely)</td></tr>
+        <tr><td>fence</td><td>0.000</td><td>0.017</td><td>(barely)</td></tr>
+        <tr><td>bicycle / person / bicyclist</td><td>0.000</td><td>0.000</td><td>unchanged</td></tr>
+        <tr><td>trunk / pole / traffic-sign</td><td>0.000</td><td>0.000</td><td>unchanged</td></tr>
+      </tbody>
+    </table>
+    <p>The +5.4 pp mIoU jump from W3-H → W3-M is concentrated <i>entirely</i> on majority structural classes (terrain, building, vegetation, sidewalk, road); the rare and small-scale classes (<code>bicycle</code>, <code>person</code>, <code>bicyclist</code>, <code>pole</code>, <code>traffic-sign</code>, <code>trunk</code>) remain at 0 % IoU at both backbone tiers. This is the honest backbone-floor reading: at 0.49 M params, the model gains spatial-frequency capacity to sharpen <i>structural</i> boundaries (road vs sidewalk vs building) but cannot yet create the per-point resolution needed for objects with &lt; 1 m extent (poles, signs, bicyclists). The 4 PRIMARY-split unknown classes (<code>motorcycle</code>, <code>truck</code>, <code>other-vehicle</code>, <code>motorcyclist</code>) are absent from the val set so are excluded from mIoU rather than penalised. The §IV.C "vacuity absorbs rare-class mass instead of misallocating it" analysis requires a backbone tier where rare classes have <i>positive</i> IoU — pending the Cylinder3D unblock (§V.A iv). Json: <code>artifacts/per_class_iou_lite.json</code> (W3-H), <code>artifacts/per_class_iou_w3m.json</code> (W3-M).</p>
 
     <p><b>Ablations (KL schedule × data size × backbone depth).</b> We audit the three improvement axes individually, then combine them:</p>
     <table>
