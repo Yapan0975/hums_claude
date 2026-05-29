@@ -1,0 +1,26 @@
+{
+  "config": {
+    "seq": "08",
+    "n_frames": 100,
+    "ce_ckpt_epochs": 5,
+    "edl_ckpt_epochs": 30,
+    "edl_best_at_ep": 3
+  },
+  "systems": {
+    "r2_ce_pointnet_argmax_bayes": {
+      "mIoU": 0.01687614787932081,
+      "ECE": 0.49008336663246155,
+      "latency_ms_per_frame": 662.9810547828674
+    },
+    "m1_edl_pointnet_dirichlet": {
+      "mIoU": 0.14728272196131129,
+      "ECE": 0.17129682004451752,
+      "latency_ms_per_frame": 2.96924302354455
+    }
+  },
+  "delta": {
+    "mIoU_ratio_m1_over_r2": 8.727271354488673,
+    "ECE_ratio_r2_over_m1": 2.861018473694352,
+    "latency_ratio_r2_over_m1": 223.28285341609734
+  }
+}

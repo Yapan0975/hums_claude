@@ -1,0 +1,20 @@
+{
+  "stage1": {
+    "stage1": "PASS"
+  },
+  "stage3": {
+    "verdict": "PASS",
+    "n_voxels": 747047,
+    "delta_t_s": 600.0,
+    "loss_ratio_bot10": 0.16008377075195312,
+    "loss_ratio_top10": 0.4232076108455658,
+    "ratio_top_over_bot": 2.6436634323245563,
+    "vacuity_q10_pre": 0.08456571400165558,
+    "vacuity_q90_pre": 0.6508792638778687
+  },
+  "config": {
+    "seq": "08",
+    "n_frames": 50,
+    "edl_ckpt": "weights/pointnet_edl_seq08_30ep.pt"
+  }
+}
