@@ -1,0 +1,124 @@
+{
+  "ckpt": "weights/pointnet2lite_edl_multiseq.pt",
+  "backbone": "lite",
+  "params_M": 0.276,
+  "ckpt_epoch": 2,
+  "miou": 0.1867,
+  "ece": 0.1163,
+  "per_class": [
+    {
+      "id": 0,
+      "name": "car",
+      "iou": 0.6519311113657912,
+      "support": 80296
+    },
+    {
+      "id": 1,
+      "name": "bicycle",
+      "iou": 0.0,
+      "support": 1145
+    },
+    {
+      "id": 2,
+      "name": "motorcycle",
+      "iou": null,
+      "support": 0
+    },
+    {
+      "id": 3,
+      "name": "truck",
+      "iou": null,
+      "support": 0
+    },
+    {
+      "id": 4,
+      "name": "other-vehicle",
+      "iou": null,
+      "support": 0
+    },
+    {
+      "id": 5,
+      "name": "person",
+      "iou": 0.0,
+      "support": 5556
+    },
+    {
+      "id": 6,
+      "name": "bicyclist",
+      "iou": 0.0,
+      "support": 5404
+    },
+    {
+      "id": 7,
+      "name": "motorcyclist",
+      "iou": null,
+      "support": 0
+    },
+    {
+      "id": 8,
+      "name": "road",
+      "iou": 0.6778161177085668,
+      "support": 587846
+    },
+    {
+      "id": 9,
+      "name": "parking",
+      "iou": 0.0,
+      "support": 5880
+    },
+    {
+      "id": 10,
+      "name": "sidewalk",
+      "iou": 0.39431765125923485,
+      "support": 404401
+    },
+    {
+      "id": 11,
+      "name": "other-ground",
+      "iou": 0.0,
+      "support": 7
+    },
+    {
+      "id": 12,
+      "name": "building",
+      "iou": 0.2874158270467318,
+      "support": 73639
+    },
+    {
+      "id": 13,
+      "name": "fence",
+      "iou": 0.0001120950566080036,
+      "support": 7481
+    },
+    {
+      "id": 14,
+      "name": "vegetation",
+      "iou": 0.518086677771143,
+      "support": 265655
+    },
+    {
+      "id": 15,
+      "name": "trunk",
+      "iou": 0.0,
+      "support": 42994
+    },
+    {
+      "id": 16,
+      "name": "terrain",
+      "iou": 0.2704669768422718,
+      "support": 302349
+    },
+    {
+      "id": 17,
+      "name": "pole",
+      "iou": 0.0,
+      "support": 9391
+    },
+    {
+      "id": 18,
+      "name": "traffic-sign",
+      "iou": 0.0,
+      "support": 13079
+    }
+  ]
+}

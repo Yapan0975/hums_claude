@@ -278,6 +278,21 @@ thesis — EDL trades a small mIoU for a large ECE improvement — holds at
 proper protocol. Json: `artifacts/multiseq_compare.json`. Full per-epoch
 traces: `artifacts/train_multiseq_*.log`.
 
+**Per-class IoU dump (best lite ckpt, paper §IV.C texture).** The 17.92 %
+mIoU is concentrated on the majority classes: `car` 0.652, `road` 0.678,
+`vegetation` 0.518, `sidewalk` 0.394, `building` 0.287, `terrain` 0.271;
+all minority classes (`bicycle`, `person`, `bicyclist`, `parking`, `fence`,
+`trunk`, `pole`, `traffic-sign`) score IoU = 0 on the seq 08 100-frame val
+set. The 4 PRIMARY-split unknown classes (`motorcycle`, `truck`,
+`other-vehicle`, `motorcyclist`) are *absent* from the val set so are
+excluded from mIoU rather than penalised. This is the well-known PointNet
+weakness on rare and small-scale objects: a per-point MLP with k = 16
+neighbourhood cannot recover the spatial frequency a sparse-conv
+voxel-cylinder decoder would. The §IV.C analysis of "vacuity absorbs
+rare-class mass instead of misallocating it" requires a backbone tier
+where rare classes have *positive* IoU — testable once the Cylinder3D
+backbone unblock (§V.A iv) lands. Json: `artifacts/per_class_iou_lite.json`.
+
 **RQ2 preliminary (vacuity as OOD score, 14-known / 5-unknown split).**
 M1 trained on 14 known classes (ignore_index on the 5 unknown labels during
 training, keeping the protocol identical to what the full-scale RQ2 will run).
