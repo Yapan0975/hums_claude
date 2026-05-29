@@ -1,0 +1,18 @@
+{
+  "config": {
+    "seq": "08",
+    "n_frames": 30
+  },
+  "systems": {
+    "r2_ce_pointnet_argmax_bayes": {
+      "mIoU": 0.021259738023260137,
+      "ECE": 0.7815701961517334,
+      "latency_ms_per_frame": 706.3052385735015
+    },
+    "m1_edl_pointnet_dirichlet": {
+      "mIoU": 0.1654283958789096,
+      "ECE": 0.31212949752807617,
+      "latency_ms_per_frame": 3.2420718731979528
+    }
+  }
+}
