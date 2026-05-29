@@ -1,0 +1,43 @@
+# Two services: x86 workstation (RTX 4060) and Jetson Orin NX deployment build.
+# ``docker compose config`` should pass cleanly with no warnings.
+
+services:
+
+  evidlife_x86:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: evidlife_map:cu121-humble
+    container_name: evidlife_x86
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
+      - PYTHONPATH=/workspace
+    volumes:
+      - .:/workspace
+      - ${EVIDLIFE_DATA_DIR:-./_data}:/data:ro
+      - ${EVIDLIFE_RUNS_DIR:-./experiments/runs}:/runs
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    command: bash
+
+  evidlife_jetson:
+    # The Jetson build cross-compiles arm64 via buildx; the daily-driver
+    # workflow is to push images from the workstation to the Jetson via SSH.
+    # Build manually with:
+    #     docker buildx build --platform linux/arm64 -t evidlife_map:jetson .
+    image: evidlife_map:jetson
+    container_name: evidlife_jetson
+    platform: linux/arm64
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - JETSON_TRT_FP16=1
+    volumes:
+      - .:/workspace
+      - /sys:/sys:ro
+    working_dir: /workspace
+    command: ["python3.10", "-m", "evidlife_map.jetson.deploy_orin_nx"]
+    profiles: ["jetson"]

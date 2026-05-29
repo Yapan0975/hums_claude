@@ -1,0 +1,99 @@
+# Tooling configuration for the EvidLife-Map P1 skeleton.
+# Source-of-truth for packaging is setup.py (PEP 517 setuptools backend);
+# this file only carries lint / format / type-check / pytest config.
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# ----------------------------------------------------------------------------
+# Ruff — linter + import sorter. Replaces flake8 + isort.
+# ----------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["evidlife_map", "tests"]
+extend-exclude = ["nvblox_evidential/", "experiments/runs/"]
+
+[tool.ruff.lint]
+# E/W = pycodestyle, F = pyflakes, I = isort, B = bugbear, UP = pyupgrade,
+# SIM = simplify, NPY = numpy-specific, RUF = ruff-specific.
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "NPY", "RUF"]
+ignore = [
+    "E501",   # line-length is enforced by black, not by ruff
+    "B008",   # function-call-in-default-argument is intentional for torch.device
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = ["B008", "SIM117"]
+"evidlife_map/baselines/r2_reimpl/*.py" = ["F401"]  # stubs intentionally re-export
+
+# ----------------------------------------------------------------------------
+# Black — formatter.
+# ----------------------------------------------------------------------------
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | dist
+  | build
+  | nvblox_evidential
+)/
+'''
+
+# ----------------------------------------------------------------------------
+# mypy — type checker. Strict in our own modules; lenient in third-party stubs.
+# ----------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+exclude = ["build/", "dist/", "nvblox_evidential/"]
+
+[[tool.mypy.overrides]]
+module = ["evidlife_map.baselines.*"]
+ignore_errors = true  # baseline wrappers are best-effort
+
+# ----------------------------------------------------------------------------
+# Pytest.
+# ----------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "gpu: requires a CUDA device (deselect with -m 'not gpu')",
+    "slow: takes more than 5 s (deselect with -m 'not slow')",
+    "jetson: requires a Jetson Orin NX (deselect with -m 'not jetson')",
+]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning:nuscenes.*",
+    "ignore::DeprecationWarning:open3d.*",
+    "ignore::UserWarning:torch.*",
+]
+
+[tool.coverage.run]
+source = ["evidlife_map"]
+omit = ["evidlife_map/baselines/*", "evidlife_map/jetson/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]

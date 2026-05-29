@@ -1,0 +1,77 @@
+# nuScenes-LiDARSeg config.
+# Two uses in paper_v1.md:
+#   (i)  RQ1 cross-domain mIoU/ECE (train on SemKITTI, eval on nuScenes).
+#   (ii) RQ2 reverse cross-domain OOD: vacuity AUROC on nuScenes classes that do
+#        not overlap with the SemKITTI 14-known split.
+
+experiment:
+  name: evidlife_nuscenes_cross_domain
+  rq: ["RQ1", "RQ2"]
+  seed: 20260528
+
+dataset:
+  name: nuscenes_lidarseg
+  root: /data/nuScenes
+  version: v1.0-trainval
+  num_classes: 16
+  add_unknown_channel: true
+  point_drop_p: 0.0
+  voxel_size_m: 0.25
+
+# Cross-dataset OOD classes for the reverse RQ2 check (research_plan v3 §4.1).
+ood_target_classes:
+  - construction_vehicle
+  - barrier
+  - traffic_cone
+  - pushable_pullable
+
+model:
+  backbone: cylinder3d
+  pretrained_weights: /data/weights/cylinder3d_semantickitti.pth
+  freeze_backbone: true
+  head:
+    type: edl
+    out_classes: 17                # 16 + 1 unknown
+    evidence_max: 50.0
+
+loss:
+  type: edl_mse_kl
+  kl_lambda_start: 0.0
+  kl_lambda_end: 1.0
+  kl_anneal_epochs: 10
+
+fusion:
+  prior_strength: 17
+
+decay:
+  tau_min_s: 60.0
+  tau_max_s: 3600.0
+  age_hysteresis_s: 1.0
+  step_period_s: 5.0
+
+loop_closure:
+  submap_distance_m: 50.0
+  submap_time_s: 30.0
+  vacuity_bins: 10
+  match_beta: 0.5
+  disagree_max: 0.4
+
+training:
+  batch_size: 1
+  grad_accumulation: 8
+  optimizer: adamw
+  lr: 1.0e-4
+  weight_decay: 1.0e-4
+  epochs: 20
+  amp_dtype: bf16
+
+eval:
+  miou: true
+  ece_bins: 15
+  auroc_unknown: true
+  ece_per_class: true
+
+logging:
+  out_dir: /runs/evidlife_nuscenes_cross_domain
+  log_every_steps: 50
+  ckpt_every_epochs: 1

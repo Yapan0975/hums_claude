@@ -1,0 +1,61 @@
+# KITTI-360 lifelong / multi-session config (RQ4 lead).
+# Revisit pair list built by scripts/eval_rq4_lifelong.sh from the overlap
+# matrix delivered at G-3 (research_plan v3 §9).
+
+experiment:
+  name: evidlife_kitti360_lifelong
+  rq: ["RQ4"]
+  seed: 20260528
+
+dataset:
+  name: kitti_360
+  root: /data/KITTI-360
+  sequences: ["2013_05_28_drive_0000_sync",
+              "2013_05_28_drive_0002_sync",
+              "2013_05_28_drive_0004_sync",
+              "2013_05_28_drive_0005_sync",
+              "2013_05_28_drive_0006_sync",
+              "2013_05_28_drive_0007_sync",
+              "2013_05_28_drive_0009_sync",
+              "2013_05_28_drive_0010_sync"]
+  revisit_pair_list: /workspace/configs/kitti360_revisit_pairs.json
+  num_classes: 19
+  add_unknown_channel: true
+  voxel_size_m: 0.25
+
+model:
+  backbone: cylinder3d
+  pretrained_weights: /data/weights/cylinder3d_kitti360.pth
+  freeze_backbone: true
+  head:
+    type: edl
+    out_classes: 20
+    evidence_max: 50.0
+
+fusion:
+  prior_strength: 20
+  inter_session_addition: true     # post-Eq 9 conjugate fusion (param-free)
+
+decay:
+  tau_min_s: 60.0
+  tau_max_s: 3600.0
+  age_hysteresis_s: 1.0
+  step_period_s: 5.0
+
+loop_closure:
+  submap_distance_m: 50.0
+  submap_time_s: 30.0
+  vacuity_bins: 10
+  match_beta: 0.5
+  disagree_max: 0.4
+
+lifelong_eval:
+  stale_voxel_age_threshold_s: 1800.0    # 30 min — half of tau_max
+  stale_removal_precision_target: 0.80   # H4 (research_plan §2)
+  ece_drift_max_multiplier: 1.5
+  map_growth_max_multiplier: 1.7
+
+logging:
+  out_dir: /runs/evidlife_kitti360_lifelong
+  log_every_steps: 50
+  ckpt_every_epochs: 1

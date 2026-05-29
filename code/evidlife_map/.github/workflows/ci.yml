@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+
+  lint-type-test:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            pyproject.toml
+
+      - name: Install CPU-only torch + repo
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          # Override torch to the CPU wheel for CI (no NVIDIA driver here).
+          python -m pip install torch==2.2.2+cpu torchvision==0.17.2+cpu \
+            --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r requirements.txt
+          python -m pip install -e .
+
+      - name: Lint with ruff
+        run: ruff check evidlife_map tests
+
+      - name: Format check with black
+        run: black --check evidlife_map tests
+
+      - name: Type-check with mypy
+        run: mypy evidlife_map
+
+      - name: Collect tests
+        run: pytest --collect-only -q
+
+      - name: Run unit tests
+        run: pytest -m 'not gpu and not slow and not jetson' --cov=evidlife_map
+
+  docker-build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    needs: lint-type-test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate docker-compose config
+        run: docker compose config --quiet
+      # NB: we deliberately do *not* `docker compose build` on GitHub runners
+      # because the CUDA base image is ~4 GB. Build is exercised locally and on
+      # the self-hosted ZJUT runner.

@@ -1,0 +1,70 @@
+# SemanticKITTI closed-set RQ1 / RQ4 / RQ5 config.
+# Matches paper_v1.md §III.B implementation paragraph (voxel 0.25 m, C=19,
+# s_0 = C+1 so the uninformed posterior is uniform Dirichlet).
+
+experiment:
+  name: evidlife_kitti_closed
+  rq: ["RQ1", "RQ4", "RQ5"]
+  seed: 20260528
+
+dataset:
+  name: semantic_kitti
+  root: /data/SemanticKITTI
+  train_seqs: ["00", "01", "02", "03", "04", "05", "06", "07", "09", "10"]
+  val_seqs: ["08"]
+  test_seqs: ["11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21"]
+  num_classes: 19
+  add_unknown_channel: true        # C+1 = 20-D Dirichlet
+  point_drop_p: 0.0
+  voxel_size_m: 0.25               # paper §III.B Eq impl
+
+model:
+  backbone: cylinder3d
+  pretrained_weights: /data/weights/cylinder3d_semantickitti.pth
+  freeze_backbone: true            # only last layer fine-tuned; R-11 mitigation
+  head:
+    type: edl                      # m1_evidential.edl_head.EDLHead
+    out_classes: 20                # C+1 = 19 + 1 unknown
+    evidence_max: 50.0             # e_k <= e_max clip; bounds S_v (§III.B impl)
+
+loss:
+  type: edl_mse_kl                 # m1_evidential.loss.EDLLoss (Eq 5)
+  kl_lambda_start: 0.0
+  kl_lambda_end: 1.0
+  kl_anneal_epochs: 10
+
+fusion:
+  prior_strength: 20               # s_0 = C+1 = 20 (Eq impl)
+
+decay:                             # M3, Eq 11–12
+  tau_min_s: 60.0
+  tau_max_s: 3600.0
+  age_hysteresis_s: 1.0            # do not touch voxels updated in this frame
+  step_period_s: 5.0               # GPU sweep period
+
+loop_closure:                      # M2
+  submap_distance_m: 50.0
+  submap_time_s: 30.0
+  vacuity_bins: 10                 # B in Eq 7
+  match_beta: 0.5                  # convex weight in Eq 8 [TBD: ablation A-3]
+  disagree_max: 0.4                # Eq 9 threshold
+
+training:
+  batch_size: 1                    # 4060 VRAM (R-11)
+  grad_accumulation: 8
+  optimizer: adamw
+  lr: 1.0e-4
+  weight_decay: 1.0e-4
+  epochs: 30
+  amp_dtype: bf16
+
+eval:
+  miou: true
+  ece_bins: 15
+  auroc_unknown: false             # closed-set RQ1, no held-out classes
+  ece_per_class: true
+
+logging:
+  out_dir: /runs/evidlife_kitti_closed
+  log_every_steps: 50
+  ckpt_every_epochs: 1
