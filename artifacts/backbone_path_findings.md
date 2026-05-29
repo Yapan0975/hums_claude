@@ -76,7 +76,45 @@ PointNet2Lite is already producing 17.92 % mIoU at 0.28 M params, the
 
 ## Action items
 
-- [ ] Sketch a `PointNet2Lite_v2` with 2 SA-FP stages
-- [ ] Re-train on multi-seq, target > 25 % mIoU
-- [ ] If Path 1 also succeeds, report both rows in §IV.0 final table
-- [ ] Update research_plan v4 §3.9 to retire Path 2 (PVKD)
+- [x] Sketch a `PointNet2Lite_v2` with 2 SA-FP stages (W3-L 2026-05-29)
+- [x] Re-train on multi-seq, target > 25 % mIoU (W3-M 23.32 % @ 0.49 M, 2026-05-30)
+- [x] Update research_plan v4 §3.9 to retire Path 2 (PVKD) (commit `4ca12c8`)
+- [ ] Path 1 spconv 1.x source build (in progress, see below)
+
+## Path 1 — spconv 1.x source build status (2026-05-30 attempt)
+
+Plan: clone `traveller59/spconv` at tag `v1.2.1` to Windows, transfer to
+server, build CUDA-C++ against torch 2.11+cu130 with sm_120.
+
+Status:
+
+1. **Clone OK** (`spconv-1.2.1/` on Windows, 41 MB). setup.py declares
+   `torch >= 1.3.0` (permissive); no explicit cu130 guard.
+2. **Submodule fetch failed** — the spconv-pinned cutlass commit
+   `c2b80ad4e4f8b60a65500bd04c8fecddff2ba355` is not reachable from a
+   shallow clone of NVIDIA/cutlass. Need a full submodule init with
+   `git -c protocol.file.allow=always` (Windows git security policy
+   prevents the file:// transport submodules need by default).
+3. **Server has no internet access** (confirmed: `pip install` fails
+   with NXDOMAIN). So source must be transported via local rsync.
+
+Next steps (4-8 hr estimate):
+
+- Resolve submodule fetch on Windows (use `--no-shallow` + git config
+  `protocol.file.allow=always`, or clone cutlass/pybind11/mp11
+  separately at the pinned commits and place under `third_party/`).
+- rsync tarball to server.
+- Attempt build with `TORCH_CUDA_ARCH_LIST=12.0` and
+  `CUDA_HOME=/usr/local/cuda`.
+- Expected breakage points: (a) cu130's removed
+  `at::cuda::CUDAStream_synchronize` API, (b) pybind11 ABI mismatch
+  with torch 2.11, (c) `--expt-relaxed-constexpr` no longer accepted
+  by newer nvcc.
+- Each breakage is fixable in 1-2 hour increments per the public
+  spconv-revival forks.
+
+Decision: park Path 1 until the campaign produces an unambiguous need
+for full-Cylinder3D-scale numbers. W3-M already gives 23.32 % at our
+Path-4 backbone — IROS-tier acceptable as a preliminary number with
+the §V.A iv caveat. Path 1 effort better spent on KITTI-360 transfer
+(gating leg ii of "three jobs") for now.
