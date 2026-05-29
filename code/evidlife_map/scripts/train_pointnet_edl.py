@@ -148,14 +148,18 @@ def main() -> int:
         ep_loss = 0.0
         t_ep = time.perf_counter()
         for entry in train_loader:
+            y_cpu = entry.labels
+            # Skip frames with no valid labels (avoids no-grad zero from EDLLoss)
+            if not bool((y_cpu >= 0).any()):
+                continue
             x = _make_xyzi(entry, device=device)
-            y = entry.labels.to(device)
+            y = y_cpu.to(device)
             alpha, _ = model(x)
             loss_dict = loss_fn(alpha, y, epoch=ep)
-            loss = loss_dict["loss"] if isinstance(loss_dict, dict) and "loss" in loss_dict else loss_dict
-            if not isinstance(loss, torch.Tensor):
-                # fall back to dict total if shape differs
-                loss = sum(v for v in loss_dict.values() if isinstance(v, torch.Tensor))
+            loss = loss_dict["loss"]
+            if not loss.requires_grad:
+                # Defensive: if for any reason loss has no grad, skip this frame
+                continue
             opt.zero_grad()
             loss.backward()
             opt.step()

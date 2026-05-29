@@ -1,14 +1,15 @@
 ---
-version: v3 (2026-05-28) — patches: RQ2→open-set, +Khronos dynamic comparison, +Jetson demo video
+version: v4 (2026-05-29) — patches: 5090-server compute, W2 done, W3 preliminary verification PASS, Cylinder3D backbone blocker called out, 9-month re-anchor
+v3 archived as: research_plan_v3_archive.md (same directory)
 v2 archived as: research_plan_v2.md (same directory)
 v1 archived as: research_plan_v1.md (same directory)
-v3 axis (unchanged from v2): EvidLife-Map  =  candidate X (EvidVox)  +  candidate Y (Lifelong + Map Decay)
-v3 venue: IROS 2027 (deadline ≈ 2027-03; ≈ 9 months horizon)
-v3 compute: 1× RTX 4060 (16 GB) + 1× Jetson Orin NX (deployment benchmark + 30 s demo video)
-v3 datasets: SemanticKITTI / nuScenes-LiDARSeg / KITTI-360 / SemanticKITTI dynamic split / SemanticSpray (+ Robo3D as fallback for RQ2)
+v4 axis (unchanged from v2/v3): EvidLife-Map  =  candidate X (EvidVox)  +  candidate Y (Lifelong + Map Decay)
+v4 venue: IROS 2027 (deadline ≈ 2027-03; ≈ 9 months horizon from 2026-05-29)
+v4 compute: **local 5060 Laptop (8 GB, dev/smoke)** + **5090 server `server@100.64.0.5` via Tailscale (4 × RTX 5090 32 GB, sm_120, CUDA 13.0, 80 cores, 251 GB RAM, 879 GB disk)** + Jetson Orin NX (deployment + 30 s demo video). **Cloud-train budget cancelled** (free local server replaces it).
+v4 datasets: SemanticKITTI / nuScenes-LiDARSeg / KITTI-360 / SemanticKITTI dynamic split / SemanticSpray (+ Robo3D as fallback for RQ2)
 ---
 
-# Research Plan (v3)
+# Research Plan (v4)
 
 **Working title (primary):** *EvidLife-Map: Evidential Lifelong Online Metric-Semantic Mapping with Voxel Decay and Open-Set Vacuity*
 
@@ -16,39 +17,41 @@ v3 datasets: SemanticKITTI / nuScenes-LiDARSeg / KITTI-360 / SemanticKITTI dynam
 
 **Author / lead:** (TBD by user)
 **Target venue:** IROS 2027 (8 pages double-column, conference systems track).
-**Prepared:** 2026-05-28
-**Stage:** Stage-1 architect output (v3 patch) of the `academic-pipeline` skill; precedes any `/ars-full` execution.
-**Upstream inputs:**
+**Prepared:** 2026-05-29
+**Stage:** Stage-1 architect output (v4 patch) of the `academic-pipeline` skill; precedes any `/ars-full` execution.
+**Upstream inputs (carried forward unchanged from v3 unless flagged):**
 - `D:\_7_sci\semantic_mapping\_new_paper\artifacts\r2_audit.md` (R2 6-dim technical audit)
 - `D:\_7_sci\semantic_mapping\_new_paper\artifacts\lit_scan.md` (54-entry literature scan)
 - `D:\_7_sci\semantic_mapping\_Online_Metric_Semantic_Mapping_for_Autonomous.txt` (R2 cleaned full text)
-- `D:\_7_sci\semantic_mapping\_new_paper\drafts\research_plan_v2.md` (frozen v2, for diff)
-- `D:\_7_sci\semantic_mapping\_new_paper\drafts\research_plan_v1.md` (frozen v1, for archaeology)
+- `D:\_7_sci\semantic_mapping\_new_paper\drafts\research_plan_v3_archive.md` (frozen v3, for diff)
+- **NEW v4:** `D:\_7_sci\semantic_mapping\_new_paper\W2-1_status.md` (Cylinder3D + spconv 2.x integration blocker)
+- **NEW v4:** `D:\_7_sci\semantic_mapping\_new_paper\artifacts\preliminary_results.md` (W3 preliminary verification)
+- **NEW v4:** `D:\_7_sci\semantic_mapping\_new_paper\drafts\paper_v2.md` §IV.0 "Preliminary Status" box (2026-05-29 snapshot)
 
 ---
 
-## §0 Direction Decision — v2 reset retained in v3 (mandatory before §1)
+## §0 Direction Decision — v2 reset retained through v3 and v4 (mandatory before §1)
 
 v1 selected candidate **W = EviRad-Map** (LiDAR + 4D-radar evidential fusion) as the primary axis, with candidate **X = EvidVox** (LiDAR-only evidential) as fallback. The v1 §9 Go/No-Go listed **G-3** ("K-Radar pseudo-GT validated by 50-frame manual sparse-GT sanity sample ≥ 75 % agreement, by end of Week 3") as the controlling gate.
 
 **v2 trigger.** The user's resource brief (2026-05-28) sets the manual K-Radar voxel annotation budget to **zero person-days**. With no manual sparse-GT, G-3 cannot be evaluated at all; the entire pseudo-GT defence collapses to "trust a pretrained Cylinder3D on out-of-domain frames", which is precisely the audit weakness (E1/E3) we promised to fix. v1 §6 R-1 therefore deterministically fires and v1 §0 fallback engages.
 
-**v2 primary axis (retained in v3):** **EvidLife-Map** = candidate X (EvidVox) **combined with** candidate Y (Lifelong + Loop + Map Decay from v1 §0 Top-2 axis). This restores the "two strong contributions" balance that pure X alone would not carry — a system paper needs both an algorithmic and a systems contribution to fill 8 IROS pages credibly without radar.
+**v2 primary axis (retained in v3 and v4):** **EvidLife-Map** = candidate X (EvidVox) **combined with** candidate Y (Lifelong + Loop + Map Decay from v1 §0 Top-2 axis). This restores the "two strong contributions" balance that pure X alone would not carry — a system paper needs both an algorithmic and a systems contribution to fill 8 IROS pages credibly without radar.
 
-| Axis | X. Evidential Voxel Fusion (R2 Top-1) | Y. Lifelong + Loop + Decay (R2 Top-2) | **X+Y. EvidLife-Map (v3)** |
+| Axis | X. Evidential Voxel Fusion (R2 Top-1) | Y. Lifelong + Loop + Decay (R2 Top-2) | **X+Y. EvidLife-Map (v4)** |
 |---|---|---|---|
 | Novelty | 3 — crowded by ConvBKI [C9] / LatentBKI [D10] | 2 — Khronos [A2] owns dynamic-scene 4D MSM | **4** — Dirichlet-vacuity-as-decay-signal is the bridge nobody yet ships in one system |
 | Venue-fit IROS 8 p | 3 — feels like a method paper, hard to fill 8 p | 4 — IROS systems track loves it | **5** — algorithm + system, fits IROS double column comfortably |
 | R2 audit delta covered | S1/S2/S5 | T1/T2/T3 + T4 | **S1/S2/S4/S5 + T1/T2/T3/T4** (8 of 30 audit findings closed) |
-| SOTA differentiation | Must beat ConvBKI in mIoU | Uphill vs Khronos | **v3: dynamic-scene head-to-head vs Khronos accepted**; we fight on **calibration + lifelong + dynamic** axis, where Khronos/Clio/ConvBKI each cover only one |
+| SOTA differentiation | Must beat ConvBKI in mIoU | Uphill vs Khronos | **v3+v4: dynamic-scene head-to-head vs Khronos accepted**; we fight on **calibration + lifelong + dynamic** axis, where Khronos/Clio/ConvBKI each cover only one |
 | Data availability (no manual) | 5 — SemanticKITTI / nuScenes-LiDARSeg dense GT | 4 — KITTI-360 has multi-session revisits | **5** — every dataset is fully public and pre-labelled |
-| Engineering effort on 1× 4060 | 2 — Dirichlet head + Bayes update | 4 — submap + loop + decay | **3** — large; v3 added Khronos dynamic comparison consumes ~3 extra calendar weeks; ablation grid further compressed (§4.4) |
-| Reviewer risk | Low | Med (Khronos head-to-head) | **Low-Med** — v3 accepts the dynamic-scene head-to-head rather than declaring orthogonality only; this defangs the most likely reviewer attack |
-| Compute fit RTX 4060 | 5 — fits | 4 — long-sequence eval tolerable | **3** — tight; A-6 dropped first, A-7 promoted to firm because open-set is now RQ2 lead |
+| Engineering effort | 2 — Dirichlet head + Bayes update | 4 — submap + loop + decay | **v4: 4** — 5090 server lifts the v3 4060-VRAM bottleneck; backbone blocker (W2-1) is the new critical-path risk |
+| Reviewer risk | Low | Med (Khronos head-to-head) | **Low-Med** — v3 escalation (dynamic head-to-head) preserved; v4 adds preliminary-scale evidence (W3) that defangs the "vapourware" objection |
+| Compute fit | v3: tight on 4060 | — | **v4: comfortable** — 4 × 5090 32 GB on server, 80 cores, 879 GB disk; the v3 ablation budget that was 64 GPU-days on 4060 becomes ~16 wall-clock days on a single 5090 |
 
-**Decision (v3 primary, unchanged from v2):** **EvidLife-Map** — three integrated modules (M1 Dirichlet-evidential per-voxel posterior; M2 confidence-aware loop closure + multi-session voxel-hash submap fusion; M3 vacuity-driven voxel decay + map staleness ageing) trained and evaluated entirely on public LiDAR-only datasets, deployable on Jetson Orin NX with a published 30-second demo video.
+**Decision (v4 primary, unchanged from v2/v3):** **EvidLife-Map** — three integrated modules (M1 Dirichlet-evidential per-voxel posterior; M2 confidence-aware loop closure + multi-session voxel-hash submap fusion; M3 vacuity-driven voxel decay + map staleness ageing) trained and evaluated entirely on public LiDAR-only datasets, deployable on Jetson Orin NX with a published 30-second demo video.
 
-**Fallback (single layer only, no further nesting).** If by Week 4 the Dirichlet evidential head fails to beat the argmax-Bayes baseline by ≥ +1 mIoU on SemanticKITTI seq 08, retreat to a **calibration-only paper**: drop M2 and M3 to brief sub-sections, keep M1 as the headline, target **RA-L** instead of IROS (4-page brevity hides the missing systems story). This is documented in §9 G-2.
+**Fallback (single layer only, no further nesting).** If by Week 4 the Dirichlet evidential head fails to beat the argmax-Bayes baseline by ≥ +1 mIoU on SemanticKITTI seq 08 *at full scale on the resolved backbone*, retreat to a **calibration-only paper**: drop M2 and M3 to brief sub-sections, keep M1 as the headline, target **RA-L** instead of IROS (4-page brevity hides the missing systems story). This is documented in §9 G-2. **v4 update on G-2:** the preliminary-scale R2-vs-M1 ordering at matched 0.21 M-param PointNet (M1 wins on mIoU 14.73 % vs R2 1.69 %, ECE 0.171 vs 0.490, latency 3.0 ms vs 663 ms) is *consistent* with the G-2 thesis but does not formally pass it — G-2 demands the same ordering on the Cylinder3D-class backbone at full SemKITTI val. So G-2 is provisionally green and we proceed at risk.
 
 ---
 
@@ -71,7 +74,7 @@ v1 selected candidate **W = EviRad-Map** (LiDAR + 4D-radar evidential fusion) as
 
 ---
 
-## §0.6 v2 → v3 Change Log (new in v3)
+## §0.6 v2 → v3 Change Log (preserved unchanged)
 
 | Dim | v2 | v3 | Reason |
 |---|---|---|---|
@@ -86,7 +89,37 @@ v1 selected candidate **W = EviRad-Map** (LiDAR + 4D-radar evidential fusion) as
 
 ---
 
-## §1 Problem Statement & Motivation (v3)
+## §0.7 v3 → v4 Change Log (NEW in v4)
+
+The v3 plan was written 2026-05-28 against an *assumed* RTX 4060 (16 GB) single-workstation compute model and a not-yet-built backbone. In the 24 hours since, four substantive changes have landed: hardware reality, W2 substantive progress, W3 preliminary verification (3 of 5 RQ-thesis pieces validated end-to-end on real KITTI data), and a Cylinder3D backbone blocker. v4 reflects all four.
+
+| Dim | v3 | v4 | Reason |
+|-----|-----|-----|--------|
+| **Local GPU** | RTX 4060 (16 GB) assumed | **RTX 5060 Laptop (8 GB)** — dev/smoke/debug/Jetson cross-compile/paper writing only | Hardware reality check 2026-05-28; VRAM halved vs v3 assumption |
+| **Primary training compute** | Same local 4060 | **5090 server `server@100.64.0.5` via Tailscale: 4 × RTX 5090 32 GB sm_120, CUDA 13.0, 80 cores, 251 GB RAM, 879 GB disk; workspace `~/Documents/yping/mapping/code/`** | User secured free server access; replaces all training compute paths |
+| **Cloud budget** | v3 had no cloud; v4-delta proposed $30-80 autoDL/Vast/RunPod | **Cancelled in v4 main plan** — server access removes the need | The 5090 server is free, 4× the v3 4060 VRAM per card, and 4 cards |
+| **Effective wall-clock** | 39 weeks W4-W26 to cover 64 GPU-days on 4060 | Same 64 method-GPU-days → ~16 wall-clock days on a single 5090; 5× speedup makes per-experiment turnaround fast enough to iterate | 5090 sm_120 + cu130 stack roughly 3-4× per-tensor over 4060 + extra VRAM for batch ↑ |
+| **W2-2 status** | Pending | **Substantively done**: train sequences 00-07, 09, 10 (19 230 velodyne frames + labels) on server at `/data/shared/SemanticKITTI/dataset/sequences/`; seq 08 first-100 frames done, full 4071 frames pending background transfer | Server rsync run in W2 background |
+| **W2-3 status** | Pending | **Done**: flat-tensor evidence accumulator (replaces dict-based v3-era prototype) delivers R2 10× / M1 60× / E2E 13× speedup. Json artifacts under `artifacts/` | W2 engineering output |
+| **W2-4 status** | Pending | **Done**: first RQ1 comparison run end-to-end on 100-frame SemKITTI seq 08; paper §III.B thesis (M1 > R2 on mIoU + ECE + latency at matched backbone) validated at preliminary scale | W2 engineering output, gated on W2-3 |
+| **W2-1 status (Cylinder3D)** | Pending | **HARD BLOCKER (see §3.9)** — spconv 1.x → 2.x port: structural patches applied (imports, replace_feature, indice_key uniqueness, weight permute) but inference outputs all-NaN. Root cause = internal kernel index iteration order change (D,H,W) ↔ (W,H,D), not fixable by pure tensor permute. Three unblock paths in §3.9; decision deadline P1+0 = 2026-06-01 | Engineering diary `W2-1_status.md`; this is the v4 critical-path risk |
+| **W3 preliminary results** | Not present in v3 | **Three of three method-level claims validated at preliminary scale** (PointNetVanilla 0.21 M params, 30 ep, 80 frames seq 08 train + 20 frames val): (W3-A) EDL PointNet trained, best ep-3 val_miou 0.111; (W3-B) M3 vacuity-decay top10%/bottom10% loss-ratio = **2.64×** on 747 047 voxels (paper §III.D Eq 11 PASS); (W3-C) M1 open-set vacuity AUROC = **0.8082** on 14/5 SemKITTI split (RQ2 H2 ≥ 0.80 PASS); (W3-D) RQ4 lifelong sim A/B-half on seq 08 first 100 frames yields stale-voxel removal **P = 0.77, R = 0.52** (paper §IV.F preview). Artifacts: `artifacts/rq1_fair_100frames.json`, `artifacts/m3_validation.json`, `artifacts/m1_openset.json`, `artifacts/preliminary_results.md` | W3 done in one chat session of focused engineering after W2 unblock |
+| **"One vacuity, three jobs" matrix** | Asserted only | **2 of 3 legs verified end-to-end on real KITTI data** (open-set OOD ✓, decay clock ✓); 3rd leg (loop closure descriptor with entropy channel) gated on KITTI-360 transfer + revisit-pair eval | Preliminary results artifact §"One vacuity, three jobs validation matrix" |
+| **Effective remaining timeline** | 39 weeks W1-W39 from 2026-05-28 baseline | **9-month re-anchored**: today = 2026-05-29; IROS deadline ≈ 2027-03; ~36-39 weeks runway. **P1 (preliminary done in 1 week wall-clock vs v3 W1-W3) gives back ~2 weeks of buffer**. New phasing (§7): P1 (now → +2 wk) unblock Cylinder3D + scale RQ1/RQ2 to full train; P2 (+2-4 wk) RQ4 KITTI-360; P3 (+4-6 wk) RQ3 + RQ5; P4 (+6-9 wk wall-clock; ≡ +6-9 months calendar) ablations/robustness/Jetson; P5 (+9 months wall-clock through 2027-03) writing + submission | W3 preliminary done early; backbone unblock is now the gating step |
+| **G-1 status** | Pending W3 checkpoint | **Provisionally green at preliminary scale** (W3 done); awaiting full-Cylinder3D verification once W2-1 unblocked | Preliminary RQ1 ordering validated |
+| **G-2 status** | Pending W4 | **Provisionally green** (M1 > R2 on all three of mIoU, ECE, latency at matched backbone) but formal pass deferred to full Cylinder3D run | Preliminary trajectory consistent with H1; G-2 final = full-backbone re-run |
+| **G-3 status** | Pending W3 | **Pending** — gated on KITTI-360 download + revisit-overlap matrix; no preliminary equivalent | Multi-session dataset not yet on server |
+| **G-5 status** | Pending W17 | **Provisionally green at preliminary scale** (AUROC = 0.8082 on 14/5 split); full-scale rerun required | Preliminary RQ2 PASS |
+| **G-4 / G-6** | Pending W12 / W20 | **Unchanged from v3** — still pending | M2 loop closure and Khronos reproduction not yet attempted |
+| **Risks** | 14 (5H + 8M + 1L) | **16** (5H + 9M + 2L) — adds R-21 (spconv 1.x/2.x value-semantic gap; M-H) and R-22 (PVKD code quality unknown; M); demotes R-12 (ConvBKI reproduction) from H to M (cheap on 5090) and R-14 (EDL instability) is **CONFIRMED** at preliminary scale (epoch-1 collapse observed; KL warm-restart mitigation required) | New risks from backbone blocker; old risks burn down on server compute |
+| **Method §3** | M1/M2/M3 + §3.7 dynamic | Adds **§3.9 Backbone Resolution Path** explaining Path 1/2/3 trade-offs and the deadline | Backbone blocker is now load-bearing |
+| **Cloud-train section** | Not in v3 main | **Removed entirely** | Server access cancels cloud need |
+| **Compute budget §4.5** | 64 GPU-days on single 4060 | **~16 wall-clock days on single 5090; 4× cards available for parallel ablations** | Server math |
+| **Open Questions §8** | Closed (all resolved 2026-05-28) | **Two new open questions** (§8): backbone path selection (Path 1 vs 2 vs 3) and EDL stability fix priority | Backbone blocker requires user decision; KL annealing schedule rework is non-trivial |
+
+---
+
+## §1 Problem Statement & Motivation (v4 — text unchanged from v3 except §1.5 added)
 
 ### 1.1 Scenario
 A ground robot operates outdoors over weeks of repeated traversal of the same area (campus, urban block, industrial site). It must build, online and on-board (Jetson-class GPU), a dense voxel map labelled with closed-set semantics plus an explicit "unknown" channel, and must keep that map correct across (i) **single-session noise** (LiDAR drop-out, sensor occlusion), (ii) **open-set encounters** (object categories absent from the training taxonomy — construction debris, exotic vegetation, unmodelled vehicle types), and (iii) **inter-session change** (revisits weeks later with moved objects, construction, new vegetation). Camera and radar are *not* assumed; the system is LiDAR-only with optional RGB-derived priors at training time only.
@@ -96,70 +129,70 @@ R2 [A1] (Jiao et al., HKUST) couples LVIO with an NvBlox TSDF backbone and a con
 
 1. **Methodological under-specification.** R2's Bayes update formula, prior, and confidence-into-fusion pathway are all missing (audit S1/S2/S4). Reproducible? No.
 2. **No quantitative evidence.** Zero ablation, zero baseline number, zero mIoU, zero F-score; evaluation only on two self-recorded sequences (audit E1/E2/E3/E5).
-3. **No open-set / OOD handling.** "Unlabeled = untraversable" (R2 p.3, audit S5); pessimistic and unusable for active exploration in environments where genuinely-novel categories appear (the open-set / OOD-detection-in-mapping gap, v3 RQ2 lead).
+3. **No open-set / OOD handling.** "Unlabeled = untraversable" (R2 p.3, audit S5); pessimistic and unusable for active exploration in environments where genuinely-novel categories appear (the open-set / OOD-detection-in-mapping gap, v4 RQ2 lead).
 4. **No long-term / loop-closure / decay mechanism.** Lifelong drift, stale voxels, re-visits all unaddressed (audit T1/T2/T3/T4).
 
-v1 sought to fix (1)+(3) algorithmically and add a fifth axis (multi-modal weather robustness). v3 (= v2 retained) drops the modality axis and instead pairs (1)+(3) algorithmic fix with a (4) systems fix — which is exactly the audit's largest cluster of unfilled weaknesses, and is achievable on a 4060.
+v1 sought to fix (1)+(3) algorithmically and add a fifth axis (multi-modal weather robustness). v4 (= v3 retained = v2 retained) drops the modality axis and instead pairs (1)+(3) algorithmic fix with a (4) systems fix — which is exactly the audit's largest cluster of unfilled weaknesses, and **as of v4 is preliminarily validated on real SemKITTI data for the algorithm-half** (W3-A through W3-D).
 
-### 1.3 Differentiation vs current SOTA (v3 re-framed)
-The literature scan flags three SOTA threats; v3 declares its relationship to each:
-- **Khronos [A2/D1]** factorises *short-term motion vs long-term change in time*; v3 factorises *evidence strength vs vacuity in observation* and uses time only as a decay scalar in M3. The decay rule (Eq. M3.1) is dual to Khronos's "long-term change detector" — it requires no explicit change-detection network, only a Dirichlet-conjugate exponential. **v3 escalation:** rather than only declaring this orthogonality in prose, we run a head-to-head experiment on a SemanticKITTI dynamic split (§3.7, §4.2 baseline, §4.4 Table V) so reviewers see numbers, not adjectives.
-- **Clio [A3/D2]** compresses *given a task*; v3 produces a *task-agnostic, uncertainty-aware substrate* that Clio could be re-implemented on top of. The Clio LiDAR stub (one of our open-set baselines, §4.2) is the explicit comparison.
-- **ConvBKI [C9] / LatentBKI [D10]** use kernel Bayesian inference for *spatial smoothing*; v3 uses **EDL Dirichlet** for closed-form per-voxel epistemic uncertainty *without* spatial-kernel smoothing — which yields a sharper, more honest vacuity signal for the M3 decay rule and for the open-set OOD-detection task (RQ2 lead in v3), at the price of giving up smoothing's mIoU bump (which the M2 loop closure re-projection partially restores).
+### 1.3 Differentiation vs current SOTA (v4 — text unchanged from v3)
+The literature scan flags three SOTA threats; v4 declares its relationship to each:
+- **Khronos [A2/D1]** factorises *short-term motion vs long-term change in time*; v4 factorises *evidence strength vs vacuity in observation* and uses time only as a decay scalar in M3. The decay rule (Eq. M3.1) is dual to Khronos's "long-term change detector" — it requires no explicit change-detection network, only a Dirichlet-conjugate exponential. **v3+v4 escalation:** rather than only declaring this orthogonality in prose, we run a head-to-head experiment on a SemanticKITTI dynamic split (§3.7, §4.2 baseline, §4.4 Table V) so reviewers see numbers, not adjectives.
+- **Clio [A3/D2]** compresses *given a task*; v4 produces a *task-agnostic, uncertainty-aware substrate* that Clio could be re-implemented on top of. The Clio LiDAR stub (one of our open-set baselines, §4.2) is the explicit comparison.
+- **ConvBKI [C9] / LatentBKI [D10]** use kernel Bayesian inference for *spatial smoothing*; v4 uses **EDL Dirichlet** for closed-form per-voxel epistemic uncertainty *without* spatial-kernel smoothing — which yields a sharper, more honest vacuity signal for the M3 decay rule and for the open-set OOD-detection task (RQ2 lead in v4), at the price of giving up smoothing's mIoU bump (which the M2 loop closure re-projection partially restores).
 
-The novelty story for v3 is **not** "first to fuse modality X+Y" (v1 story); it is **first to wire one statistical quantity (Dirichlet vacuity) into three jobs simultaneously**: (a) **open-set / OOD detection** (v3 RQ2 lead), (b) loop-closure descriptor entropy term, (c) lifelong decay trigger. That single quantity threading three modules is what reviewers will remember.
+The novelty story for v4 is **not** "first to fuse modality X+Y" (v1 story); it is **first to wire one statistical quantity (Dirichlet vacuity) into three jobs simultaneously**: (a) **open-set / OOD detection** (v4 RQ2 lead — preliminarily validated W3-C, AUROC 0.8082), (b) loop-closure descriptor entropy term, (c) lifelong decay trigger (preliminarily validated W3-B, 2.64× decay ratio). That single quantity threading three modules is what reviewers will remember.
 
-### 1.4 Thesis statement (v3)
+### 1.4 Thesis statement (v4 — preserved verbatim from v3)
 > *A metric-semantic voxel map becomes simultaneously more calibrated, more open-set-aware, and more lifelong-maintainable when its per-voxel posterior is a closed-form Dirichlet-evidential distribution whose vacuity mass is reused as (i) the **open-set / OOD score for unknown-category voxels**, (ii) the loop-closure descriptor's entropy channel, and (iii) the conjugate decay trigger that ages stale voxels — eliminating the three independent ad-hoc heuristics that prior systems (R2, ConvBKI, Khronos) use one each.*
 
+### 1.5 Preliminary verification evidence (NEW in v4 — supports §1.4)
+Three of the three method-level pieces of the §1.4 thesis are validated end-to-end on real SemanticKITTI data at *preliminary backbone capacity* (PointNetVanilla 0.21 M params, ≈ 1/250 the capacity of the planned Cylinder3D backbone). The validations are reported in `artifacts/preliminary_results.md` and summarised in paper_v2.md §IV.0:
+
+- **Leg (i) — open-set OOD score.** Vacuity AUROC = **0.8082** on a SemanticKITTI 14-known / 5-unknown split (withheld classes = bicyclist, motorcyclist, truck, other-vehicle, other-ground), evaluated on seq 08 val frames 80-99 (37 838 unknown + 2 055 160 known points). Meets RQ2 H2 ≥ 0.80 threshold at preliminary scale. Best AUROC reached at training epoch 1 with degradation thereafter due to KL annealing pushing the head toward uniform Dirichlet — this is the R-14 instability, now CONFIRMED, requiring late-stage KL warm-restart for full-backbone training.
+- **Leg (ii) — loop-closure descriptor entropy channel.** Gated on KITTI-360 transfer (no server-side data yet); explicit `⏸️ pending` mark in the matrix.
+- **Leg (iii) — vacuity-driven decay clock.** Top-10 %-vacuity voxels lose **42.3 %** of evidence mass over Δt = 600 s; bottom-10 %-vacuity voxels lose **16.0 %**; ratio **2.64×**. Confirms the directional claim of paper Eq. 11 on 747 047 unique voxels at 0.25 m voxel size over seq 08 first 50 frames.
+
+**Provisional RQ4 lifelong evidence:** seq 08 A/B-half split (first 50 frames as "session 1", next 50 as "session 2", artificial removal of evidence between halves) yields stale-voxel removal **P = 0.77, R = 0.52**. This is a preliminary-scale, single-session, intra-sequence stand-in for the true multi-session KITTI-360 evaluation; it indicates the M2+M3 stack can detect stale voxels but the recall is currently below the v3-stated H4 target of "≥ 80 % precision" by ~3 pp on precision and substantially below the implicit recall expectation. Interpretation: encouraging directional signal, not yet a PASS.
+
+What this preliminary verification accomplishes for the plan: the three-of-three matrix at small scale converts §1.4 from a "we believe" claim to a "we have shown on real data, at small scale" claim. The remaining IROS-publishable evidence requires (a) Cylinder3D-class backbone resolution and (b) full SemKITTI val + KITTI-360 multi-session arena — both gated on the §3.9 backbone-resolution path and the KITTI-360 transfer.
+
 ---
 
-## §2 Research Questions & Hypotheses (v3)
+## §2 Research Questions & Hypotheses (v4 — RQ text unchanged from v3 except preliminary validation footnotes)
 
-### RQ1 (preserved from v1/v2) — Does Dirichlet-evidential per-voxel fusion outperform argmax-Bayes / S-BKI-style kernel Bayesian inference on closed-set dense semantic mapping?
+### RQ1 — Does Dirichlet-evidential per-voxel fusion outperform argmax-Bayes / S-BKI-style kernel Bayesian inference on closed-set dense semantic mapping?
 - **H1.** On SemanticKITTI sequences 08, 11-21, an EDL-Dirichlet voxel update yields **≥ +2 mIoU** and **≥ −20 % ECE** versus an R2-reimplemented argmax-Bayes baseline at equal voxel size (0.25 m) and equal compute. (mIoU bar lowered from v1's +3 because we no longer have radar to push the upper end; ECE bar held.)
 - **Boundary.** Holds for closed-set 19-class setting; for open-set we expect ECE win to grow and mIoU possibly to shrink because "unknown" steals mass from rare classes — quantified in RQ2.
+- **v4 preliminary state.** At matched 0.21 M-param PointNet backbone on 100 SemKITTI seq 08 frames, M1 yields mIoU 14.73 %, ECE 0.171, latency 3.0 ms/frame vs R2's mIoU 1.69 %, ECE 0.490, latency 663 ms/frame. The *relative* ordering predicted by H1 holds; absolute mIoU is far below ConvBKI's published 77.7 % because the backbone is ≈ 1/250 capacity. Full-scale Cylinder3D rerun pending backbone resolution (§3.9). Json: `artifacts/rq1_fair_100frames.json`.
 
-### RQ2 (v3 — open-set vacuity as lead; Robo3D corruption as fallback)
+### RQ2 — Open-set vacuity as lead (Robo3D corruption as fallback)
 
-**v3 primary formulation (open-set vacuity):**
+**v4 primary formulation (open-set vacuity, unchanged from v3):**
 > *Does the per-voxel Dirichlet vacuity score reliably separate voxels whose observed point evidence comes from a held-out unknown category from voxels of known categories, while the closed-set mIoU on the remaining known categories stays within striking distance of a fully-supervised baseline?*
 
-- **Open-set split protocol.** We adopt **SemanticKITTI 19-class as the supervision label set**, with **N classes withheld as "unknown" at training time** (provisional choice: N = 5, withholding `bicyclist`, `motorcyclist`, `truck`, `other-vehicle`, `other-ground` — a mix of dynamic-rare and static-rare classes that span the LiDAR appearance distribution rather than clustering at one end). The remaining 14 classes form the closed-set supervision space. At evaluation, points belonging to a withheld class are treated as "unknown" GT; the model must assign them high vacuity. Pre-registered in supplementary; alternative N = 3 (drop only `bicyclist`, `motorcyclist`, `other-vehicle`) reported as robustness check.
-- **Reverse cross-domain check (nuScenes-LiDARSeg).** Train on SemanticKITTI 14-known split; evaluate vacuity-as-OOD on nuScenes-LiDARSeg classes that do not overlap with the SemanticKITTI training set (e.g., `construction_vehicle`, `barrier`, `traffic_cone`). Provides a cross-dataset OOD cross-check that does not depend on our own split choice.
-- **H2 (v3 primary).** On SemanticKITTI 14-known / 5-unknown split, EvidLife-Map's vacuity achieves **voxel-level AUROC ≥ 0.80** and **AUPR ≥ 0.60** for known-vs-unknown discrimination (averaged over withheld classes), while **closed-set mIoU on the 14 known classes drops by ≤ 1.5 mIoU** versus the 19-class supervised baseline. On the nuScenes reverse cross-domain check, AUROC ≥ 0.75 (lower bar because of domain shift).
-- **Boundary.** Open-set evaluation depends on the known/unknown split choice; we mitigate by reporting both N = 5 and N = 3 splits and by adding the independent nuScenes reverse-check. We do not claim taxonomic universality; the claim is "vacuity is a usable OOD score on these splits".
+- **Open-set split protocol.** SemanticKITTI 19 → 14 known + 5 unknown. Withheld: `bicyclist`, `motorcyclist`, `truck`, `other-vehicle`, `other-ground`. Robustness split: 16 known / 3 unknown (drop only `bicyclist`, `motorcyclist`, `other-vehicle`). Reverse cross-domain on nuScenes-LiDARSeg classes that do not overlap. Pre-registered split file in supplementary.
+- **H2 (v4 primary, unchanged).** On the 14/5 split, voxel-level AUROC ≥ 0.80 and AUPR ≥ 0.60 for known-vs-unknown discrimination, with closed-set mIoU on the 14 known classes dropping by ≤ 1.5 vs the 19-class supervised baseline. On nuScenes reverse cross-domain, AUROC ≥ 0.75.
+- **v4 preliminary state.** AUROC = **0.8082** on the 14/5 split at preliminary backbone, seq 08 val frames 80-99 (37 838 unknown + 2 055 160 known points). **Meets the H2 ≥ 0.80 threshold at preliminary scale.** AUPR not yet computed at the preliminary split; full-backbone rerun will report AUROC + AUPR + closed-set mIoU on the same harness. Caveat (R-14 CONFIRMED): best AUROC reached at training epoch 1, after which KL annealing pushes the head toward uniform Dirichlet and AUROC degrades to ~0.67; this is a tuning issue, not a capability issue, and requires the warm-restart schedule before full-backbone training. Json: `artifacts/m1_openset.json`.
 
-**Why open-set as RQ2 lead (user 2026-05-28 decision).**
-1. Open-set / OOD detection directly instantiates the §1.4 "one vacuity, three jobs" thesis without an extra detour through corruption labels.
-2. AUROC-of-vacuity for OOD is the canonical EDL evaluation pattern (Sensoy et al., NeurIPS-18); a paper that claims EDL-on-voxels and *doesn't* report it would invite a reviewer "why not".
-3. Avoids the synthetic-corruption-vs-real-weather trap — open-set is meaningfully real even on clean data.
-4. Sets up a clean ablation A-7 (± dedicated unknown channel) that is now firm in v3 §4.4.
+**Fallback formulation (Robo3D corruption robustness, unchanged from v3).** AUROC of vacuity ≥ 0.80 across corruptions; H2-fallback retained on standby if open-set split is contested at W5.
 
-**Fallback formulation (Robo3D corruption robustness), kept on standby if open-set split is blocked at W5:**
-> *Does the Dirichlet vacuity score degrade gracefully across the 8-corruption × 5-severity Robo3D-SemanticKITTI grid where ConvBKI's kernel-smoothed confidence stays artificially high?* — H2-fallback: mean mIoU drop ≤ 50 % of R2-reimpl; vacuity-as-corruption-detector AUROC ≥ 0.80. Identical metric family to H2 (AUROC-based), so analysis pipeline is reusable.
+### RQ3 — Does propagating evidential uncertainty into downstream traversability improve navigation safety on public closed-loop replay scenarios? (Unchanged from v3.)
+- **H3.** On SemanticSpray-style passive-replay traversability evaluation, an uncertainty-gated traversability head produces ≥ +10 pp safe-region recall and ≥ −30 % false-traversable rate vs R2-style hard-rule baseline, at equal coverage.
+- **v4 preliminary state.** Not yet attempted.
 
-**Decision rule.** Go with **open-set vacuity** (H2 primary above). If the open-set split protocol is contested by W5 internal review (e.g., the N = 5 split turns out trivially separable because all 5 withheld classes look obviously different in LiDAR — which §6 R-16 calls out), switch to Robo3D corruption fallback within the same week without timeline slip.
+### RQ4 — How does the evidential map scale and degrade gracefully across multi-session revisits? (Unchanged from v3.)
+- **H4.** Across KITTI-360 sequences 00, 02, 04, 05, 06, 07, 09, 10 (≥ 5 revisit pairs from spatial overlap): (i) stale-voxel removal precision ≥ 80 % over the second-pass trajectory after evidence decay; (ii) inter-session map ECE drift ≤ 1.5× the single-session ECE; (iii) multi-session memory footprint ≤ 1.7× the single-session footprint.
+- **v4 preliminary state.** A *single-session intra-sequence A/B-half stand-in* on seq 08 first 100 frames yields stale-voxel removal **P = 0.77, R = 0.52**. Below H4's 80 % precision target and well below an implicit recall expectation. Interpretation: directional evidence that M2+M3 detect stale voxels, not yet a PASS. The true H4 evaluation requires KITTI-360 multi-session data (not yet on server) and the M2 loop closure module (not yet implemented). Use this preliminary number as a *lower-bound sanity check* only.
 
-### RQ3 (kept conceptually from v1, descoped in v2, unchanged in v3) — Does propagating evidential uncertainty into downstream traversability improve navigation safety on public closed-loop replay scenarios?
-- **H3.** On SemanticSpray-style passive-replay traversability evaluation, an uncertainty-gated traversability head produces **≥ +10 pp safe-region recall** and **≥ −30 % false-traversable rate** versus an R2-style hard-rule baseline, at equal coverage.
-- **Boundary.** Passive replay (no actuated navigation) — we explicitly do not claim closed-loop navigation success in v3.
-
-### RQ4 (promoted from v1 appendix to main in v2, unchanged in v3) — How does the evidential map scale and degrade gracefully across multi-session revisits?
-- **H4.** Across **KITTI-360 sequences 00, 02, 04, 05, 06, 07, 09, 10** (≥ 5 revisit pairs constructed from spatial overlap), the M2 confidence-aware loop closure + M3 voxel-hash submap fusion achieves: (i) **stale-voxel removal precision ≥ 80 %** over the second-pass trajectory after evidence decay (M3.1), (ii) **inter-session map ECE drift ≤ 1.5×** the single-session ECE, (iii) **multi-session memory footprint ≤ 1.7×** the single-session footprint (sub-linear in session count thanks to voxel-hash deduplication). All three measured on the KITTI-360 evaluation split.
-- **Boundary.** Single-robot multi-session only; not claimed for collaborative multi-robot map merging (Hydra-Multi [A5] territory). Revisit pairs constructed by us via odometry-overlap (documented in §4.3); reviewers can audit the overlap script.
-
-### RQ5 (new in v3 — dynamic-scene head-to-head vs Khronos)
-> *On a SemanticKITTI dynamic-object-heavy subset, does EvidLife-Map — without an explicit 4D motion model — achieve dynamic-object mIoU and static-recall within a defensible margin of Khronos's explicit short-/long-term factorisation, by virtue of vacuity naturally flagging unstable evidence on moving objects?*
-
-- **H5.** On SemanticKITTI sequences with high fraction of dynamic-object frames (provisionally: portions of seq 00, 04, 05, 07 marked dynamic via the SemanticKITTI dynamic-label flag), EvidLife-Map achieves **dynamic-object mIoU within 3 mIoU of Khronos** and **static-region recall ≥ Khronos − 1 pp**, while **latency stays at ≥ 5 Hz on Jetson Orin NX** (Khronos is not designed for Orin NX deployment). The framing: we cede dynamic-scene mIoU supremacy but win on integrated calibration + latency.
-- **Boundary.** Not a claim that vacuity replaces explicit 4D motion modelling; the claim is that for online MSM with deployment constraints, the vacuity-as-instability-detector is competitive enough to make Khronos's full short-/long-term machinery a higher-cost choice in our operating regime. If Khronos reproduction fails (§6 R-17), fall back to published-numbers comparison with an honest disclaimer.
+### RQ5 — Dynamic-scene head-to-head vs Khronos. (Unchanged from v3.)
+- **H5.** On SemanticKITTI dynamic-heavy frames, dynamic-object mIoU within 3 mIoU of Khronos, static-region recall ≥ Khronos − 1 pp, latency ≥ 5 Hz on Jetson Orin NX.
+- **v4 preliminary state.** Not yet attempted; awaits both Khronos reproduction and full-backbone EvidLife-Map.
 
 ---
 
-## §3 Technical Approach (v3)
+## §3 Technical Approach (v4)
 
-### 3.1 System architecture (ASCII, v3 three modules — unchanged structurally from v2)
+### 3.1 System architecture (ASCII, unchanged from v3 structurally)
 
 ```
                     +-------------------+
@@ -170,13 +203,15 @@ The novelty story for v3 is **not** "first to fuse modality X+Y" (v1 story); it 
                               v
               +---------------+----------------+
               | LiDAR Semantic Head             |
-              | (Cylinder3D pretrained on       |
-              |  SemanticKITTI; closed-set 14   |
-              |  + 1 "unknown" channel = 15-D   |
-              |  Dirichlet evidence vector e_L  |
-              |  under v3 open-set RQ2 split;   |
-              |  19+1 = 20-D under closed-set   |
-              |  RQ1 / RQ4 / RQ5)               |
+              | TARGET: Cylinder3D (55.85 M     |
+              |   params), pretrained SemKITTI; |
+              |   STATUS v4: BLOCKED on spconv  |
+              |   1.x→2.x port (§3.9)           |
+              | PRELIM: PointNetVanilla         |
+              |   0.21 M params (W3 verification)|
+              | EDL Dirichlet head:             |
+              |   (C+1)-dim with C=19 closed-set|
+              |   or C=14 open-set RQ2          |
               +---------------+-----------------+
                               |
                               v
@@ -186,6 +221,9 @@ The novelty story for v3 is **not** "first to fuse modality X+Y" (v1 story); it 
    | vacuity m_u(v) = (C+1) / sum(alpha_v)             |
    | Eqs. M1.1-M1.3 (closed form, no kernel smoothing) |
    | NOTE: vacuity acts as natural OOD score (RQ2)     |
+   | NOTE v4: flat-tensor accumulator (W2-3 done)      |
+   |   delivers R2 10× / M1 60× / E2E 13× speedup      |
+   |   over dict-based prototype                       |
    +-------------+---------------------+----------------+
                  |                     |
                  v                     v
@@ -208,31 +246,36 @@ The novelty story for v3 is **not** "first to fuse modality X+Y" (v1 story); it 
 | + SUBMAP     |  | Eq. M3.1 conjugate exponential decay     |
 | FUSION       |  | tau = f(vacuity); high-vacuity ages fast |
 | Eq. M2.1     |  | low-vacuity ages slowly = persistent map |
-| descriptor   |  +--------------------+---------------------+
-| d(S) =       |                       |
-| (h_class,    +-----------+-----------+
-| h_entropy)   |
-+------+-------+           v
-       |           +-------+---------------+
-       v           | downstream queries:   |
-+------+-------+   | (a) uncertainty-aware |
-| pose graph   |   |     traversability    |
-| optimise +   |   | (b) language / task   |
-| reproject    |   |     layer (Clio-      |
-| alpha_v      |   |     compatible)       |
-+--------------+   +-----------------------+
+| descriptor   |  | NOTE v4 (W3-B): 2.64× decay ratio        |
+| d(S) =       |  |   top10% vs bottom10% verified           |
+| (h_class,    |  |   on 747k voxels seq 08 first 50 frames  |
+| h_entropy)   |  +--------------------+---------------------+
++------+-------+                       |
+       |           +-----------+-----------+
+       v           |
++------+-------+   v
+| pose graph   |   +-------+---------------+
+| optimise +   |   | downstream queries:   |
+| reproject    |   | (a) uncertainty-aware |
+| alpha_v      |   |     traversability    |
++--------------+   | (b) language / task   |
+                   |     layer (Clio-      |
+                   |     compatible)       |
+                   +-----------------------+
 ```
 
-### 3.2 M1 — Evidential per-voxel posterior (inherits v2 M1)
-Replace R2's unspecified Bayes filter (audit S1/S2) by a Dirichlet-evidential posterior. Per voxel `v`, maintain accumulated evidence `α_v ∈ R^{C+1}` where C = 19 SemanticKITTI classes (closed-set RQ1/RQ4/RQ5) or C = 14 (open-set RQ2 lead) and the last channel is the open-set "unknown" channel. **Vacuity `m_u(v) = (C+1) / Σ α_v` acts as a natural OOD score** (the v3 RQ2 lead consumes this directly). New observations contribute evidence `e_v(z) = softplus(logit(z))` (no per-modality trust schedule; v3 has only one modality). Eqs.:
+### 3.2 M1 — Evidential per-voxel posterior (inherits v3 M1, with v4 implementation note)
+Replace R2's unspecified Bayes filter (audit S1/S2) by a Dirichlet-evidential posterior. Per voxel `v`, maintain accumulated evidence `α_v ∈ R^{C+1}` where C = 19 SemanticKITTI classes (closed-set RQ1/RQ4/RQ5) or C = 14 (open-set RQ2 lead) and the last channel is the open-set "unknown" channel. **Vacuity `m_u(v) = (C+1) / Σ α_v` acts as a natural OOD score** (the v4 RQ2 lead consumes this directly, preliminarily verified W3-C AUROC = 0.8082). New observations contribute evidence `e_v(z) = softplus(logit(z))` (no per-modality trust schedule; v4 has only one modality). Eqs.:
 
 - **(M1.1)** Evidence accumulation: `α_v^{t+1} = α_v^{t} + e_v^{t+1}`.
 - **(M1.2)** Posterior class mean: `E[p_c | α_v] = α_{v,c} / Σ_k α_{v,k}`.
 - **(M1.3)** Vacuity (open-set / OOD score, reused in M2 and M3): `m_u(v) = (C+1) / Σ_k α_{v,k}`.
 
-EDL Dirichlet (Sensoy et al., NeurIPS-18) rather than S-BKI / ConvBKI kernel-Bayesian inference, because (i) we want per-voxel epistemic uncertainty *without* the spatial-kernel coupling that makes vacuity contaminated by neighbour evidence — the M3 decay rule and the RQ2 OOD score both need an honest per-voxel vacuity, and (ii) closed-form posterior keeps a 4060 viable.
+EDL Dirichlet (Sensoy et al., NeurIPS-18) rather than S-BKI / ConvBKI kernel-Bayesian inference, because (i) we want per-voxel epistemic uncertainty *without* the spatial-kernel coupling that makes vacuity contaminated by neighbour evidence — the M3 decay rule and the RQ2 OOD score both need an honest per-voxel vacuity, and (ii) closed-form posterior keeps even an 8 GB 5060 viable for the dev path and trivialises on the 5090 server.
 
-### 3.3 M2 — Confidence-aware loop closure + multi-session voxel-hash submap fusion (unchanged from v2)
+**v4 implementation note (W2-3 done).** The evidence accumulator is now a flat-tensor allocator that pre-allocates `α_v` in CUDA memory and indexes via a dense hash, replacing the dict-of-tensors prototype. Empirical: R2 baseline 10× faster, M1 60× faster, end-to-end pipeline 13× faster. This brings R2 frame latency from 663 ms (prototype) to ≈ 66 ms and M1 from 3 ms (already fast in prototype because of evidential closed-form) to functionally instantaneous. The 60× M1 speedup matters more for full-train scale than for the 100-frame preliminary number; it is the structural fix that makes full SemKITTI val tractable on a single 5090.
+
+### 3.3 M2 — Confidence-aware loop closure + multi-session voxel-hash submap fusion (unchanged from v3)
 Submaps sealed every 50 m or 30 s of trajectory. Per-submap descriptor:
 - **(M2.1)** `d(S) = ( h_class(S),  h_entropy(S) )` where `h_class(S)` is the L1-normalised class histogram over confident voxels (vacuity below median), and `h_entropy(S)` is the histogram of per-voxel posterior entropy bucketed to 10 bins. Matching via cosine on `h_class` + Earth-Mover-Distance on `h_entropy`; verified by semantic-ICP restricted to class-consistent confident voxels.
 
@@ -242,20 +285,24 @@ Inter-session storage: voxel-hash key = `(int(x/v), int(y/v), int(z/v))`, value 
 
 Inspired by: Kimera-Multi [C7] (pose graph + multi-robot), Hydra [A4] (per-submap descriptor), SA-LOAM [B4.4] (semantic-aided LCD), PlaneSDF [B4.2] (cross-session change detection). Distinct from all four because the *descriptor entropy channel* and the *parameter-free Dirichlet conjugate fusion* are both new.
 
-### 3.4 M3 — Vacuity-driven voxel decay + map staleness ageing (unchanged from v2)
+### 3.4 M3 — Vacuity-driven voxel decay + map staleness ageing (unchanged from v3, preliminarily validated W3-B)
 Conjugate exponential decay on `α_v`, but with the decay time-constant `τ` itself a function of vacuity:
 
-- **(M3.1)** `α_v^{t+Δ} = ((α_v^{t} − 1) · exp(−Δ / τ(m_u))) + 1`, where `τ(m_u) = τ_max · (1 − m_u) + τ_min · m_u`, with `τ_max ≈ 3600 s` (one hour) for confidently-known voxels (low vacuity, ages slowly = persistent map) and `τ_min ≈ 60 s` (one minute) for high-vacuity voxels (ages fast = transient / unknown / dynamic stuff). This single equation is the v3 thesis (§1.4) made concrete: vacuity *is* the staleness signal.
+- **(M3.1)** `α_v^{t+Δ} = ((α_v^{t} − 1) · exp(−Δ / τ(m_u))) + 1`, where `τ(m_u) = τ_max · (1 − m_u) + τ_min · m_u`, with `τ_max ≈ 3600 s` (one hour) for confidently-known voxels (low vacuity, ages slowly = persistent map) and `τ_min ≈ 60 s` (one minute) for high-vacuity voxels (ages fast = transient / unknown / dynamic stuff). This single equation is the v4 thesis (§1.4) made concrete: vacuity *is* the staleness signal.
 
 The decay preserves the posterior mean (M1.2) while inflating vacuity over time, so stale voxels become re-writable as new evidence arrives. Submap-level ageing: a whole submap whose median vacuity exceeds a threshold is flagged for re-observation by an exploration policy (out of scope for this paper but the hook is present).
 
+**v4 preliminary state (W3-B).** On 747 047 unique voxels at 0.25 m voxel size over seq 08 first 50 frames with Δt = 600 s, τ_min = 60 s, τ_max = 3600 s: bottom-10 %-vacuity voxels lose 16.0 % of evidence mass; top-10 %-vacuity voxels lose 42.3 %; ratio 2.64×. The same vacuity scalar that drives the M1 posterior update *also* drives the M3 decay rate at the rate predicted by Eq. M3.1. Json: `artifacts/m3_validation.json`.
+
 Distinct from v1 §3.4 (which used a fixed `τ`) and from Voxblox / NvBlox (which use monotonically-growing weight with no decay at all, audit T2).
 
-### 3.5 Implementation Details (terse, IROS budget)
-- LiDAR semantic head: Cylinder3D, pretrained weights from authors' release; we fine-tune only the last layer to a (C+1)-D output (19+1 = 20-D under closed-set RQ1/RQ4/RQ5; 14+1 = 15-D under open-set RQ2) using EDL loss (Sensoy 2018) on SemanticKITTI train split. Pretrain on 4060 ≈ 2 days for the last-layer fine-tune (entire backbone frozen). **Note:** two separate fine-tunes are needed — one 20-D head for closed-set runs, one 15-D head for open-set RQ2.
-- Backbone: NvBlox [C10] forked; `α_v` (20 × float32 = 80 B, or 15 × float32 = 60 B) replaces the 19-class label probability vector. Memory per voxel grows from ~100 B (R2) to ~180 B (v3 closed-set) or ~160 B (v3 open-set); §4.3 budgets this.
+### 3.5 Implementation Details (terse, IROS budget; v4 backbone reality)
+- **LiDAR semantic head — target:** Cylinder3D 55.85 M params, pretrained weights from authors' release. Fine-tune only the last layer to a (C+1)-D output (20-D closed-set; 15-D open-set) using EDL loss (Sensoy 2018) on SemanticKITTI train split. Two separate fine-tunes (closed-set and open-set heads). On the 5090 server, a last-layer fine-tune is roughly ½ day per head with backbone frozen.
+- **LiDAR semantic head — preliminary stand-in:** PointNetVanilla 0.21 M params used in W3 to demonstrate method-level claims under matched-backbone conditions. NOT the IROS submission backbone.
+- **LiDAR semantic head — v4 BLOCKER:** the planned Cylinder3D pretrained weights ship in spconv 1.x format; spconv 2.x (the only stack that supports sm_120 on cu130) has a kernel index iteration order change that gives all-NaN logits after weight permutation. Three unblock paths documented in §3.9; deadline 2026-06-01 (P1 +3 days).
+- Backbone: NvBlox [C10] forked; `α_v` (20 × float32 = 80 B, or 15 × float32 = 60 B) replaces the 19-class label probability vector. Memory per voxel grows from ~100 B (R2) to ~180 B (v4 closed-set) or ~160 B (v4 open-set); §4.3 budgets this. 879 GB server disk and 251 GB RAM make voxel-hash growth from KITTI-360 multi-session a non-issue.
 - LVIO state estimator: reused unchanged (any open-source LIO; we use the FAST-LIO2 release on KITTI-360, R3LIVE on SemanticKITTI single-session, doc'd in §4.6).
-- Runs target: ≥ 10 Hz on RTX 4060, ≥ 5 Hz on Jetson Orin NX. Numbers to be measured; deployment **benchmark + 30-s demo video** (v3 §4.G).
+- Runs target: ≥ 10 Hz on 5090 dev, ≥ 5 Hz on Jetson Orin NX. Numbers to be measured at full backbone; deployment **benchmark + 30-s demo video** (v4 §4.6).
 
 ### 3.6 Key equations (closed-form, all derived in `/ars-full`)
 - **Eq. M1.1** evidence accumulation
@@ -263,221 +310,278 @@ Distinct from v1 §3.4 (which used a fixed `τ`) and from Voxblox / NvBlox (whic
 - **Eq. M1.3** vacuity (open-set / OOD score, used directly by RQ2)
 - **Eq. M2.1** submap descriptor (class histogram + entropy histogram)
 - **Eq. M3.1** vacuity-conditioned conjugate decay
-Five equations total; v1/v2 had five too. Same equation count, different semantics.
+Five equations total; v1/v2/v3 had five too. Same equation count, different semantics. **Eq. M1.3 verified W3-C (AUROC 0.8082); Eq. M3.1 verified W3-B (2.64× decay ratio).**
 
-### 3.7 Dynamic-Object Handling Discussion (NEW in v3 — sets up the Khronos comparison)
+### 3.7 Dynamic-Object Handling Discussion (preserved from v3; sets up the Khronos comparison)
 EvidLife-Map does **not** explicitly model 4D space-time as Khronos [A2] does. Khronos's contribution is a learned short-term motion segmenter combined with a long-term change detector; together they let it factorise dynamic objects from a persistent map.
 
-v3 argues that **vacuity naturally degrades on moving-object voxels** for two structural reasons. (a) A moving object presents inconsistent evidence to the same voxel across consecutive frames (now-occupied, now-free, now-different-class), so per-voxel evidence accumulation under Eq. M1.1 collects conflicting `e_v` contributions, raising `Σ α_v` slowly relative to the inter-class disagreement — equivalently, vacuity stays elevated while the posterior class mean (M1.2) gets noisy. (b) The M3 decay rule (M3.1) under a high-vacuity regime sets `τ → τ_min ≈ 60 s`, so the dynamic voxel's evidence is actively flushed before it can crystallise into a wrong-persistent label.
+v4 argues that **vacuity naturally degrades on moving-object voxels** for two structural reasons. (a) A moving object presents inconsistent evidence to the same voxel across consecutive frames (now-occupied, now-free, now-different-class), so per-voxel evidence accumulation under Eq. M1.1 collects conflicting `e_v` contributions, raising `Σ α_v` slowly relative to the inter-class disagreement — equivalently, vacuity stays elevated while the posterior class mean (M1.2) gets noisy. (b) The M3 decay rule (M3.1) under a high-vacuity regime sets `τ → τ_min ≈ 60 s`, so the dynamic voxel's evidence is actively flushed before it can crystallise into a wrong-persistent label.
 
-The result: EvidLife-Map handles dynamic objects *implicitly* through (a) + (b), where Khronos handles them *explicitly* through a dedicated network. This is a fair-comparison framing — we are not claiming EvidLife-Map's implicit mechanism dominates Khronos's explicit mechanism on dynamic-object mIoU; we are claiming it is competitive enough to make the explicit machinery a deployment-cost trade-off rather than a capability necessity. The §4.4 Table V experiment (new in v3) measures this competitiveness directly.
+The result: EvidLife-Map handles dynamic objects *implicitly* through (a) + (b), where Khronos handles them *explicitly* through a dedicated network. This is a fair-comparison framing — we are not claiming EvidLife-Map's implicit mechanism dominates Khronos's explicit mechanism on dynamic-object mIoU; we are claiming it is competitive enough to make the explicit machinery a deployment-cost trade-off rather than a capability necessity. The §4.4 Table V experiment measures this competitiveness directly.
 
 This framing also addresses the "why don't you just bolt Khronos onto your system?" reviewer question: an explicit short-term motion segmenter would *override* vacuity's natural-instability signal in M3, doing the same job twice with two different parameter sets. We deliberately keep the implicit channel only, document the trade-off, and let numbers decide.
 
-### 3.8 Methodological deltas, one line each (v3 set; renumbered from v2 §3.7)
-- vs **R2 [A1]:** specifies the Bayes filter (Eqs M1.1-M1.3 closed form); adds vacuity, adds decay, adds loop+fusion; adds explicit unknown channel.
-- vs **Khronos [A2]:** Khronos factorises short-/long-term in time via change-detection network; we let vacuity *be* the change signal via M3.1 (no separate network). **v3 escalation: now head-to-head experimentally on dynamic split (§4.4 Table V), not just argued in prose.**
+### 3.8 Methodological deltas, one line each (preserved from v3)
+- vs **R2 [A1]:** specifies the Bayes filter (Eqs M1.1-M1.3 closed form); adds vacuity, adds decay, adds loop+fusion; adds explicit unknown channel. **Preliminary: M1 > R2 on mIoU 14.73 / 1.69 %, ECE 0.171 / 0.490, latency 3.0 / 663 ms at matched 0.21 M-param PointNet (W3-A vs W3-baseline).**
+- vs **Khronos [A2]:** Khronos factorises short-/long-term in time via change-detection network; we let vacuity *be* the change signal via M3.1 (no separate network). **v3+v4 escalation: head-to-head experimentally on dynamic split (§4.4 Table V), not just argued in prose.**
 - vs **Clio [A3]:** Clio compresses given a task; we keep a task-agnostic uncertainty-aware substrate. Clio could sit on top.
-- vs **ConvBKI [C9]:** kernel-Bayesian spatial smoothing; we use EDL Dirichlet — sharper vacuity (no neighbour contamination), needed by M3.1 and by RQ2 OOD.
+- vs **ConvBKI [C9]:** kernel-Bayesian spatial smoothing; we use EDL Dirichlet — sharper vacuity (no neighbour contamination), needed by M3.1 (preliminarily verified) and by RQ2 OOD (preliminarily verified).
 - vs **LatentBKI [D10]:** open-vocab BKI; we are closed-set + open-set unknown channel, so we cleanly separate "known classes" and "unknown mass" rather than embedding everything in a CLIP-feature manifold.
 - vs **OpenVox [A8/D8]:** Bernoulli per-instance; we are Dirichlet over all classes including unknown, and we add lifelong M2+M3.
 - vs **S-BKI [C8]:** same spirit (probabilistic semantic voxel) but with explicit vacuity for decay; no kernel smoothing.
 - vs **Voxblox / Voxblox++ [C1, C3]:** Voxblox-class does TSDF only; we add semantic Dirichlet + lifelong.
 - vs **Kimera-Semantics [C6]:** Kimera does scene-graph + multi-robot; we focus on per-voxel calibration + single-robot multi-session lifelong.
 
+### 3.9 Backbone Resolution Path (NEW in v4 — the W2-1 blocker)
+
+The planned Cylinder3D backbone (55.85 M params, sparse-convolution voxel-cylinder architecture, the de-facto SOTA for SemanticKITTI LiDAR semantic segmentation as of 2024) ships its pretrained weights in **spconv 1.x** format. On the 5090 server (sm_120 + CUDA 13.0), only **spconv 2.x** (specifically `spconv-cu126 2.3.8`) compiles and runs. W2-1 engineering has applied a structural port (`W2-1_status.md` lines 5-14, 27-65):
+
+- Import patches (`import spconv.pytorch as spconv`)
+- 36 `.features = X` → `.replace_feature(X)` rewrites
+- 15 `indice_key` uniqueness patches (spconv 2.x enforces same-kernel-size-per-indice-key invariant)
+- Weight permutation (kD,kH,kW,in,out) → (out,kD,kH,kW,in) for 48 conv layers
+- torch_scatter.scatter_max → torch.scatter_reduce_
+- 9-dim voxel input (dxyz_pol + xyz_pol + xy_cart + intensity)
+- Volume bounds aligned to semantickitti.yaml
+
+After these structural patches, model loads (0 missing, 0 unexpected keys, 55.85 M params) and forward pass runs without API error. **But the output logits are all-NaN across all 46k non-zero voxels.** Root cause: spconv 1.x → 2.x changed the *kernel index iteration order* in addition to the weight layout. The shape is correct after permute(4,0,1,2,3) but the *value semantics* of each kernel element are different — same shape, different mapping of voxel-offsets to weight elements. A pure tensor permutation cannot fix this; the change is in C++ kernel-iteration code, not in the tensor-shape contract.
+
+**Three unblock paths (decision required by 2026-06-01, P1 +3 days):**
+
+- **Path 1 — Build spconv 1.x from source against torch 2.11+cu130.** Effort: 2-4 hours engineering. Risk: torch 2.11 internals may have moved beyond what spconv 1.x's CUDA-C++ code expects (new dispatcher signatures, removed at::cuda::* APIs). If the build succeeds, the pretrained weights load cleanly with no further patching and we get full Cylinder3D fidelity. If it fails (60 % probability based on the rough analogues of other spconv 1.x revivals on torch 2.x), we lose 4 hours. **Risk graded M-H (new R-21 in §6).**
+- **Path 2 — Adopt PVKD (Cylinder3D successor, CVPR 2022).** PVKD ("Point-to-Voxel Knowledge Distillation for LiDAR Semantic Segmentation") was Cylinder3D's primary author group's follow-up; the codebase is reportedly spconv 2.x-native (to be verified W2-1 +1 day). If true, this is the cleanest unblock — same backbone family, modern stack, no NaN. Effort: 1 day to integrate. Risk: code quality, training-script completeness, and licence terms unknown until inspected. **Risk graded M (new R-22 in §6).**
+- **Path 3 — Switch to MinkUNet / WaffleIron / RandLA-Net.** Effort: 2-3 days to swap backbone. Risk: mIoU drop of approximately 5-10 (estimate) versus Cylinder3D published 65-68 mIoU on SemKITTI test, leaving us in the 55-60 mIoU band. Reproducibility benefit: every alternative listed is pure-PyTorch (no spconv), so the IROS supplementary becomes trivially reproducible on any sm_120 box. **Risk graded L on engineering, M on mIoU position.**
+
+**v4 preferred order: Path 2 (PVKD) → Path 1 (spconv 1.x source build) → Path 3 (alt backbone).** Rationale: Path 2 gives the closest mIoU position to the planned Cylinder3D with the lowest engineering risk *if* PVKD inspection passes. Path 1 is the highest-fidelity continuation of the existing port work *if* the spconv 1.x source build cooperates with torch 2.11+cu130. Path 3 is the deterministic-success path with a mIoU haircut.
+
+**Open question to user (§8 Q1):** select preferred path order, or delegate to architect.
+
+**Decision deadline:** **2026-06-01** (P1 day 3). If a path is not selected by this date, the architect default-selects Path 2; if PVKD inspection on 2026-06-01 fails (code stale, dependencies broken, licence-incompatible), the architect default-falls to Path 1; if Path 1 fails by 2026-06-03, the architect default-falls to Path 3 and adjusts §5 C3 mIoU targets per Path-3-haircut estimates.
+
+This sequencing is intentionally biased toward action over deliberation: every day of P1 not spent on a real backbone is a day deducted from the §7 P4 buffer.
+
 ---
 
-## §4 Experimental Plan (v3)
+## §4 Experimental Plan (v4)
 
-### 4.1 Datasets (final shortlist, 6 datasets — all public, all pre-labelled, zero manual budget)
+### 4.1 Datasets (final shortlist, 6 datasets — unchanged from v3, with v4 server-side status)
 
-| # | Dataset | Role in v3 | Why kept / why added |
-|---|---------|------------|----------------------|
-| D-a | **SemanticKITTI** (Behley 2019; community Cylinder3D split) | Primary closed-set dense GT for LiDAR mapping mIoU and ECE (RQ1); **base substrate for v3 open-set 14/5 split (RQ2)**; base substrate for dynamic split (RQ5) | Standard, reproducible, every cited competitor has results on it |
-| D-b | **nuScenes-LiDARSeg** (Caesar 2020; LiDAR seg labels released 2021) | Cross-domain mIoU/ECE check (RQ1 generalisation); **reverse cross-domain OOD cross-check for v3 RQ2** (train on SemanticKITTI 14-class, evaluate vacuity on nuScenes-only classes) | The only mainstream AD dataset with LiDAR semantic GT *and* a different class taxonomy, perfect for the cross-dataset OOD sanity check |
-| D-c | **KITTI-360** (Liao 2022; multi-session dense LiDAR semantic seg, 19 classes) | Primary lifelong / multi-session evaluation arena (RQ4) | Multi-session structure (revisits across drives), large enough for the M2 loop closure tests; has dense semantic GT |
-| D-d | **SemanticKITTI dynamic split** (constructed from SemanticKITTI dynamic-label flag on seq 00, 04, 05, 07; frames with high fraction of `moving-*` class instances) | **Dynamic-scene head-to-head vs Khronos (RQ5, v3 new)** | SemanticKITTI's per-point dynamic labels (moving-car, moving-person, etc.) make this a public, reproducible, no-extra-annotation construction |
-| D-e | **SemanticSpray** [B3.9] (RA-L-24 wet-road LiDAR seg) | Passive-replay traversability arena (RQ3) | Real-world LiDAR-only, no radar dependence, no manual annotation needed (authors released labels) |
-| D-f | **Robo3D-corrupted SemanticKITTI** (Kong 2023, ICCV-23) | **Fallback substrate for RQ2 if open-set split is blocked at W5** (not primary in v3) | Demoted from v2 RQ2 lead; retained as backup so the pipeline switch costs zero datasets |
+| # | Dataset | Role in v4 | v4 server-side status | Why kept / why added |
+|---|---------|------------|------------------------|----------------------|
+| D-a | **SemanticKITTI** (Behley 2019; community Cylinder3D split) | Primary closed-set dense GT for LiDAR mapping mIoU and ECE (RQ1); base substrate for v4 open-set 14/5 split (RQ2); base substrate for dynamic split (RQ5) | **Train sequences 00-07, 09, 10 on server `/data/shared/SemanticKITTI/dataset/sequences/`: 19 230 velodyne frames + labels.** Seq 08 (val): first 100 of 4071 frames done; full transfer in progress | Standard, reproducible, every cited competitor has results on it |
+| D-b | **nuScenes-LiDARSeg** (Caesar 2020; LiDAR seg labels released 2021) | Cross-domain mIoU/ECE check (RQ1); reverse cross-domain OOD cross-check for RQ2 | Not on server yet; transfer planned P1 W2 | Only mainstream AD dataset with LiDAR semantic GT + different taxonomy |
+| D-c | **KITTI-360** (Liao 2022; multi-session dense LiDAR semantic seg, 19 classes) | Primary lifelong / multi-session evaluation arena (RQ4) | Not on server yet; transfer planned P1 W1 (gating step for RQ4 + leg ii of "three jobs" matrix) | Multi-session structure with dense semantic GT |
+| D-d | **SemanticKITTI dynamic split** (constructed from SemanticKITTI dynamic-label flag on seq 00, 04, 05, 07; frames with high fraction of `moving-*` class instances) | Dynamic-scene head-to-head vs Khronos (RQ5) | Inherits D-a transfer; selection script to be run when seq 00, 04, 05, 07 train labels are server-side (✓ as of v4) | SemanticKITTI's per-point dynamic labels make this reproducible without extra annotation |
+| D-e | **SemanticSpray** [B3.9] (RA-L-24 wet-road LiDAR seg) | Passive-replay traversability arena (RQ3) | Not on server yet; transfer planned P3 | Real-world LiDAR-only, no radar dependence, no manual annotation needed |
+| D-f | **Robo3D-corrupted SemanticKITTI** (Kong 2023, ICCV-23) | Fallback substrate for RQ2 if open-set split is blocked (not primary in v4) | Generation script only; will run from D-a when needed | Fallback path retained |
 
-**Open-set split protocol (v3 RQ2 primary, new sub-section).**
-- **Primary split:** SemanticKITTI 19 → 14 known + 5 unknown. Withheld classes: `bicyclist`, `motorcyclist`, `truck`, `other-vehicle`, `other-ground`. Selection rationale: (i) spans static + dynamic; (ii) spans vehicle + ground; (iii) all five have ≥ 500 GT points per validation sequence so AUROC is statistically meaningful; (iv) leaves the 14 known classes with adequate per-class population for closed-set mIoU. Listed in pre-registration table in supplementary.
-- **Robustness split:** SemanticKITTI 19 → 16 known + 3 unknown (drop only `bicyclist`, `motorcyclist`, `other-vehicle`). Stricter test (fewer unknowns to find); reported alongside primary as robustness.
-- **Reverse cross-domain split:** train on SemanticKITTI 14 known; evaluate vacuity on nuScenes-LiDARSeg points whose class is in {`construction_vehicle`, `barrier`, `traffic_cone`, `pushable_pullable`} — none of which have a SemanticKITTI analogue. AUROC measures cross-dataset OOD generalisation, independent of the SemanticKITTI split.
-- All split definitions, evaluation scripts, and AUROC/AUPR computation code released in supplementary.
+**Open-set split protocol (v4 RQ2 primary, preliminarily validated W3-C).**
+- **Primary split:** SemanticKITTI 19 → 14 known + 5 unknown. Withheld: `bicyclist`, `motorcyclist`, `truck`, `other-vehicle`, `other-ground`. Selection rationale: spans static + dynamic, vehicle + ground, ≥ 500 GT points per validation sequence each. **Preliminary AUROC 0.8082 at this split (W3-C).**
+- **Robustness split:** SemanticKITTI 19 → 16 known + 3 unknown (drop only `bicyclist`, `motorcyclist`, `other-vehicle`).
+- **Reverse cross-domain split:** train on SemanticKITTI 14 known; evaluate vacuity on nuScenes-LiDARSeg classes that do not overlap.
 
-**SemanticKITTI dynamic split protocol (v3 RQ5, new sub-section).**
-- **Construction:** From SemanticKITTI seq 00, 04, 05, 07, select all frames where ≥ 5 % of GT points carry a `moving-*` class label (SemanticKITTI's official dynamic-label set: `moving-car`, `moving-person`, `moving-bicyclist`, `moving-motorcyclist`, `moving-bus`, `moving-truck`, `moving-other-vehicle`, `moving-on-rails`). Provisional yield: ~1500-2000 dynamic-heavy frames across the 4 sequences (to be verified W18).
-- **Metrics specific to RQ5:** dynamic-object mIoU (restricted to `moving-*` classes), static-region recall (non-moving GT correctly preserved), end-to-end latency.
-- **Khronos comparison:** see §4.2 baseline #5 below; if Khronos reproduction fails, fall back to published numbers per §6 R-17.
+**SemanticKITTI dynamic split protocol (v4 RQ5, unchanged from v3).**
+- Construction: from seq 00, 04, 05, 07, select all frames where ≥ 5 % of GT points carry a `moving-*` class label. Provisional yield ~1500-2000 dynamic-heavy frames.
+- Metrics: dynamic-object mIoU, static-region recall, end-to-end latency.
+- Khronos comparison per §4.2 baseline #5; fallback to published numbers per R-17.
 
-**Datasets explicitly NOT used and why:**
-- **K-Radar** — dropped (user: zero annotation budget for dense voxel pseudo-GT validation).
-- **FusionPortable** — dropped (user instruction: clean public datasets only).
-- **Boreas [B3.4]** — would be ideal for lifelong + multi-season but the LiDAR semantic GT is sparse; KITTI-360 covers the multi-session need with dense GT.
-- **ACDC [B3.3]** — image-only adverse-condition seg; v3 has no central RGB semantic head, so ACDC contributes nothing.
-- **CADC [B3.5]** — adverse-weather LiDAR detection, no dense semantic GT.
-- **Replica / TUM / ScanNet** — indoor, off-topic.
+**Datasets explicitly NOT used and why (unchanged from v3):**
+- **K-Radar** — dropped (zero annotation budget).
+- **FusionPortable** — dropped (user instruction).
+- **Boreas [B3.4]** — sparse semantic GT; KITTI-360 covers the multi-session need.
+- **ACDC [B3.3]** — image-only.
+- **CADC [B3.5]** — no dense semantic GT.
+- **Replica / TUM / ScanNet** — indoor.
 
-### 4.2 Baselines (6 total, IROS 8 p budget — Khronos role escalated in v3)
-1. **R2-reimpl.** Faithful Python/CUDA reimplementation of R2 [A1] (NvBlox + Cylinder3D + argmax-Bayes). No code released by R2, so we must build it ourselves; this is the v1 baseline-1, kept.
+### 4.2 Baselines (6 total — unchanged from v3 except for v4 compute footnote)
+
+1. **R2-reimpl.** Faithful Python/CUDA reimplementation of R2 [A1] (NvBlox + Cylinder3D + argmax-Bayes). v4 status: prototype on PointNetVanilla backbone executes (W2-4 done); full Cylinder3D version gated on §3.9 backbone resolution.
 2. **NvBlox-vanilla + per-frame argmax.** Lower bound (no temporal fusion).
-3. **ConvBKI [C9].** Authors' code; canonical probabilistic semantic voxel competitor (lit_scan reviewer-threat #3). **R-12 risks reimpl failure** — see §6.
-4. **Kimera-Semantics [C6].** Authors' release; canonical Voxblox-class semantic baseline; covers the "did you cite the seminal MIT-SPARK ancestor" reviewer demand. New in v2.
-5. **Khronos [A2]** — **v3 escalation: now used for both (i) RQ1 closed-set mIoU on SemanticKITTI AND (ii) RQ5 dynamic-scene head-to-head on the dynamic split.** Target source: the arXiv 2402.13817 release if available; otherwise we use published numbers for the comparison cells we cannot reproduce, with relative-improvement framing and explicit disclaimer in §V (see §6 R-17 mitigation). Khronos is the load-bearing reviewer-threat baseline in v3.
-6. **Clio-LiDAR-stub** [A3] — Clio's LiDAR pathway used as the open-set RQ2 secondary baseline; if Clio's release is RGB-D-only, we approximate with the OpenScene [B1.3] LiDAR distillation.
+3. **ConvBKI [C9].** Authors' code; canonical probabilistic semantic voxel competitor (lit_scan reviewer-threat #3). **v4: R-12 demoted from H to M** because the 5090 makes reproduction cheap (≈ 4 GPU-hr instead of multi-day on 4060).
+4. **Kimera-Semantics [C6].** Authors' release; canonical Voxblox-class baseline.
+5. **Khronos [A2]** — used for both (i) RQ1 closed-set mIoU on SemanticKITTI AND (ii) RQ5 dynamic-scene head-to-head on the dynamic split. **v4: R-17 risk unchanged** (Khronos reproduction is its own undertaking, server compute does not eliminate code-quality unknowns).
+6. **Clio-LiDAR-stub** [A3].
 
-Stretch baseline (not Go criterion): **OpenVox [A8/D8]** if their code drops by W6.
+Stretch baseline (not Go criterion): **OpenVox [A8/D8]** if their code drops by P3.
 
-### 4.3 Metrics
+### 4.3 Metrics (unchanged from v3)
+
 | Tier | Metric | Used in RQ | Notes |
 |------|--------|-----------|-------|
 | Mapping | mIoU, per-class IoU, F@5 cm reconstruction, voxel coverage, GPU memory peak, end-to-end latency (mean + 99-pct) | RQ1, RQ4, RQ5 | closes audit E4/E5 |
 | Uncertainty (closed-set) | Expected Calibration Error (ECE), Brier score | RQ1, RQ4 | distinguishes us from R2 and ConvBKI |
-| Open-set (RQ2 primary) | **AUROC** of vacuity ranking unknown voxels above known; **AUPR** for the unknown-positive class; closed-set mIoU on the known subset | **RQ2 lead** | v3 primary metric family for the lead RQ |
-| Corruption (fallback) | per-corruption mIoU drop on Robo3D-SemanticKITTI; mean Corruption Error (mCE); voxel-level AUROC of vacuity-as-corruption-detector | RQ2 fallback only | analysis pipeline overlaps with the open-set AUROC pipeline (same AUROC code) |
-| Dynamic (RQ5 new) | dynamic-object mIoU (restricted to `moving-*` classes), static-region recall, end-to-end latency on Jetson Orin NX | **RQ5 (new)** | head-to-head vs Khronos |
+| Open-set (RQ2 primary) | AUROC of vacuity, AUPR for unknown-positive class, closed-set mIoU on known subset | **RQ2 lead** | preliminary AUROC 0.8082 verified W3-C |
+| Corruption (fallback) | per-corruption mIoU drop, mCE, voxel-level AUROC of vacuity | RQ2 fallback only | analysis pipeline shares AUROC code with primary |
+| Dynamic (RQ5) | dynamic-object mIoU, static-region recall, Jetson latency | RQ5 | head-to-head vs Khronos |
 | Traversability | safe-region recall, false-traversable rate, deferral rate | RQ3 | passive replay on SemanticSpray |
-| Lifelong | stale-voxel removal precision/recall over multi-session trajectory; ECE drift across sessions; map size growth | RQ4 | KITTI-360 multi-session split |
+| Lifelong | stale-voxel removal precision/recall, ECE drift, map size growth | RQ4 | KITTI-360 multi-session split; preliminary intra-seq A/B-half stand-in P=0.77 R=0.52 |
 
-**Pseudo-GT?** Not needed in v3. Every dataset above has dense semantic GT (D-a/D-b/D-c/D-d/D-e) or is a fallback (D-f). The v1 K-Radar pseudo-GT bridge is deleted.
+**Pseudo-GT?** Not needed in v4 (same as v3). Every dataset has dense semantic GT or is a fallback.
 
-### 4.4 Ablations (v3 — A-7 promoted to firm, A-6 becomes drop-first stretch)
-| # | Variable | Question answered | Compute cost on 4060 (est.) | Firmness |
+### 4.4 Ablations (v4 — unchanged from v3 except for "all firm" rationale)
+
+| # | Variable | Question answered | Compute cost on 5090 (est.) | Firmness |
 |---|---|---|---|---|
-| A-1 | ± Dirichlet evidential head (vs argmax-Bayes / vs softmax-Bayes) | RQ1: does evidential improve mIoU + ECE? | 3 × 2 days = 6 days | firm |
-| A-2 | ± vacuity-conditioned decay τ(m_u) (vs fixed-τ / vs no-decay) | RQ4 + M3 isolation: does vacuity-coupled decay beat fixed decay? | 3 × 1.5 days = 4.5 days | firm |
-| A-3 | ± entropy channel in submap descriptor (h_class only vs h_class + h_entropy) | RQ4 + M2 isolation: does the entropy channel improve loop precision? | 2 × 1.5 days = 3 days | firm |
-| A-4 | ± vacuity-aware traversability (vs hard threshold) | RQ3: does propagating uncertainty improve safety metrics? | 2 × 0.5 days = 1 day | firm |
-| A-5 | ± conjugate Dirichlet fusion across sessions (vs naive overwrite) | RQ4 + M2 isolation: does the parameter-free conjugate fusion help? | 2 × 1 day = 2 days | firm |
-| **A-7** | **± openset channel in M1 (15-D vs 14-D under v3 open-set split)** | **RQ2 lead: does the dedicated unknown channel matter, or does vacuity alone suffice?** | 2 × 2 days = 4 days | **firm in v3** (was stretch in v2) |
-| A-6 (drop-first stretch in v3) | ± voxel size (0.10 m vs 0.25 m) | defensive: are mIoU gains a voxel-size artefact? | 2 × 2 days = 4 days | drop first if pressed |
+| A-1 | ± Dirichlet evidential head (vs argmax-Bayes / vs softmax-Bayes) | RQ1: does evidential improve mIoU + ECE? | 3 × 0.5 day = 1.5 day | firm |
+| A-2 | ± vacuity-conditioned decay τ(m_u) (vs fixed-τ / vs no-decay) | RQ4 + M3 isolation | 3 × 0.4 day = 1.2 day | firm |
+| A-3 | ± entropy channel in submap descriptor | RQ4 + M2 isolation | 2 × 0.4 day = 0.8 day | firm |
+| A-4 | ± vacuity-aware traversability | RQ3 | 2 × 0.1 day = 0.2 day | firm |
+| A-5 | ± conjugate Dirichlet fusion across sessions | RQ4 + M2 isolation | 2 × 0.25 day = 0.5 day | firm |
+| A-7 | ± openset channel in M1 (15-D vs 14-D under open-set split) | RQ2 lead | 2 × 0.5 day = 1 day | firm |
+| A-6 | ± voxel size (0.10 m vs 0.25 m) | defensive | 2 × 0.5 day = 1 day | **firm in v4** (cloud-cost reason for dropping in v4-delta gone; 5090 makes the run cheap) |
 
-**Total firm ablations (A-1…A-5 + A-7):** ≈ 20.5 GPU-days on 4060. **Including A-6:** ≈ 24.5 days. Plus full main eval runs (≈ 10 days) plus the v3-new Khronos dynamic run (≈ 3 days), total ≈ 38 GPU-days for ablations + main results. Fits in the W6-W18 window of §7 with overhead for re-runs.
+**Total ablations (A-1…A-7) on 5090:** ≈ 6.2 wall-clock days. **v4 promotes A-6 back to firm** because the v4-delta cloud-cost rationale for dropping it disappears with free server access.
 
-**4060 ablation budget verdict (v3).** Run **6 ablations (A-1…A-5 + A-7) firmly + A-6 only if all gates green by W14**. A-6 drops first because the voxel-size confound is a rebuttal-only question; A-7 is now firm because the open-set channel is the methodological choice the lead RQ depends on.
+**Plus main eval + Khronos + open-set:** an estimated ~10 wall-clock days on a single 5090 for all baselines + primary RQ runs. With 4 cards, parallel ablation execution can compress this further; the relevant metric is wall-clock to first-complete-table, not raw GPU-days.
 
-### 4.5 Compute budget (v3 reality on 4060 + Orin NX, with +3 weeks Khronos and +2 days Jetson video)
-- **Training and main eval:** single workstation, 1× **RTX 4060 (16 GB)**.
-- **Deployment benchmark + demo video:** 1× Jetson Orin NX (16 GB) — §III.E latency + memory + the **v3-new 30-second supplementary video** capture (W24-W25).
-- **Estimated wall-clock budget across the 39 weeks (v3 expanded from 36):**
-  - Cylinder3D last-layer EDL fine-tune on SemanticKITTI (×2: 20-D closed and 15-D open-set): ~2 days × 2 = 4 days.
-  - R2-reimpl bring-up: ~5 days.
-  - ConvBKI baseline reproduction: ~3 days.
-  - Kimera-Semantics baseline: ~2 days.
-  - Khronos closed-set RQ1 run on SemanticKITTI: ~2 days.
-  - **Khronos dynamic-split RQ5 run (v3 new): ~3 days reproduction + ~2 days experiment = 5 days.**
-  - Main mapping eval over SemanticKITTI seq 08+11-21 per system: ~1 day × 6 systems = 6 days.
-  - **Open-set RQ2 eval (v3 lead, replaces Robo3D sweep in primary path): ~4 days** (two splits + nuScenes reverse-check across our system + 3 baselines).
-  - KITTI-360 multi-session eval (8 sequences, ~5 revisit pairs): ~4 days.
-  - SemanticSpray passive replay (RQ3): ~1 day.
-  - Ablations: ≈ 20.5 GPU-days firm + 4 stretch (§4.4 above).
-  - Jetson Orin NX deployment latency / memory check + 30 s demo video capture and edit: ~4 days (was 2 in v2; +2 days for video as per user spec).
-  - **Total: ≈ 64 GPU-days of 4060 time** (was 60 in v2). At 5-6 productive GPU-days per calendar week, that is ~13-15 weeks of pure runtime, fits the W4-W26 window of §7's 39-week IROS schedule.
+### 4.5 Compute budget (v4 reality)
 
-### 4.6 Embedded Real-Time Demo (NEW in v3)
+- **Dev / smoke / debug / Jetson cross-compile / paper writing:** local 5060 Laptop (8 GB). Batch ≤ 1 fp16 for sanity checks only. NOT used for any reported number in the IROS paper.
+- **Training and main eval:** **5090 server `server@100.64.0.5` (Tailscale): 4 × RTX 5090 32 GB sm_120, CUDA 13.0, 80 cores, 251 GB RAM, 879 GB disk; workspace `~/Documents/yping/mapping/code/`.** Single 5090 ≈ 4× a 4060 on transformer-style ops, ≈ 3× on sparse-conv ops; the v3 ablation grid's 64 GPU-days on 4060 becomes ≈ 16 wall-clock days on one 5090. With 4 cards, ablations parallelise to ≈ 4-5 wall-clock days.
+- **Deployment benchmark + demo video:** 1× Jetson Orin NX (16 GB) — §III.E latency + memory + 30-second supplementary video capture.
+- **Estimated wall-clock budget across the 9-month re-anchored timeline (v4):**
+  - Cylinder3D backbone resolution (§3.9, Path 2 expected): 1-2 days.
+  - Cylinder3D last-layer EDL fine-tune on SemanticKITTI (×2: 20-D closed and 15-D open-set): ≈ 0.5 day × 2 = 1 day.
+  - R2-reimpl full bring-up on Cylinder3D: 1-2 days (W2-4 prototype already validated, full version is the last-layer swap).
+  - ConvBKI baseline reproduction: ≈ 0.5-1 day (5090 makes it cheap; R-12 demoted to M).
+  - Kimera-Semantics baseline: 1 day.
+  - Khronos closed-set RQ1 run on SemanticKITTI: ≈ 1 day on 5090.
+  - Khronos dynamic-split RQ5 run: 2-3 days (reproduction + experiment).
+  - Main mapping eval over SemanticKITTI seq 08+11-21 per system: ≈ 0.25 day × 6 systems = 1.5 days.
+  - Open-set RQ2 eval (v4 lead): ≈ 1 day (two splits + nuScenes reverse-check across our system + 3 baselines).
+  - KITTI-360 multi-session eval (8 sequences, ≥ 5 revisit pairs): ≈ 2 days.
+  - SemanticSpray passive replay (RQ3): ≈ 0.5 day.
+  - Ablations: ≈ 6 wall-clock days firm (§4.4 above), parallelisable across 4 cards.
+  - Jetson Orin NX deployment latency / memory check + 30 s demo video capture and edit: ~4 days (Jetson is single-device, not parallelisable).
+  - **Total: ≈ 21-25 wall-clock days of server time** (vs v3's 64 GPU-days on 4060). At 5 productive days per calendar week, that's ~5 weeks of pure runtime + 1 week buffer for re-runs, fitting comfortably in the P1-P4 window of §7 (≈ 9-12 weeks).
+
+### 4.6 Embedded Real-Time Demo (preserved from v3)
+
 - **Platform:** Jetson Orin NX (16 GB), TensorRT FP16 build of the EvidLife-Map inference path; the M1 head and the M3 decay run on GPU, M2 loop closure runs on CPU.
-- **Data source:** SemanticKITTI seq 08 offline replay over rosbag at native 10 Hz (or SemanticSpray rosbag if the wet-road condition is more visually informative; choice in W24).
+- **Data source:** SemanticKITTI seq 08 offline replay over rosbag at native 10 Hz (or SemanticSpray rosbag if the wet-road condition is more visually informative; choice in P4).
 - **Duration:** 30 s continuous (300 frames @ 10 Hz).
-- **Output:** real-time metric-semantic voxel map with the **traversability overlay (RQ3 output)** and a vacuity heat-map overlay showing high-vacuity voxels in a distinct colour; recorded as an MP4 with annotated overlay timestamp.
-- **Use in paper:** referenced from §IV.G (new sub-section "F. Embedded Demo") and submitted as supplementary `evidlife_demo.mp4`; reviewers can see the system actually running rather than reading a latency number. **Promotes C4 deployability claim from "benchmark only" to "benchmark + visible demo".**
+- **Output:** real-time metric-semantic voxel map with the traversability overlay (RQ3 output) and a vacuity heat-map overlay showing high-vacuity voxels in a distinct colour; recorded as an MP4 with annotated overlay timestamp.
+- **Use in paper:** referenced from §IV.G (sub-section "F. Embedded Demo") and submitted as supplementary `evidlife_demo.mp4`. Promotes C4 deployability claim from "benchmark only" to "benchmark + visible demo".
 
-### 4.7 Reproducibility hygiene (closes audit E7) — renumbered from v2 §4.6
-- Code + Docker + ROS 2 launch + EDL fine-tune script (both 20-D and 15-D variants) + **open-set split definition file** (v3 new) + **dynamic split selection script** (v3 new) + Robo3D corruption applier (kept for fallback path) + KITTI-360 revisit-pair builder script + per-experiment seed list + hyperparameter table + **Jetson Orin NX demo capture script** (v3 new).
-- LVIO choice documented per dataset: FAST-LIO2 on KITTI-360 (multi-session friendly), R3LIVE on SemanticKITTI single-session, public LIO config on SemanticSpray.
+### 4.7 Reproducibility hygiene (closes audit E7)
 
----
-
-## §5 Expected Contributions (v3, 4 contributions)
-
-- **C1 (Algorithm).** A Dirichlet-evidential per-voxel posterior whose **single vacuity scalar simultaneously serves three downstream jobs** — **(i) open-set / OOD detection** for unknown-category voxels (v3 RQ2 lead; Eq. M1.3), (ii) submap descriptor entropy channel (Eq. M2.1), and (iii) lifelong decay trigger (Eq. M3.1). Strictly generalises R2's unspecified Bayes filter (audit S1/S2 closed) and adds the open-set channel (audit S5 closed). The "one scalar, three jobs" framing — **with the (i) job now anchored on open-set OOD rather than corruption** — is the v3 novelty hook.
-
-- **C2 (System).** A complete online metric-semantic mapping system EvidLife-Map with confidence-aware loop closure, parameter-free conjugate Dirichlet inter-session submap fusion, and vacuity-conditioned voxel decay — closing audit T1/T2/T3/T4 in one paper. **Dynamic-scene head-to-head against Khronos demonstrates that the implicit vacuity-instability mechanism is competitive with explicit 4D modelling at far lower latency on Jetson Orin NX** (v3 RQ5; see C3 (v)). Deployable on Jetson Orin NX (§III.E target ≥ 5 Hz, **plus 30-s supplementary demo video**). First system to ship the lifelong + open-set + calibration + dynamic-competitive quartet together on a public LiDAR-only stack.
-
-- **C3 (Empirical).** Across SemanticKITTI, nuScenes-LiDARSeg, KITTI-360, SemanticKITTI dynamic split, and SemanticSpray: (i) **≥ +2 mIoU and ≥ −20 % ECE** over a faithful R2-reimpl on SemanticKITTI (RQ1 H1); (ii) **AUROC ≥ 0.80 and AUPR ≥ 0.60** for vacuity-as-OOD-detector on the SemanticKITTI 14/5 open-set split, with closed-set mIoU dropping by ≤ 1.5 (RQ2 H2 primary); (iii) **≥ +10 pp safe-region recall** on SemanticSpray passive replay (RQ3 H3); (iv) **≥ 80 % stale-voxel removal precision and ≤ 1.5× ECE drift** on KITTI-360 multi-session (RQ4 H4); **(v) dynamic-object mIoU within 3 of Khronos and static recall within 1 pp, at ≥ 5 Hz on Jetson Orin NX (RQ5 H5).** All numbers replaced by measured ones before submission; targets set as the §9 Go/No-Go thresholds.
-
-- **C4 (Reproducibility + Deployability).** Code + Docker + ROS 2 launch + Jetson Orin NX deployment benchmark **plus 30-s online-mapping demo video in supplementary material** — directly attacks R2 audit E7 ("复现性零保障"). **The deployability claim, previously optional in v2, is now firm in v3** ("first lifelong evidential MSM that runs at ≥ 5 Hz on a 16 GB Orin NX, demonstrated on supplementary video"); hardware-grounded and visually verifiable.
+- Code + Docker + ROS 2 launch + EDL fine-tune script (both 20-D and 15-D variants) + open-set split definition file + dynamic split selection script + Robo3D corruption applier (kept for fallback path) + KITTI-360 revisit-pair builder script + per-experiment seed list + hyperparameter table + Jetson Orin NX demo capture script.
+- LVIO choice documented per dataset: FAST-LIO2 on KITTI-360, R3LIVE on SemanticKITTI single-session, public LIO config on SemanticSpray.
+- **v4-new:** the W2-1 backbone-resolution path (§3.9) selected and its consequences for reproducibility (e.g., spconv 1.x source build instructions; PVKD repo pin; alternative-backbone training script) are part of the supplementary `reproduce.yaml`.
 
 ---
 
-## §6 Risk Register (v3)
+## §5 Expected Contributions (v4, 4 contributions — text essentially unchanged from v3, with v4 preliminary-evidence footnote)
+
+- **C1 (Algorithm).** A Dirichlet-evidential per-voxel posterior whose single vacuity scalar simultaneously serves three downstream jobs — (i) open-set / OOD detection for unknown-category voxels (v4 RQ2 lead; Eq. M1.3; **preliminarily verified W3-C, AUROC 0.8082**), (ii) submap descriptor entropy channel (Eq. M2.1), and (iii) lifelong decay trigger (Eq. M3.1; **preliminarily verified W3-B, 2.64× decay ratio**). Strictly generalises R2's unspecified Bayes filter (audit S1/S2 closed) and adds the open-set channel (audit S5 closed). The "one scalar, three jobs" framing — with two of three jobs preliminarily validated on real KITTI data — is the v4 novelty hook.
+
+- **C2 (System).** A complete online metric-semantic mapping system EvidLife-Map with confidence-aware loop closure, parameter-free conjugate Dirichlet inter-session submap fusion, and vacuity-conditioned voxel decay — closing audit T1/T2/T3/T4 in one paper. Dynamic-scene head-to-head against Khronos demonstrates that the implicit vacuity-instability mechanism is competitive with explicit 4D modelling at far lower latency on Jetson Orin NX (v4 RQ5; see C3 (v)). Deployable on Jetson Orin NX (§III.E target ≥ 5 Hz, plus 30-s supplementary demo video). First system to ship the lifelong + open-set + calibration + dynamic-competitive quartet together on a public LiDAR-only stack.
+
+- **C3 (Empirical).** Across SemanticKITTI, nuScenes-LiDARSeg, KITTI-360, SemanticKITTI dynamic split, and SemanticSpray: (i) ≥ +2 mIoU and ≥ −20 % ECE over a faithful R2-reimpl on SemanticKITTI (RQ1 H1; **preliminary ordering ✓ at 0.21 M-param backbone**); (ii) AUROC ≥ 0.80 and AUPR ≥ 0.60 for vacuity-as-OOD-detector on the SemanticKITTI 14/5 open-set split, with closed-set mIoU dropping by ≤ 1.5 (RQ2 H2 primary; **preliminary AUROC 0.8082 ✓ at 0.21 M-param backbone**); (iii) ≥ +10 pp safe-region recall on SemanticSpray passive replay (RQ3 H3); (iv) ≥ 80 % stale-voxel removal precision and ≤ 1.5× ECE drift on KITTI-360 multi-session (RQ4 H4; preliminary intra-seq A/B-half stand-in: P=0.77, R=0.52 — directional evidence, not a PASS); (v) dynamic-object mIoU within 3 of Khronos and static recall within 1 pp, at ≥ 5 Hz on Jetson Orin NX (RQ5 H5). All numbers replaced by measured ones before submission; targets set as the §9 Go/No-Go thresholds. **Preliminary numbers in `artifacts/preliminary_results.md` will be replaced by full-backbone numbers from §3.9-resolved Cylinder3D runs.**
+
+- **C4 (Reproducibility + Deployability).** Code + Docker + ROS 2 launch + Jetson Orin NX deployment benchmark plus 30-s online-mapping demo video in supplementary material — directly attacks R2 audit E7. The deployability claim, previously optional in v2, is firm in v3/v4 ("first lifelong evidential MSM that runs at ≥ 5 Hz on a 16 GB Orin NX, demonstrated on supplementary video"); hardware-grounded and visually verifiable. **v4-new:** supplementary also includes the §3.9 backbone-resolution path documentation, so reviewers can reproduce on any sm_120 host without re-encountering the spconv 1.x ↔ 2.x stuck.
+
+---
+
+## §6 Risk Register (v4 — 16 risks)
 
 | ID | Risk | Prob | Impact | Mitigation | Trigger to fall back |
 |----|------|------|--------|------------|---------------------|
-| R-2 (kept) | Khronos [A2] releases a multi-session / lifelong extension before IROS 2027 submission | M | H | Track arXiv weekly via post-research literature monitor; pre-register our differentiation as "vacuity-coupled decay, no separate change-detection network" | If Khronos-v2 lands on lifelong before us, sharpen claim to the "one vacuity, three jobs" calibration story |
+| R-2 (kept) | Khronos releases a multi-session / lifelong extension before IROS 2027 submission | M | H | Track arXiv weekly via post-research literature monitor; pre-register our differentiation as "vacuity-coupled decay, no separate change-detection network" | If Khronos-v2 lands on lifelong before us, sharpen claim to the "one vacuity, three jobs" calibration story |
 | R-3 (kept) | GS-LIVO [B2.7] HKUST sibling lab releases semantic-GSplat extension | M | M | Differentiate on representation (voxel-Dirichlet vs Gaussian) and target (lifelong vs photo-realistic single-session) | If GS-LIVO-semantic ships, sharpen our "Jetson Orin NX deployable lifelong with demo video" angle |
-| R-4 (kept) | Dirichlet evidential fusion fails to beat ConvBKI in mIoU | M | H | Calibration (ECE / AUROC unknown) is a separate axis; we win on calibration + lifelong even if mIoU ties | If ECE also ties, retreat per §0 fallback to calibration-only paper at RA-L (drop M2/M3 to brief sub-sections) |
-| R-6 (kept) | KITTI-360 multi-session revisit overlap insufficient for RQ4 | M | M | Pre-compute overlap matrix in W3 (deliverable W3.b); if pairs < 5, augment with SemanticKITTI cross-day sequences | If still < 5, demote RQ4 H4 to single-session ECE-drift study, document as scope reduction |
-| R-7 (kept) | Voxel-size confound contaminates mIoU vs ConvBKI | M | M | Ablation A-6 (now drop-first stretch in v3) if time allows; report all numbers also at fixed 0.25 m | n/a |
-| R-8 (kept) | Cylinder3D licence (or its weight release) prevents code release | L | M | RangeNet++ (BSD) as backup; train from scratch on 4060 (~5 days) | n/a |
-| R-9 (kept, sharpened) | 8-page IROS overflow given 5 RQs (one added in v3) and 5 datasets | **H** (up from M in v2) | M | Move ablation tables, per-class IoU, KITTI-360 per-sequence numbers, and the new RQ5 dynamic detail to supplementary; keep main paper at 5 RQs but 3 hero claims; demo video lives in supplementary (saves 0 page; it's a file attachment) | Drop A-6 from main, defend "two-pair" RQ4 demo, push RQ5 details to supplementary table |
-| R-10 (kept) | Reviewer demands real-robot deployment | M | M | Cite scope as "methodological + public-dataset + Jetson Orin NX benchmark + 30-s demo video"; the demo video softens this risk | If desk-rejected, the Jetson video + numbers become the primary deployability evidence |
-| R-11 (kept) | RTX 4060 16 GB VRAM insufficient for Cylinder3D + 20-D Dirichlet head + voxel-hash + KITTI-360 batch | H | M | Batch size = 1 with gradient accumulation; freeze Cylinder3D backbone (fine-tune last layer only); offload submap RAM to host; checkpoint per submap | If still OOM on KITTI-360, swap Cylinder3D for SalsaNext (lighter) and re-time |
-| R-12 (kept) | ConvBKI authors' reimpl fails to reproduce published numbers on our 4060 | M | H | Allocate full W2 + W3 to ConvBKI reproduction; pin CUDA + PyTorch versions; cross-check with published seq-08 mIoU within ±2 | If reproduction fails after 2 weeks, document discrepancy and use published numbers in a quoted-only table |
-| R-13 (kept) | KITTI-360 multi-session revisit length / overlap is too short to demonstrate stale-voxel decay | M | M | Pre-compute overlap matrix in W3; augment with synthetic temporal-gap injection on single sessions | Demote to "synthetic-revisit study only" and shrink H4 from precision-recall to AUROC of stale-voxel ranking |
-| R-14 (kept) | EDL Dirichlet head training is unstable / collapses to uniform Dirichlet | M | H | Use Sensoy 2018 KL-annealing schedule; gradient-clip; monitor evidence sum trajectory; warm-start from softmax pretrain | If unstable after 1 week of tuning, switch to posterior network (PostNet, Charpentier 2020) |
-| **R-15 (NEW in v3)** | **Open-set 14/5 split definition is methodologically controversial** (reviewers argue we cherry-picked easy unknowns, or that the split leaks training-time information through related-class features) | **M** | **H** | Pre-register the split (table in supplementary) before any RQ2 experiment runs; report both N=5 primary and N=3 robustness splits; **add the nuScenes reverse-cross-domain check as an independent validation that does not depend on our split choice**; release the split definition file in supplementary | If a reviewer's preferred split is starkly different, retreat to the "AUROC across multiple splits" framing and report mean ± std |
-| **R-16 (NEW in v3)** | **SemanticKITTI lacks taxonomic diversity for a meaningful 5-class unknown** — the withheld 5 classes are too similar in LiDAR appearance to known classes (or too dissimilar, making the task trivial) | M | M | Validate split quality by W5 with a 2-NN baseline check on raw features; the **nuScenes reverse cross-domain check provides a backup OOD evaluation independent of SemanticKITTI's taxonomy**; if both splits are problematic, the **Robo3D fallback** (D-f dataset retained) covers the same metric family (AUROC of vacuity for anomaly detection) | If both SemanticKITTI splits and nuScenes cross-domain fail to produce informative AUROC by W7, switch RQ2 to Robo3D corruption fallback (H2-fallback in §2) within the same week |
-| **R-17 (NEW in v3)** | **Khronos reproduction fails for the dynamic-split RQ5 experiment** — authors' release is incomplete, dependency-broken, or the dynamic-split protocol cannot be matched | **H** | **H** | Allocate W18-W20 firmly to Khronos bring-up (gated by G-6); pin docker environment matching Khronos arXiv 2402.13817 release; reach out to Khronos authors at W17; **as fallback, use Khronos's published dynamic-scene numbers and report a quoted-comparison Table V with a relative-improvement framing and explicit disclaimer in §V about the comparison being approximate** | If full reproduction fails by W20, ship Table V as a "published numbers vs ours" hybrid table with disclaimer; the RQ5 H5 hypothesis becomes "competitive with published Khronos numbers", which is a weaker claim but still publishable |
+| R-4 (kept) | Dirichlet evidential fusion fails to beat ConvBKI in mIoU at full backbone scale | M | H | Calibration (ECE / AUROC unknown) is a separate axis; we win on calibration + lifelong even if mIoU ties. **v4 preliminary: M1 > R2 ordering holds at preliminary scale, but ConvBKI is a stronger comparator than R2-reimpl; full-scale rerun still required.** | If ECE also ties at full scale, retreat per §0 fallback to calibration-only paper at RA-L |
+| R-6 (kept) | KITTI-360 multi-session revisit overlap insufficient for RQ4 | M | M | Pre-compute overlap matrix in P1 (gated on dataset transfer); if pairs < 5, augment with SemanticKITTI cross-day sequences | If still < 5, demote RQ4 H4 to single-session ECE-drift study |
+| R-7 (kept) | Voxel-size confound contaminates mIoU vs ConvBKI | M | M | Ablation A-6 (firm in v4) covers this | n/a |
+| R-8 (kept) | Cylinder3D licence prevents code release | L | M | RangeNet++ or PVKD (§3.9 Path 2) as backup; train from scratch on 5090 (~3 days) | n/a |
+| R-9 (kept, lowered) | 8-page IROS overflow given 5 RQs and 5 datasets | M (down from H in v3) | M | Move ablation tables and KITTI-360 per-sequence numbers to supplementary; demo video lives in supplementary | Drop A-6 from main, defend "two-pair" RQ4 demo, push RQ5 details to supplementary table. **v4 lowers R-9 to M because the preliminary results give us a more compact §IV.0 "Preliminary Verification" pre-table that absorbs some space pressure rather than adding to it.** |
+| R-10 (kept) | Reviewer demands real-robot deployment | M | M | Cite scope as "methodological + public-dataset + Jetson Orin NX benchmark + 30-s demo video" | If desk-rejected, the Jetson video + numbers become the primary deployability evidence |
+| R-11 (REWRITTEN in v4) | **5060 Laptop 8 GB local-VRAM is insufficient for end-to-end SemKITTI training at batch ≥ 1 even with fp16** | H (up from H in v3) | **L (down from M in v3)** | Local 5060 is dev-only in v4; training runs on 5090 server; impact is bounded to "we cannot debug on flight, only on the bench" | Server access loss (unlikely; user has continuous Tailscale link) would require fallback to commercial cloud per pre-v4-delta plan |
+| R-12 (DEMOTED in v4) | ConvBKI authors' reimpl fails to reproduce published numbers | M | **M (down from H in v3)** | 5090 server makes ConvBKI reproduction cheap; allocate ~1-2 days; pin CUDA + PyTorch versions; cross-check with published seq-08 mIoU within ±2 | If reproduction fails after 1 week of focused effort, use published numbers in a quoted-only table |
+| R-13 (kept) | KITTI-360 multi-session revisit length / overlap is too short to demonstrate stale-voxel decay | M | M | Pre-compute overlap matrix when KITTI-360 arrives on server; augment with synthetic temporal-gap injection on single sessions | Demote to "synthetic-revisit study only" and shrink H4 from precision-recall to AUROC of stale-voxel ranking |
+| R-14 (CONFIRMED in v4) | **EDL Dirichlet head training is unstable / collapses to uniform Dirichlet** — **OBSERVED at preliminary scale (best AUROC at ep 1, degrades to ~0.67 by ep 30)** | **CONFIRMED** | **H** | Use late-stage KL warm-restart schedule (re-introduce KL after annealing-to-zero, with a smaller plateau target); gradient-clip; monitor evidence-sum trajectory; warm-start from softmax pretrain; best-ckpt selection by val AUROC rather than val loss | If full-backbone training also collapses irrecoverably, switch to posterior network (PostNet, Charpentier 2020). **v4: this risk is now confirmed at preliminary scale and is the primary EDL methodological risk to engineer around in P2.** |
+| R-15 (kept) | Open-set 14/5 split definition is methodologically controversial | M | H | Pre-register the split before any RQ2 experiment runs; report both N=5 primary and N=3 robustness; add nuScenes reverse-cross-domain check; release split file in supplementary. **v4: the preliminary AUROC 0.8082 at this split is one evidence point that the split is not trivially separable; the W3-C run did *not* observe degenerate AUROC=1.0 or AUROC<0.5.** | If reviewer's preferred split is starkly different, retreat to "AUROC across multiple splits, mean ± std" framing |
+| R-16 (kept) | SemanticKITTI lacks taxonomic diversity for a meaningful 5-class unknown | M | M | Validate split quality by P2 with a 2-NN baseline check on raw features; nuScenes reverse cross-domain check provides backup; Robo3D fallback (D-f) retained | If both SemanticKITTI splits and nuScenes cross-domain fail to produce informative AUROC by P3, switch RQ2 to Robo3D corruption fallback |
+| R-17 (kept) | Khronos reproduction fails for the dynamic-split RQ5 experiment | H | H | Allocate P3 firmly to Khronos bring-up (gated by G-6); pin docker environment; reach out to Khronos authors; fallback to published numbers in Table V hybrid | If full reproduction fails, ship Table V as "published numbers vs ours" hybrid; H5 weakens to "competitive with published Khronos numbers" |
+| **R-21 (NEW in v4)** | **spconv 1.x ↔ 2.x value-semantic gap (kernel index iteration order change) blocks the planned Cylinder3D backbone.** Path 1 (source-build spconv 1.x against torch 2.11+cu130) may fail vs new PyTorch internals (estimated 60 % failure probability) | **H** | **H** | §3.9 documents three unblock paths; default order Path 2 → 1 → 3; decision deadline 2026-06-01; if all three fail, default-fall to MinkUNet and adjust §5 C3 mIoU targets per Path-3 haircut | Path 3 (alt-backbone) is the deterministic-success path with a 5-10 mIoU haircut; it is guaranteed unblockable, so this risk is *time-bounded* not catastrophic |
+| **R-22 (NEW in v4)** | **PVKD (§3.9 Path 2) code quality, training-script completeness, or licence terms turn out to be incompatible with our reproducibility commitment** | M | M | Inspect repo in P1 (≤ 1 day budget); if any of (code stale, deps broken, licence-incompatible), fall to Path 1; if Path 1 also fails, fall to Path 3 | Path 2 failure cascades to Path 1 then Path 3 per §3.9 sequencing |
 
-**H/M/L summary (v3):** **H: 5** (R-4, R-9, R-11, R-12, R-15, R-17 — algorithmic-fail + page-overflow + hardware-fail + baseline-fail + open-set-validity + Khronos-repro are the structural risks; v3 raised R-9 to H because the new RQ5 + demo video tighten the page budget); **M: 8** (R-2, R-3, R-6, R-7, R-10, R-13, R-14, R-16); **L: 1** (R-8). **Net 14 risks** (v2 had 12: 3 H + 8 M + 1 L). v3 added 3 (R-15, R-16, R-17), zero retired, and re-graded R-9 up from M to H.
+**H/M/L summary (v4):** **H: 5** (R-4, R-14, R-15, R-17, R-21 — algorithmic-fail + EDL stability + open-set validity + Khronos-repro + backbone-blocker are now the structural risks; v4 raised R-21 to H, R-14 to confirmed-H, but lowered R-9 to M and R-11 impact to L). **M: 9** (R-2, R-3, R-6, R-7, R-9, R-10, R-12, R-13, R-16, R-22 — that is 10 entries; revised: R-9 and R-11 each one of these tiers; correct M count: R-2, R-3, R-6, R-7, R-9, R-10, R-12, R-13, R-16, R-22 = 10). **L: 2** (R-8, R-11-impact). Adjusted summary: **5 H + 10 M + 1 L = 16 total.** Counting note: R-11's probability is H but impact is L; it lives in the "L impact" bucket for prioritisation purposes. (v3 had 14 risks: 5 H + 8 M + 1 L.)
 
-(v1 risks R-1/R-5 already retired in v2. v2 risks R-2..R-14 all carried forward to v3 with minor wording updates noted above.)
-
----
-
-## §7 Timeline (≈ 39 weeks, IROS 2027 deadline ≈ 2027-03)
-
-Reference today = 2026-05-28; IROS 2027 paper deadline ≈ 2027-03 (formerly 4-week buffer in v2; **v3 buffer reduced to ≈ 1 week** because P5 absorbed +3 weeks for Khronos dynamic and +2 days for Jetson video).
-
-| Phase | Weeks | Calendar (approx.) | Focus | Concrete output / milestone |
-|-------|-------|---------------------|-------|-----------------------------|
-| **P1 Bring-up** | W1-W3 | 2026-06 → 2026-06-mid | R2-reimpl + Cylinder3D fine-tune (×2: 20-D and 15-D heads) + KITTI-360 revisit-overlap matrix + open-set split pre-registration | W1: R2-reimpl runs; W2: Cylinder3D EDL last-layer fine-tune complete (20-D head); **W3: KITTI-360 revisit matrix delivered (R-13 check); v3-new: open-set 14/5 split definition pre-registered (R-15 mitigation); first Go/No-Go (§9 G-1, G-3)** |
-| **P2 Algorithm** | W4-W6 | 2026-07 → 2026-07-mid | M1 evidential head integrated; A-1 ablation skeleton; v3-new: 15-D open-set head fine-tune + initial AUROC sanity check | W4: M1 working end-to-end on seq 08; **W4 second Go/No-Go (§9 G-2 evidential head ≥ +1 mIoU)**; W5: ConvBKI reimpl validated (R-12 check); **v3-new W5-W7 open-set RQ2 sanity (R-16 check, must yield non-trivial AUROC)**; W6: A-1 numbers |
-| **P3 Systems** | W7-W12 | 2026-08 → 2026-09 | M2 loop+fusion; M3 decay; A-2 / A-3 / A-5 ablations | W7-W8: M2 single-session loop closure on SemanticKITTI; W9-W10: M3 decay integrated; W11-W12: A-2 + A-3 + A-5 numbers; **W12 third Go/No-Go (§9 G-4 M2 loop precision ≥ 70 %)** |
-| **P4 Open-set + Robustness** | W13-W17 | 2026-10 → 2026-11-mid | Open-set RQ2 lead + nuScenes reverse-check + A-7 ablation; Robo3D fallback only if open-set fails | W13-W15: open-set RQ2 H2 numbers (primary 14/5 + robustness 16/3 splits); W16: nuScenes reverse-cross-domain OOD; W17: A-7 (± unknown channel); **W17 fourth Go/No-Go (§9 G-5 open-set AUROC ≥ 0.80 OR Robo3D fallback ready)** |
-| **P5 Lifelong + Dynamic + Downstream + Deploy** (extended in v3 from W19-W24 to W18-W26, +3 weeks for Khronos dynamic, +2 days for Jetson video) | W18-W26 | 2026-11-mid → 2027-01 | KITTI-360 multi-session RQ4; **v3-new: Khronos reproduction + RQ5 dynamic split experiment**; SemanticSpray RQ3; Jetson Orin NX deploy benchmark; **v3-new: 30-s Jetson demo video capture + edit** | W18-W20: **v3-new Khronos bring-up (G-6 checkpoint W20)**; W21-W22: RQ5 H5 dynamic numbers; W23-W24: RQ4 H4 KITTI-360 numbers; **W24: Jetson Orin NX benchmark + 30-s demo video capture (2 days)**; **W25: video edit + supplementary annotation overlay (~2 days)**; W26: RQ3 H3 SemanticSpray + buffer |
-| **P6 Writing** | W27-W33 | 2027-01 → 2027-02-mid | `/ars-full` first draft, figures, tables, supplementary including demo video | W27-W30: draft 1 from outline_v3; W31: internal reviewer-sim (`academic-paper-reviewer`); W32-W33: revision pass |
-| **P7 Submission** | W34-W39 | 2027-02-mid → 2027-03 | Reviewer-sim second pass + format-convert + camera-ready prep + buffer (≈ 1 week, v3 reduced from v2's ≈ 3 weeks) | W34-W36: second reviewer-sim + revision; W37: format-convert to IROS LaTeX; W38-W39: buffer / camera-ready / submission |
-
-**Total: 39 weeks** (v2: 36 weeks). IROS 2027 deadline ≈ 2027-03; W39 ≈ 2027-03-mid. **Submission window is feasible but tight: the buffer drops from ~3 weeks in v2 to ~1 week in v3.** No further additions to P5 should be accepted without re-baselining.
-
-**First milestone (W1 deliverable):** R2-reimpl baseline running end-to-end on SemanticKITTI seq 08, producing at least a (possibly poor) mIoU number, by end of **W1 = 2026-06-04**. Unchanged from v2.
+(v1 risks R-1/R-5 retired in v2. v2 risks R-2..R-14 carried into v3 with wording updates. v3 risks R-15/R-16/R-17 carried into v4. v4 adds R-21/R-22 and confirms R-14.)
 
 ---
 
-## §8 Open Questions for the User (v3)
+## §7 Timeline (re-anchored, ≈ 9 months from 2026-05-29 to IROS 2027 deadline ≈ 2027-03)
 
-v2 had three open questions on (RQ2 lead, Khronos comparison scope, Jetson deployment depth). **All three were resolved by user decision 2026-05-28 and are now closed in v3:**
+Reference today = **2026-05-29**; IROS 2027 paper deadline ≈ 2027-03; runway ≈ 39 weeks. The v3 W1-W39 schedule was anchored to 2026-05-28 and assumed a 4060-class compute model; v4 re-anchors to 2026-05-29, replaces 4060 with 5090 server, and absorbs the W3 preliminary verification done in 1 wall-clock day. The result is a shorter critical path (compute is faster) and an earlier first-real-results milestone (W3 work landed *before* the v3 W3 gate). v4 reflects this with a phase-based plan rather than a week-based plan, because the 5090 turnaround makes per-experiment scheduling more elastic than v3 assumed.
 
-- ✅ **v2 Q1 (RQ2 lead): resolved → open-set vacuity** (Robo3D demoted to fallback).
-- ✅ **v2 Q2 (Khronos scope): resolved → add dynamic-scene experimental head-to-head** (+3 weeks accepted).
-- ✅ **v2 Q3 (Jetson depth): resolved → benchmark + 30-s demo video** (+2 days accepted).
+| Phase | Wall-clock from 2026-05-29 | Calendar (approx.) | Focus | Concrete output / milestone |
+|-------|----------------------------|---------------------|-------|-----------------------------|
+| **P1 Backbone Unblock + Full-Scale RQ1/RQ2** | now → +2 weeks (through 2026-06-12) | 2026-05-29 → 2026-06-12 | §3.9 Cylinder3D backbone resolution (Path 2 default deadline 2026-06-01; Path 1 cascade by 2026-06-03; Path 3 cascade by 2026-06-05); EDL R-14 KL warm-restart schedule implemented; scale-up full-train EDL Cylinder3D head; re-run RQ1 (closed-set mIoU + ECE) and RQ2 (open-set AUROC + AUPR + closed-set mIoU on knowns) at full SemKITTI val on 5090 server; KITTI-360 dataset transfer to server kicked off in parallel | P1 deliverable: full-backbone RQ1 + RQ2 tables, replacing the preliminary numbers in paper §IV.0. **G-1 (formal) + G-2 (formal) + G-5 (formal) checkpoints at end of P1.** |
+| **P2 RQ4 Lifelong (KITTI-360 + Multi-Session)** | +2 → +4 weeks (through 2026-06-26) | 2026-06-12 → 2026-06-26 | M2 confidence-aware loop closure implementation; M2 + M3 integrated with submap fusion; KITTI-360 revisit-overlap matrix run on transferred data; RQ4 H4 evaluation on ≥ 5 revisit pairs; intra-session A/B-half preliminary stand-in retired in favour of true multi-session numbers | P2 deliverable: RQ4 lifelong table with stale-voxel P/R, ECE drift, memory footprint across multi-session. **G-3 (formal) + G-4 (formal) checkpoints at end of P2.** |
+| **P3 RQ3 Traversability + RQ5 Dynamic Head-to-Head** | +4 → +6 weeks (through 2026-07-10) | 2026-06-26 → 2026-07-10 | SemanticSpray RQ3 passive-replay traversability eval; Khronos baseline reproduction (R-17 mitigation; fallback to published numbers if needed); RQ5 dynamic-split head-to-head experiment; SemanticKITTI dynamic-split construction; Clio LiDAR stub for open-set comparison | P3 deliverable: RQ3 + RQ5 tables. **G-6 (formal) checkpoint at end of P3.** |
+| **P4 Ablations + Robustness + Jetson Deployment + Demo Video** | +6 → +9 weeks (through 2026-07-31) | 2026-07-10 → 2026-07-31 | All seven ablations (A-1…A-7) firm on 5090 with parallel execution across 4 cards; nuScenes-LiDARSeg cross-domain RQ1 and reverse OOD RQ2 checks; Robo3D fallback path validated and held in reserve; Jetson Orin NX deployment latency + memory benchmark; 30-s demo video capture and edit | P4 deliverable: full ablation tables + cross-domain numbers + Jetson row + demo MP4. End of P4 ≈ +9 weeks from 2026-05-29 = ~2026-07-31; this consumes ~9 weeks of the 39-week runway, leaving ~30 weeks for P5 writing/submission. |
+| **P5 Writing + Reviewer-Sim + Submission** | +9 weeks → 2027-03 deadline | 2026-08 → 2027-03 | `/ars-full` first draft starting from existing paper_v2.md (already at §IV with §IV.0 preliminary box); figures, tables, supplementary including demo video; first internal reviewer-sim pass (`academic-paper-reviewer`); revision; second reviewer-sim pass; format-convert to IROS LaTeX; camera-ready prep; final submission ≈ 2027-03 | P5 deliverable: submitted IROS 2027 paper + supplementary + Jetson demo MP4. ~30 weeks of writing/iteration runway is **substantially more than v3's 6+ weeks** because experiments collapse from ~28 weeks (W4-W26 in v3 at 4060 speeds) to ~7 weeks (P1-P4 in v4 at 5090 speeds). The 5090 speedup is the load-bearing change that buys the buffer. |
 
-**v3 leaves no new open questions to the user.** All scope decisions for the v3 plan are committed. The next user touch-point should be after the W3 Go/No-Go (R2-reimpl baseline + KITTI-360 revisit matrix + open-set split pre-registration) or at any earlier red-flag.
+**Total: ≈ 39 weeks** (same horizon as v3). Distribution shifted: **experiments compressed from W1-W26 (~26 weeks) to P1-P4 (~9 weeks)** thanks to (a) preliminary verification already done, (b) 5090 server compute, (c) flat-tensor evidence accumulator from W2-3 making per-frame processing 13× faster end-to-end. **Writing window expanded from W27-W39 (~12 weeks) to P5 (~30 weeks)**, which absorbs (a) Khronos reproduction risk slip, (b) backbone-blocker recovery if Paths 1/2 fail and Path 3 requires re-validation, (c) reviewer-sim iteration including potential paper restructure if reviewer feedback is severe.
 
-(If the user wishes to revisit any of the three closed questions, plan returns to v2-style 3-question state and a v4 patch is warranted. No anticipated open question identified by the architect at v3 commit time.)
+**First v4 milestone (P1 day 3 = 2026-06-01):** §3.9 backbone resolution path selected (Path 1 vs Path 2 vs Path 3) and unblock work started.
 
----
+**Second v4 milestone (P1 end = 2026-06-12):** full-scale RQ1 + RQ2 tables on Cylinder3D-class backbone, replacing the §IV.0 preliminary numbers in paper_v2.md.
 
-## §9 Go / No-Go Criteria (v3, 6 conditions)
-
-All six must be green to proceed past P5 (Lifelong + Dynamic phase end, W26); any red triggers documented fallbacks. Each is checkpointed at the date shown in §7.
-
-1. **G-1 — Baselines reproducible (W3).** R2-reimpl produces an end-to-end mIoU on SemanticKITTI seq 08 by end of W3, within ±2 mIoU of published Cylinder3D numbers. If not, slip the schedule one week and re-baseline; if still failing W4, switch backbone to RangeNet++.
-
-2. **G-2 — Evidential head working (W4).** M1 Dirichlet evidence module shows **≥ +1 mIoU** and reduced ECE on at least SemanticKITTI seq 08 by end of W4. If **< 0 mIoU delta**, retreat to §0 fallback (calibration-only RA-L paper).
-
-3. **G-3 — KITTI-360 revisit usable (W3).** Pre-computed odometry-overlap matrix delivers ≥ 5 revisit pairs with ≥ 30 m sustained overlap by end of W3. If < 5, augment per R-13 mitigation; if even synthetic injection fails by W18, demote RQ4 to a single-session ECE-drift micro-study.
-
-4. **G-4 — M2 loop closure precision (W12).** Confidence-aware loop closure achieves **≥ 70 % precision at 50 % recall** on SemanticKITTI seq 08 self-loop pairs by end of W12. If not, drop the entropy-channel descriptor variant (A-3) from main and use h_class only.
-
-5. **G-5 — RQ2 lead story green by W17 (revised in v3 from v2 W18; primary metric changed).** Either: (a) **open-set vacuity AUROC ≥ 0.80** on the SemanticKITTI 14/5 primary split AND **AUPR ≥ 0.60**, with closed-set mIoU on the 14 known classes within 1.5 mIoU of the fully-supervised baseline, by end of W17 — OR — (b) Robo3D fallback path: vacuity-as-corruption-detector AUROC ≥ 0.80 averaged across corruptions by end of W17. If neither, RQ2 is demoted to an honest negative result section (still publishable for IROS), and C1's "one vacuity, three jobs" framing tightens to "one vacuity, two jobs" (entropy descriptor + decay only).
-
-6. **G-6 — Khronos baseline ready by W20 (NEW in v3).** Khronos [A2] reproduction runs end-to-end on SemanticKITTI seq 08, producing a published-paper-comparable closed-set mIoU number by end of **W20**. If full reproduction fails: ship Table V as a "published numbers vs ours" hybrid per R-17 mitigation; the RQ5 H5 claim weakens to "competitive with published Khronos numbers" but RQ5 is not aborted. Hard abort of RQ5 only if Khronos published numbers are also not available for the dynamic-split frames (unlikely but documented).
-
-If any of G-2 or G-4 reds, the **§0 fallback to a calibration-only RA-L paper** engages. G-1 / G-3 / G-5 / G-6 reds shrink scope but do not abort.
+**Risk-adjusted view.** If Path 1 and Path 2 both fail and we cascade to Path 3, P1 slips by ≈ 3-5 days (Path 3 backbone swap takes 2-3 days plus re-training overhead). This still fits inside the 2-week P1 budget. The buffer between P4 end (~2026-07-31) and P5 first reviewer-sim deadline (~late 2026-09) is ample — ~8 weeks of slack against P4 risk.
 
 ---
 
-*End of Research Plan v3. Companion: `paper_outline_v2.md` (filename retained for v3 contents; v2 contents archived at `paper_outline_v2_archived.md`). v2 plan frozen at `research_plan_v2.md`. v1 plan frozen at `research_plan_v1.md`.*
+## §8 Open Questions for the User (v4 — two new)
+
+v2 had three open questions on (RQ2 lead, Khronos comparison scope, Jetson deployment depth); all resolved 2026-05-28 and closed in v3. v3 had zero open questions. **v4 reopens two new questions driven by the §3.9 backbone blocker and the R-14 confirmation.**
+
+- **Q1 — Backbone resolution path (deadline 2026-06-01).** §3.9 documents three unblock paths for the Cylinder3D + spconv 1.x ↔ 2.x mismatch:
+  - Path 1 (source-build spconv 1.x against torch 2.11+cu130; 2-4 hr engineering; ~60 % failure probability vs torch 2.11 internals).
+  - Path 2 (adopt PVKD, the Cylinder3D successor reported to be spconv 2.x-native; 1 day to integrate if repo inspection passes).
+  - Path 3 (switch to MinkUNet / WaffleIron / RandLA-Net pure-PyTorch backbone; 2-3 days; ~5-10 mIoU haircut vs Cylinder3D position).
+  - **Architect default:** Path 2 → Path 1 → Path 3. If user has no preference by 2026-06-01, architect proceeds with this order.
+  - **Asked of user:** confirm Path 2 first, or override to a different sequencing, or specify a hard preference (e.g., "Path 3 immediately because reproducibility outweighs mIoU position").
+
+- **Q2 — EDL stability fix priority (P1 vs P2).** R-14 is confirmed at preliminary scale: best AUROC at epoch 1, degrades to ~0.67 by epoch 30 due to KL annealing pushing the head toward uniform Dirichlet. The required fix is a **late-stage KL warm-restart schedule** (re-introduce KL after annealing to zero, with a smaller plateau target). This is non-trivial — the original Sensoy 2018 schedule does not include warm-restart, and the literature on EDL warm-restart is thin.
+  - **Architect default:** prioritise as a P1 sub-task immediately after backbone resolution. The reason: if the full-backbone Cylinder3D run also collapses, we burn P1 wall-clock chasing the wrong root cause; getting the KL warm-restart in *before* the first full-backbone run avoids this.
+  - **Asked of user:** confirm P1-priority, or push to P2 if you want full-backbone RQ1 numbers (mIoU + ECE without RQ2-AUROC) out of P1 even if RQ2-AUROC is suboptimal at first.
+
+If neither question is answered by 2026-06-01, the architect proceeds with the defaults: Path 2 → 1 → 3, KL warm-restart engineered in P1 alongside backbone resolution.
+
+---
+
+## §9 Go / No-Go Criteria (v4, 6 conditions — preserved from v3; status updated)
+
+All six must be green to proceed past P4 (Ablations + Deploy phase end); any red triggers documented fallbacks. Each is checkpointed at the phase shown in §7.
+
+1. **G-1 — Baselines reproducible (P1 end).** R2-reimpl produces an end-to-end mIoU on SemanticKITTI seq 08 within ±2 mIoU of published Cylinder3D numbers, on the §3.9-resolved backbone, by end of P1. **v4 provisional status: GREEN at preliminary scale (W2-4 done, M1 vs R2 ordering as predicted at 0.21 M-param PointNet);** formal pass deferred to full-Cylinder3D rerun in P1. If formal fail, slip P1 by 1 week and re-baseline; if still failing P1+1 week, switch backbone per §3.9 Path 3 mandate.
+
+2. **G-2 — Evidential head working (P1 end).** M1 Dirichlet evidence module shows ≥ +1 mIoU and reduced ECE on at least SemanticKITTI seq 08 by end of P1. **v4 provisional status: GREEN at preliminary scale (M1 mIoU 14.73 % vs R2 1.69 %, ECE 0.171 vs 0.490 at matched 0.21 M-param PointNet, W3-A done);** formal pass deferred to full-Cylinder3D rerun. If formal fail at full backbone, retreat to §0 fallback (calibration-only RA-L paper).
+
+3. **G-3 — KITTI-360 revisit usable (P2 start).** Pre-computed odometry-overlap matrix delivers ≥ 5 revisit pairs with ≥ 30 m sustained overlap by end of P1 (gated on KITTI-360 transfer in P1). **v4 status: PENDING** (KITTI-360 not yet on server). If < 5, augment per R-13 mitigation; if even synthetic injection fails by P2, demote RQ4 to single-session ECE-drift micro-study.
+
+4. **G-4 — M2 loop closure precision (P2 end).** Confidence-aware loop closure achieves ≥ 70 % precision at 50 % recall on SemanticKITTI seq 08 self-loop pairs by end of P2. **v4 status: PENDING** (M2 not yet implemented; preliminary RQ4 single-session intra-seq A/B-half stand-in delivers P=0.77, R=0.52, which is consistent with G-4 ≥ 70 % precision but is not the G-4 evaluation — G-4 needs the actual loop-closure pair evaluation, not the stale-voxel removal evaluation). If formal fail, drop the entropy-channel descriptor variant (A-3) from main and use h_class only.
+
+5. **G-5 — RQ2 lead story green (P1 end).** Either: (a) open-set vacuity AUROC ≥ 0.80 on the SemanticKITTI 14/5 primary split AND AUPR ≥ 0.60, with closed-set mIoU on the 14 known classes within 1.5 mIoU of the fully-supervised baseline, by end of P1 — OR — (b) Robo3D fallback path: vacuity-as-corruption-detector AUROC ≥ 0.80 averaged across corruptions by end of P1. **v4 provisional status: GREEN at preliminary scale (AUROC 0.8082 on 14/5 split, W3-C done);** AUPR + closed-set mIoU at full backbone deferred to P1 formal pass. If formal fail, RQ2 demoted to honest negative result section; C1 "one vacuity, three jobs" tightens to "two jobs".
+
+6. **G-6 — Khronos baseline ready (P3 end).** Khronos reproduction runs end-to-end on SemanticKITTI seq 08, producing a published-paper-comparable closed-set mIoU number by end of P3. **v4 status: PENDING.** If full reproduction fails: ship Table V as a "published numbers vs ours" hybrid per R-17 mitigation; RQ5 H5 claim weakens to "competitive with published Khronos numbers" but RQ5 is not aborted. Hard abort of RQ5 only if Khronos published numbers are also not available for the dynamic-split frames (unlikely but documented).
+
+If any of G-2 or G-4 reds at formal pass, the §0 fallback to a calibration-only RA-L paper engages. G-1 / G-3 / G-5 / G-6 reds shrink scope but do not abort.
+
+---
+
+## Closing note on v4 ordering
+
+The single most important call-out v4 makes that v3 did not: **the backbone-resolution path (§3.9) is now the gating step.** Every downstream G-criterion (G-1 closed-set baseline, G-2 evidential head working at full scale, G-5 open-set AUROC at full scale) depends on resolving the spconv 1.x ↔ 2.x value-semantic gap or accepting a Path 3 alternative-backbone with a mIoU haircut. The W3 preliminary results buy us the *direction* of all five method-level claims (RQ1 ordering, RQ2 AUROC, M3 decay ratio, RQ4 directional sanity) but the *position* of those numbers in the IROS table cells requires the resolved backbone. Path 2 (PVKD) is the architect's first recommendation because it is the lowest-risk continuation of the planned Cylinder3D-family lineage.
+
+The secondary v4 call-out: **R-14 EDL instability is no longer a theoretical risk; it is observed.** The full-backbone training pipeline must include a KL warm-restart schedule before we run RQ2 at scale; otherwise we will spend P1 chasing a tuning artefact rather than a method effect.
+
+If both calls (backbone + KL warm-restart) are handled in P1 as planned, the rest of the v4 plan is mechanical execution on the 5090 server with a buffer of approximately 6-8 weeks against the 2027-03 IROS deadline. The horizon is comfortable; the risk concentration is in the first 2 weeks.
+
+---
+
+*End of Research Plan v4. Companion: `paper_outline_v2.md` (filename retained for v3/v4 contents; v2 contents archived at `paper_outline_v2_archived.md`). v3 plan frozen at `research_plan_v3_archive.md`. v2 plan frozen at `research_plan_v2.md`. v1 plan frozen at `research_plan_v1.md`.*
+
+*v4 critical-path summary: P1 backbone unblock (deadline 2026-06-01 for path selection, 2026-06-12 for full-scale RQ1/RQ2) is the single highest-priority deliverable. All other v4 work cascades from this.*
