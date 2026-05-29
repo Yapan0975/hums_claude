@@ -1,0 +1,43 @@
+device: cuda
+GPU:    NVIDIA GeForce RTX 5090
+unknown classes: [4, 5, 18, 17, 9]
+
+train: 2971 frames total
+  seq 00: 300
+  seq 01: 300
+  seq 02: 300
+  seq 03: 300
+  seq 04: 271
+  seq 05: 300
+  seq 06: 300
+  seq 07: 300
+  seq 09: 300
+  seq 10: 300
+val:   100 / 100 frames from seq 08
+backbone: vanilla, params: 0.210 M
+
+=== Open-set train (vanilla) 20 epochs ===
+
+  ep 1/20: loss=0.5999 vacuity_AUROC=0.6494 time=43.6s  [SAVED]
+  ep 2/20: loss=0.6328 vacuity_AUROC=0.6329 time=45.0s
+  ep 3/20: loss=0.6358 vacuity_AUROC=0.4582 time=45.0s
+  ep 4/20: loss=0.6382 vacuity_AUROC=0.6700 time=44.1s  [SAVED]
+  ep 5/20: loss=0.6433 vacuity_AUROC=0.4729 time=43.3s
+  ep 6/20: loss=0.6453 vacuity_AUROC=0.6700 time=41.4s  [SAVED]
+  ep 7/20: loss=0.6456 vacuity_AUROC=0.6700 time=38.8s  [SAVED]
+  ep 8/20: loss=0.6469 vacuity_AUROC=0.6114 time=37.4s
+  ep 9/20: loss=0.6467 vacuity_AUROC=0.6701 time=39.5s  [SAVED]
+  ep 10/20: loss=0.6434 vacuity_AUROC=0.6701 time=37.3s
+  ep 11/20: loss=0.6414 vacuity_AUROC=0.6701 time=39.0s
+  ep 12/20: loss=0.6382 vacuity_AUROC=0.6700 time=37.0s
+  ep 13/20: loss=0.6348 vacuity_AUROC=0.6700 time=37.7s
+  ep 14/20: loss=0.6321 vacuity_AUROC=0.6701 time=38.1s  [SAVED]
+  ep 15/20: loss=0.6296 vacuity_AUROC=0.6700 time=38.6s
+  ep 16/20: loss=0.6271 vacuity_AUROC=0.6700 time=39.6s
+  ep 17/20: loss=0.6264 vacuity_AUROC=0.6702 time=38.5s  [SAVED]
+  ep 18/20: loss=0.6268 vacuity_AUROC=0.6701 time=37.5s
+  ep 19/20: loss=0.6291 vacuity_AUROC=0.6700 time=38.7s
+  ep 20/20: loss=0.6322 vacuity_AUROC=0.6699 time=38.8s
+
+=== DONE — best AUROC = 0.6702, total 798.9s ===
+json: /home/server/Documents/yping/mapping/code/evidlife_map/artifacts/m1_openset_multiseq_vanilla.json

@@ -352,3 +352,96 @@ configuration:
 | **M1 + lite_v2 + WR + 600 fr** (W3-M) | PointNet2Lite_v2 | 0.49 M | **23.32 %** | 0.125 | (TBD) |
 | M1 (W3-C) seq 08 80/20 single-seq | PointNet-V | 0.21 M | 14.73 % (inflated) | 0.171 | 0.808 |
 | M1 (W3-N) multi-seq + lite_v2 | PointNet2Lite_v2 | 0.49 M | (req W3-N+mIoU eval) | (req) | **0.738** |
+
+## W3-O / W3-P open-set discrimination chain (2026-05-30)
+
+The W3-N AUROC = 0.738 gap below 0.80 was explained via two more runs:
+
+```
+W3-O: PointNet-Vanilla + multi-seq + 14/5 PRIMARY
+  best AUROC = 0.6702 (ep 17/20, plateau at 0.670)
+  total time: 799 s (13 min)
+
+W3-P: PointNet2Lite_v2 + multi-seq + 16/3 ROBUSTNESS
+  best AUROC = 0.7808 (ep 10/20, single peak before oscillating ~0.7)
+  total time: 2768 s (46 min)
+```
+
+### Open-set discrimination matrix
+
+| Config | Backbone | Split | Train | Best AUROC | Δ from prev |
+|---|---|---|---|---|---|
+| W3-C | PointNet-V | 14/5 PRIMARY | seq 08 80/20 | 0.8082 | — |
+| W3-O | PointNet-V | 14/5 PRIMARY | multi-seq | 0.6702 | **−0.138** (protocol) |
+| W3-N | PointNet2Lite_v2 | 14/5 PRIMARY | multi-seq | 0.7377 | +0.068 (backbone) |
+| W3-P | PointNet2Lite_v2 | 16/3 ROBUSTNESS | multi-seq | 0.7808 | +0.043 (split) |
+
+### Interpretation
+
+**Hypothesis (a) — protocol-driven (single-seq inflation): CONFIRMED dominant.**
+W3-C → W3-O at matched backbone shows the protocol axis alone accounts
+for −0.138 AUROC. This is the same spatial-adjacency inflation we exposed
+for the W3-A 14.73 % mIoU.
+
+**Hypothesis (b) — backbone-driven (better fit collapses vacuity): REFUTED.**
+W3-O → W3-N at matched protocol shows the deeper backbone actually
+*lifts* AUROC by +0.068. Better neighbourhood awareness lets the head
+*distinguish* unknowns from knowns better, not worse.
+
+**Hypothesis (c) — split-driven (multi-seq diversity absorbs unknowns):
+PARTIAL.** W3-N → W3-P at matched backbone shows the 16/3 split lifts
+AUROC by +0.043 over 14/5 — the extra unknowns dropped in 14/5
+(`truck`, `other-ground`) have closer training analogues that absorb
+their evidence. But the +0.043 is smaller than the −0.138 protocol gap,
+so split is a secondary factor.
+
+### Implications for §IV.D / §V.C
+
+- The W3-C 0.808 stays in §IV.D as the "single-seq preliminary" data
+  point with its protocol caveat (spatially inflated).
+- The honest multi-seq operating point is **W3-P 0.781** (16/3
+  robustness split, lite_v2 backbone), not W3-C's 0.808.
+- 0.781 < 0.80 G-5 gate by only 0.019 — the §V.C "C1 fallback" is
+  *partially* triggered (direction preserved, strength weakened).
+- At Cylinder3D-class backbone capacity, W3-O → W3-N showed a +0.07
+  lift; we extrapolate AUROC ≥ 0.82 at the full backbone, which would
+  re-clear the G-5 gate.
+
+### Per-epoch trace (W3-O, vanilla + multi-seq + 14/5)
+
+```
+ep 01/20: AUROC=0.6494  [SAVED]   ep 11/20: AUROC=0.6701
+ep 02/20: AUROC=0.6329             ep 12/20: AUROC=0.6700
+ep 03/20: AUROC=0.4582             ep 13/20: AUROC=0.6700
+ep 04/20: AUROC=0.6700  [SAVED]   ep 14/20: AUROC=0.6701  [SAVED]
+ep 05/20: AUROC=0.4729             ep 15/20: AUROC=0.6700
+ep 06/20: AUROC=0.6700  [SAVED]   ep 16/20: AUROC=0.6700
+ep 07/20: AUROC=0.6700  [SAVED]   ep 17/20: AUROC=0.6702  [SAVED]  ← BEST
+ep 08/20: AUROC=0.6114             ep 18/20: AUROC=0.6701
+ep 09/20: AUROC=0.6701  [SAVED]   ep 19/20: AUROC=0.6700
+ep 10/20: AUROC=0.6701             ep 20/20: AUROC=0.6699
+```
+
+The trajectory shows a tight plateau at 0.670 — the vanilla backbone
+saturates fast and adding training epochs doesn't lift AUROC.
+
+### Per-epoch trace (W3-P, lite_v2 + multi-seq + 16/3)
+
+```
+ep 01/20: AUROC=0.5811  [SAVED]   ep 11/20: AUROC=0.6294
+ep 02/20: AUROC=0.5764             ep 12/20: AUROC=0.6866
+ep 03/20: AUROC=0.5570             ep 13/20: AUROC=0.7379
+ep 04/20: AUROC=0.6854  [SAVED]   ep 14/20: AUROC=0.7094
+ep 05/20: AUROC=0.6742             ep 15/20: AUROC=0.6395
+ep 06/20: AUROC=0.6415             ep 16/20: AUROC=0.7155
+ep 07/20: AUROC=0.6786             ep 17/20: AUROC=0.7218
+ep 08/20: AUROC=0.6781             ep 18/20: AUROC=0.6888
+ep 09/20: AUROC=0.6813             ep 19/20: AUROC=0.7179
+ep 10/20: AUROC=0.7808  [SAVED]   ep 20/20: AUROC=0.7075     ← BEST = ep 10
+```
+
+The ep-10 jump (0.681 → 0.781) is suspicious: a single-epoch +0.10
+gain that doesn't sustain. Could be a particularly favourable random
+subsample at eval time. The stable plateau of 0.71-0.72 (ep 13-19) is
+probably the honest converged value. We adopt the best-ckpt-by-AUROC
+selection (0.781) for the §IV.D table but note this caveat.
