@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>论文精读 T1.3：GS-LIVO - 实时 3DGS LiDAR-Inertial-Visual 里程计（T-RO 2025）</title>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<style>
+  :root {
+    --primary: #b91c1c;
+    --primary-dark: #7f1d1d;
+    --primary-light: #ef4444;
+    --accent: #dc2626;
+    --warning: #f59e0b;
+    --success: #16a34a;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #111827;
+    --text-light: #6b7280;
+    --border: #e5e7eb;
+    --code-bg: #f1f5f9;
+    --hero-grad: linear-gradient(135deg, #450a0a 0%, #7f1d1d 35%, #b91c1c 75%, #f59e0b 100%);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif; line-height: 1.78; color: var(--text); background: var(--bg); margin: 0; padding: 0; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 28px 80px; }
+  .hero { background: var(--hero-grad); color: white; border-radius: 16px; padding: 64px 56px 56px; margin-bottom: 32px; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3); }
+  .hero::before { content: '⚠'; position: absolute; top: -20px; right: -20px; font-size: 220px; opacity: 0.07; transform: rotate(-15deg); }
+  .hero .badge { display: inline-block; background: rgba(255,255,255,0.18); color: #fff; padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 600; margin-bottom: 18px; backdrop-filter: blur(4px); }
+  .hero h1 { margin: 0 0 16px; font-size: 2.1rem; line-height: 1.3; font-weight: 700; }
+  .hero .sub { font-size: 1.05rem; opacity: 0.92; margin-bottom: 24px; font-weight: 300; }
+  .hero .info { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 28px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,0.2); }
+  .hero .info div .label { font-size: 0.78rem; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.5px; }
+  .hero .info div .value { font-size: 1rem; font-weight: 600; margin-top: 2px; }
+  .toc { position: sticky; top: 16px; z-index: 50; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: 12px; padding: 16px 22px; margin-bottom: 28px; box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
+  .toc summary { cursor: pointer; font-weight: 600; color: var(--primary-dark); list-style: none; display: flex; align-items: center; gap: 8px; }
+  .toc summary::before { content: '📑'; }
+  .toc ol { margin: 12px 0 0; padding-left: 20px; columns: 2; column-gap: 28px; }
+  .toc li { margin: 6px 0; break-inside: avoid; }
+  .toc a { color: var(--text); text-decoration: none; font-size: 0.93rem; }
+  .toc a:hover { color: var(--primary); }
+  section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 36px 40px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); scroll-margin-top: 80px; }
+  section h2 { font-size: 1.7rem; color: var(--primary-dark); margin: 0 0 6px; display: flex; align-items: baseline; gap: 12px; }
+  section h2 .num { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; background: var(--primary); color: white; border-radius: 50%; font-size: 1rem; flex-shrink: 0; }
+  section .lead { color: var(--text-light); font-size: 1rem; margin: 0 0 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  section h3 { margin: 28px 0 10px; color: var(--primary); font-size: 1.18rem; border-left: 4px solid var(--primary); padding-left: 14px; }
+  section h4 { margin: 20px 0 8px; font-size: 1.02rem; color: var(--text); }
+  section p { margin: 10px 0; }
+  section ul, section ol { padding-left: 24px; }
+  section li { margin: 6px 0; }
+  .box { border-radius: 10px; padding: 16px 22px; margin: 18px 0; border-left: 4px solid; }
+  .box-key   { background: #fef2f2; border-color: var(--primary); }
+  .box-warn  { background: #fef2f2; border-color: var(--accent); }
+  .box-tip   { background: #fffbeb; border-color: var(--warning); }
+  .box-good  { background: #f0fdf4; border-color: var(--success); }
+  .box-quote { background: #f8fafc; border-color: var(--text-light); font-style: italic; color: #475569; }
+  .box-threat { background: linear-gradient(135deg, #fef2f2, #fff7ed); border: 2px solid var(--accent); border-radius: 10px; padding: 18px 22px; margin: 18px 0; }
+  .box-title { font-weight: 700; margin-bottom: 6px; }
+  .box-key .box-title { color: var(--primary-dark); }
+  .box-warn .box-title { color: var(--accent); }
+  .box-tip .box-title { color: #b45309; }
+  .box-good .box-title { color: #166534; }
+  .box-threat .box-title { color: var(--accent); font-size: 1.05rem; }
+  code { background: var(--code-bg); padding: 2px 7px; border-radius: 4px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.88em; color: #be185d; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 18px 22px; border-radius: 10px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  .formula { background: #fafbfc; border: 1px solid var(--border); border-radius: 8px; padding: 14px 20px; margin: 12px 0; font-size: 1.05rem; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.93rem; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; vertical-align: top; }
+  th { background: linear-gradient(180deg, #b91c1c, #7f1d1d); color: white; font-weight: 600; }
+  tbody tr:nth-child(even) { background: #fafbfc; }
+  tbody tr:hover { background: #fef2f2; }
+  td .win { color: var(--success); font-weight: 700; }
+  td .lose { color: var(--accent); font-weight: 700; }
+  td .num-big { font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); }
+  .diagram { background: #0f172a; color: #e2e8f0; padding: 22px 28px; border-radius: 10px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.85rem; line-height: 1.5; overflow-x: auto; white-space: pre; margin: 16px 0; }
+  .diagram .hl { color: #fbbf24; font-weight: bold; }
+  .diagram .arrow { color: #60a5fa; }
+  .diagram .label { color: #34d399; }
+  .arch { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 20px 0; }
+  .arch .mod { background: linear-gradient(135deg, #ffffff, #f1f5f9); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+  .arch .mod h5 { margin: 0 0 8px; color: var(--primary-dark); font-size: 1rem; display: flex; align-items: center; gap: 6px; }
+  .arch .mod p { font-size: 0.9rem; color: var(--text-light); margin: 4px 0; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 22px 0; }
+  .stat { background: linear-gradient(135deg, #fecaca, #ffffff); border-radius: 12px; padding: 16px 20px; text-align: center; border: 1px solid #fca5a5; }
+  .stat .num { font-size: 1.8rem; font-weight: 800; color: var(--primary-dark); line-height: 1.1; }
+  .stat .lbl { font-size: 0.85rem; color: var(--text-light); margin-top: 4px; }
+  .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .pros, .cons { padding: 16px 20px; border-radius: 10px; }
+  .pros { background: #f0fdf4; border-left: 4px solid var(--success); }
+  .cons { background: #fef2f2; border-left: 4px solid var(--accent); }
+  .chip { display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; margin-right: 6px; margin-bottom: 4px; }
+  .chip-blue { background: #dbeafe; color: #1e40af; }
+  .chip-green { background: #dcfce7; color: #166534; }
+  .chip-red { background: #fee2e2; color: #991b1b; }
+  .chip-yellow { background: #fef3c7; color: #92400e; }
+  mark { background: linear-gradient(transparent 55%, #fde68a 55%); padding: 0 2px; font-weight: 600; }
+  footer { margin-top: 36px; padding-top: 22px; border-top: 1px solid var(--border); color: var(--text-light); font-size: 0.88rem; text-align: center; }
+  .threat-section { background: linear-gradient(135deg, #450a0a 0%, #18181b 60%, #b91c1c 100%); color: white; }
+  .threat-section h2, .threat-section h3 { color: #fde68a !important; }
+  .threat-section .lead { color: #fef3c7 !important; border-color: rgba(255,255,255,0.2); }
+  .threat-section p, .threat-section li { color: #f1f5f9; }
+  .threat-section code { background: rgba(255,255,255,0.15); color: #fbbf24; }
+  .threat-section .box-key { background: rgba(255,255,255,0.08); border-color: #fbbf24; }
+  .threat-section .box-key .box-title { color: #fde68a; }
+  .threat-section .box-warn { background: rgba(220, 38, 38, 0.2); border-color: #fca5a5; }
+  .threat-section .box-warn .box-title { color: #fecaca; }
+  @media (max-width: 720px) {
+    .container { padding: 16px 14px; }
+    .hero { padding: 36px 24px 30px; }
+    .hero h1 { font-size: 1.5rem; }
+    section { padding: 22px 20px; }
+    .arch, .pros-cons { grid-template-columns: 1fr; }
+    .toc ol { columns: 1; }
+  }
+  @media print {
+    body { background: white; }
+    .toc { position: static; }
+    section, .hero { page-break-inside: avoid; box-shadow: none; }
+    .hero { background: #7f1d1d !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ============ HERO ============ -->
+  <div class="hero">
+    <span class="badge">⚠ Tier 1 文献精读 · T1.3 · 单一最大威胁（HKUST 同门）</span>
+    <h1>GS-LIVO：实时 LiDAR-Inertial-Visual 多传感融合<br>3D Gaussian 里程计与建图<br><span style="font-size:1.1rem;opacity:.85;font-weight:400">Real-Time LiDAR, Inertial, and Visual Multi-sensor Fused Odometry with Gaussian Mapping</span></h1>
+    <div class="sub">第一个能在 NVIDIA Jetson Orin NX 嵌入式平台实时跑、且在线持续更新的 3DGS-SLAM 系统<br>—— 室内 10 Hz / 室外 3 Hz · 比 SplaTAM/MonoGS 快 10× · 内存少 10× · RMSE 0.58 m (HKisland03 outdoor)</div>
+    <div class="info">
+      <div><div class="label">📚 发表</div><div class="value">arXiv 2501.08672v1 (T-RO 2025 submission)</div></div>
+      <div><div class="label">📅 日期</div><div class="value">2025-01-15</div></div>
+      <div><div class="label">🏢 单位</div><div class="value">HKUST 沈劭劼组 · HKU 张富组 · SJTU 秦通组</div></div>
+      <div><div class="label">👥 通讯</div><div class="value">Tong Qin (qintong@sjtu.edu.cn)</div></div>
+      <div><div class="label">🎯 任务</div><div class="value">Real-time GS-SLAM (LIVO) + dense mapping</div></div>
+      <div><div class="label">⚙️ 输入</div><div class="value">LiDAR + IMU + Camera</div></div>
+      <div><div class="label">🖥 硬件</div><div class="value">RTX-4090 桌面 · Jetson Orin NX 16G 嵌入式</div></div>
+      <div><div class="label">🔥 关键</div><div class="value">实时 + onboard + open-source (C++/CUDA)</div></div>
+    </div>
+  </div>
+
+  <!-- ============ 威胁评估 ============ -->
+  <div class="box-threat">
+    <div class="box-title">⚠ 威胁评估（写给我们自己）</div>
+    <p style="margin:6px 0"><b>为什么这是单一最大威胁：</b></p>
+    <ol style="margin:8px 0 0">
+      <li><b>HKUST/HKU/SJTU 联合作品</b>—— 沈劭劼 / 张富 / 秦通三组都是 SLAM 顶级 lab，社区内行人多；</li>
+      <li><b>第一个 GS-SLAM on embedded 实时</b>—— 抢占了 "real-time GS-SLAM" 概念高地；</li>
+      <li><b>C++/CUDA 开源</b>—— 可被 IROS 2027 reviewer 直接 cite + 跑；</li>
+      <li><b>方法学组件高度可复用</b>—— hash-indexed octree + sliding window 这套机制能被 EvidLife-Map 直接借用，但<mark>如果我们不率先与其差异化，会被定位为 "GS-LIVO 加个 evidential head"</mark>；</li>
+      <li><b>同期工作 (LIV-GaussMap, Gaussian-LIC, MM3DGS)</b> 已经形成 LIV+GS 的小赛道，我们必须在 "evidential / lifelong / open-set" 三方向上明确分割。</li>
+    </ol>
+  </div>
+
+  <!-- ============ TOC ============ -->
+  <details class="toc" open>
+    <summary>目录（点击展开 / 收起）</summary>
+    <ol>
+      <li><a href="#bg">背景：3DGS-SLAM 当前的"实时性瓶颈"</a></li>
+      <li><a href="#contrib">四大贡献</a></li>
+      <li><a href="#overview">系统总览：四模块流水线</a></li>
+      <li><a href="#octree">模块 A：Hash-indexed Octree 全局 Gaussian 地图</a></li>
+      <li><a href="#init">模块 B：LiDAR-Camera 联合初始化与光度优化</a></li>
+      <li><a href="#sliding">模块 C：Sliding Window of Gaussians（核心创新）</a></li>
+      <li><a href="#iesfk">模块 D：IESKF 紧耦合状态估计</a></li>
+      <li><a href="#exp-setup">实验设置：多平台 / 多数据集</a></li>
+      <li><a href="#exp-render">实验 1：渲染质量（Table II）</a></li>
+      <li><a href="#exp-loc">实验 2：定位精度（Table III/IV）</a></li>
+      <li><a href="#ablation">消融：sliding window 的关键作用</a></li>
+      <li><a href="#embedded">嵌入式部署：Jetson Orin NX 16G</a></li>
+      <li><a href="#limit">局限与未来工作</a></li>
+      <li><a href="#evidlife">⭐ 与我们 EvidLife-Map 的关系（最重要章节）⭐</a></li>
+      <li><a href="#takeaway">总结与启示</a></li>
+    </ol>
+  </details>
+
+  <!-- ============ 1. 背景 ============ -->
+  <section id="bg">
+    <h2><span class="num">1</span> 背景：3DGS-SLAM 当前的"实时性瓶颈"</h2>
+    <p class="lead">3D Gaussian Splatting (3DGS) 出现以来，把它接入 SLAM 是 2024-2025 的热潮。但<b>"实时定位"和"实时建图"几乎从未在同一系统里同时实现</b>—— map 更新总是被甩在 odometry 后面。GS-LIVO 直接挑战这个瓶颈。</p>
+
+    <h3>1.1 三条路径都不够</h3>
+    <ul>
+      <li><b>纯 visual 3DGS-SLAM (SplaTAM, MonoGS, GS-SLAM, MM3DGS)</b>：依赖大量手工启发式做 densification，遮挡处理弱，GPU 内存/计算成本高；</li>
+      <li><b>NeRF-based SLAM (NICE-SLAM, ESLAM, Co-SLAM, Orbeez-SLAM)</b>：内存友好但优化时间长，<b>不能高帧率更新</b>；</li>
+      <li><b>LiDAR-assisted GS (LIV-GaussMap, Gaussian-LIC, LiV-GS, LetsGo, LI-GS)</b>：用 LiDAR 帮初始化和约束，但<b>多数仍是离线优化</b>，不能在线持续更新。</li>
+    </ul>
+
+    <div class="box box-quote">
+      "current neural-based SLAM systems face a key bottleneck: maintaining truly real-time map updates ... This mismatch between fast pose estimation and slower map updating reduces the system's adaptability." —— §I
+    </div>
+
+    <h3>1.2 GS-LIVO 的目标</h3>
+    <div class="box box-key">
+      <div class="box-title">🎯 一句话定位</div>
+      <b>第一个</b>能在嵌入式平台（Jetson Orin NX 16G）实时维护、增量更新的 LiDAR-Inertial-Visual 3DGS-SLAM 系统。Indoor ≥ 10 Hz map updates，outdoor ~3 Hz。所有实现 C++/CUDA，开源。
+    </div>
+  </section>
+
+  <!-- ============ 2. 贡献 ============ -->
+  <section id="contrib">
+    <h2><span class="num">2</span> 四大贡献</h2>
+    <div class="arch">
+      <div class="mod">
+        <h5>🌲 ① Hash-indexed Octree 全局地图</h5>
+        <p>用 spatial hash 索引根 voxel，每个根 voxel 内部是 octree。支持高效 co-visibility 检查，原生支持 LoD。</p>
+      </div>
+      <div class="mod">
+        <h5>🚀 ② LiDAR-Visual 联合初始化</h5>
+        <p>LiDAR 给 Gaussian 的 mean / scaling / orientation，camera 给 SH 系数（bilinear 插值初始化）。<b>速度快，初始化质量高</b>。</p>
+      </div>
+      <div class="mod">
+        <h5>📦 ③ Sliding Window of Gaussians（核心）</h5>
+        <p>把全局地图保持在 RAM（octree），FoV 内的 Gaussian 滑入 VRAM 做 GPU 并行优化。<b>5 步增量更新</b>避免每帧整窗重建。</p>
+      </div>
+      <div class="mod">
+        <h5>🔄 ④ IESKF 紧耦合 LIV 融合</h5>
+        <p>把 Gaussian 渲染的<b>光度残差</b>作为 visual update，与 LiDAR point-to-plane 残差通过 IESKF 联合优化机器人位姿。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3. 系统总览 ============ -->
+  <section id="overview">
+    <h2><span class="num">3</span> 系统总览</h2>
+
+    <div class="diagram">┌──────────────────────────────────────────────────────────────┐
+│  Hardware: <span class="hl">Camera 10Hz + LiDAR 10Hz + IMU 200Hz</span>          │
+│  Hard-sync via emulated PPS [55]                              │
+└──────────────────────────────────────────────────────────────┘
+                       │  raw streams
+                       <span class="arrow">▼</span>
+  ┌────────────────────────────────────────────────────────────┐
+  │  <span class="hl">State Estimation (IESKF)</span>                              │
+  │   1. IMU forward propagation                               │
+  │   2. LiDAR point-to-plane update (motion undistortion)     │
+  │   3. <span class="label">Visual update via Gaussian rendering (Eq. 10)</span>    │
+  │      arg min_T_C ‖ I_k − Î_k(T_C; θ_{k−1}) ‖              │
+  └────────────────────────────────────────────────────────────┘
+                       │  updated pose
+                       <span class="arrow">▼</span>
+  ┌────────────────────────────────────────────────────────────┐
+  │  <span class="hl">Map Management (§II-A,B,C)</span>                            │
+  │                                                            │
+  │  A. <span class="label">Global Gaussian Map</span> in RAM                       │
+  │     · Hash-indexed octree (key = ⌊W p_i / v_s⌋)            │
+  │     · 多 LoD: root voxel + recursive subdivision           │
+  │                                                            │
+  │  B. <span class="label">Sliding Window of Gaussians</span> in VRAM              │
+  │     · 5 步增量更新 (Step 1-4)                              │
+  │     · CPU Buffer (CGB) ↔ GPU Buffer (GGB) DMA              │
+  │     · Spatial Hash Table (SHT) 索引                        │
+  │                                                            │
+  │  C. <span class="label">Initialization & Optimization (Eq. 2-9)</span>          │
+  │     · LiDAR 给 scaling S / rotation R                      │
+  │     · Camera 给 SH 系数 (bilinear)                         │
+  │     · Adam 光度优化在 sliding window 内进行                 │
+  └────────────────────────────────────────────────────────────┘
+                       │
+                       <span class="arrow">▼</span>
+        <span class="label">Photo-realistic dense 3DGS map (online) + tight pose</span></div>
+  </section>
+
+  <!-- ============ 4. Octree ============ -->
+  <section id="octree">
+    <h2><span class="num">4</span> 模块 A：Hash-indexed Octree 全局 Gaussian 地图</h2>
+
+    <h3>4.1 索引方式</h3>
+    <div class="formula">
+      $$\text{HashKey} = \lfloor {}^W p_i / v_s \rfloor \tag{1}$$
+    </div>
+    <p>其中 $v_s$ 是根 voxel 边长（indoor 0.03 m / 0.06 m，outdoor 0.5 m / 1.0 m，按场景调）。根 voxel 内部按需要 octree 细分（max 2 层）。</p>
+
+    <h3>4.2 双层存储的设计动机</h3>
+    <ul>
+      <li><b>问题</b>：hash 是 non-contiguous，GPU 不能高效并行处理；</li>
+      <li><b>解决</b>：把全局地图存 RAM（octree），FoV 内的 Gaussian <b>复制一份到 VRAM 的连续 buffer</b>；</li>
+      <li>优化时直接在 VRAM 连续 buffer 上 backprop；优化完写回 RAM。</li>
+    </ul>
+
+    <div class="box box-tip">
+      <div class="box-title">💡 工程精妙之处</div>
+      RAM 容量大且可用 swap 扩展，VRAM 容量有限。这种"<b>主存放全局、显存放工作集</b>"的 pattern 把 3DGS-SLAM 从 "玩具规模" 解放到 "大场景实时"——是整篇论文最核心的系统贡献。
+    </div>
+  </section>
+
+  <!-- ============ 5. 初始化 + 优化 ============ -->
+  <section id="init">
+    <h2><span class="num">5</span> 模块 B：LiDAR-Camera 联合初始化与光度优化</h2>
+
+    <h3>5.1 几何初始化（LiDAR）</h3>
+    <p>每个 leaf voxel 用 LiDAR 表面点采样新 Gaussian。<b>Scaling matrix</b>：</p>
+    <div class="formula">
+      $$S_i(s) = \begin{pmatrix}s_\delta & 0 & 0\\ 0 & s_y & 0\\ 0 & 0 & s_z\end{pmatrix} \tag{2}$$
+    </div>
+    <p>$s_\delta$ 是 minor numerical value—— Gaussian 被建模为<b>2D planar 贴在物体表面</b>。<b>Rotation matrix</b> 用 LiDAR-inertial SLAM [56] 估的法向 $^W n_i$ 初始化：</p>
+    <div class="formula">
+      $${}^W R_i = \left[\frac{e_x \times {}^W n_i}{\|e_x \times {}^W n_i\|},\ {}^W n_i \times \frac{e_x \times {}^W n_i}{\|e_x \times {}^W n_i\|},\ {}^W n_i\right] \tag{3}$$
+    </div>
+    <p>协方差 $\Sigma_{3D_i} = ({}^W R_i S_i)({}^W R_i S_i)^T$（公式 4）。</p>
+
+    <h3>5.2 投影与渲染</h3>
+    <div class="formula">
+      $$q_i = \pi({}^C T_W \cdot {}^W p_i),\quad \Sigma_{2D_i} = (J_\pi {}^C R_W)\Sigma_{3D_i}(J_\pi {}^C R_W)^T \tag{5-6}$$
+    </div>
+    <p>SH 0 阶系数用 bilinear 插值从相机图像取色：</p>
+    <div class="formula">
+      $$c(q_i) = \sum_{j=1}^{4} c_j \cdot A_j \tag{7}$$
+    </div>
+
+    <h3>5.3 光度优化目标</h3>
+    <p>Alpha-blending 渲染：</p>
+    <div class="formula">
+      $$\hat I_k(q_i) = \sum_{i=1}^{M}\left[c_i \sigma_i G^{2D}_i(q_i) \prod_{j=1}^{i-1}(1 - \sigma_j G^{2D}_j(q_j))\right] \tag{8}$$
+    </div>
+    <p>优化 sliding window 内的 Gaussian 参数 $\theta_{k-1}$：</p>
+    <div class="formula">
+      $$\theta^\star_{k-1} = \arg\min_{\theta_{k-1}}\sum_{G^{3D}_i \in \theta_{k-1}} \|I_{k-1} - \hat I_{k-1}({}^W T_C; \theta_{k-1})\| \tag{9}$$
+    </div>
+    <p>用 Adam 优化器。注意<mark>优化作用域只在 sliding window 内</mark>，不优化全局地图——这是实时性的关键。</p>
+  </section>
+
+  <!-- ============ 6. Sliding Window ============ -->
+  <section id="sliding">
+    <h2><span class="num">6</span> 模块 C：Sliding Window of Gaussians（论文核心创新）</h2>
+    <p class="lead">这是 GS-LIVO 区分自己于"另一个 LIV+GS 系统"的关键武器。下面把 5 步流程逐步拆解。</p>
+
+    <h3>6.1 三个数据结构</h3>
+    <ul>
+      <li><b>SHT (Spatial Hash Table)</b>：CPU 内存里的 hash 表，key 是 spatial coord，value 是内存指针；</li>
+      <li><b>CGB (CPU Gaussian Buffer)</b>：CPU 端连续内存，存活跃 voxel 的 Gaussian 参数；</li>
+      <li><b>GGB (GPU Gaussian Buffer)</b>：VRAM 上的连续 block，直接被 CUDA kernel 访问。</li>
+    </ul>
+
+    <h3>6.2 5 步增量更新</h3>
+    <ol>
+      <li><b>Step 1 (Update to Global Map)</b>：遍历上帧 sliding window 中的 voxel，凡仍在当前 FoV 的标为 OVERLAP，超出 FoV 的把优化过的参数<b>写回全局地图</b>并标为 DELETE；</li>
+      <li><b>Step 2 (Deletion & Compaction)</b>：把 DELETE voxel 与 sliding window 末尾 swap，再从末尾切除 —— <b>保持内存连续</b>；</li>
+      <li><b>Step 3 (Overlap & Addition)</b>：用当前 LiDAR 帧的 hash key 找 OVERLAP 子集，剩下的就是要加进来的 ADD voxel；</li>
+      <li><b>Step 4 (Appending New Leaf Voxels)</b>：把 ADD voxel 加到 CGB 末尾，更新 SHT；用 DMA 把这段数据从 CGB 传到 GGB；</li>
+      <li>之后 GPU 直接对 GGB 做光度优化（不需要每帧整窗重建）。</li>
+    </ol>
+
+    <h3>6.3 为什么有效</h3>
+    <div class="box box-key">
+      <div class="box-title">🎯 设计精髓</div>
+      <ul>
+        <li><b>相邻帧 FoV 重叠率高</b> → 大部分 voxel 不动 → 只传输"变化的"voxel；</li>
+        <li><b>显存按需扩张</b>：sliding window 大小 = 当前 FoV 的 Gaussian 数（典型 indoor 100k，outdoor 100k，embedded 20k）；</li>
+        <li><b>避免 3DGS 原版的 tile-based depth sorting aliasing</b>（前景被背景污染）；</li>
+        <li>消融实验：indoor playground01 上，<b>w/ SW = 48.5 ms，w/o SW = 83.4 ms</b>（Fig. 10b）。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 7. IESKF ============ -->
+  <section id="iesfk">
+    <h2><span class="num">7</span> 模块 D：IESKF 紧耦合状态估计</h2>
+
+    <h3>7.1 视觉测量模型（关键创新）</h3>
+    <p>不同于其他 GS-SLAM 用"depth loss + 等速模型"估位姿，GS-LIVO 用<b>渲染图像与真实图像的逐像素光度残差</b>：</p>
+    <div class="formula">
+      $${}^W T_C^\star = \arg\min_{T(\xi)}\sum_{G^{3D}_i \in \theta_{k-1}} \|I_k - \hat I_k({}^W T_C; \theta_{k-1})\| \tag{10}$$
+    </div>
+    <p>$\xi \in \mathfrak{se}(3)$ 是相机位姿扰动。</p>
+
+    <h3>7.2 与 patch-warping 的区别</h3>
+    <p>Fig. 4 对比：FAST-LIVO2 [8] 用 patch warp（32×32 或 64×64 patch），会在 patch 边界产生 seam；GS-LIVO 用 Gaussian 渲染，<b>无缝且能渲染 non-Lambertian 表面</b>。</p>
+
+    <h3>7.3 Jacobian 链式法则</h3>
+    <p>位置/旋转两段：</p>
+    <div class="formula">
+      $$\frac{\partial q_i}{\partial {}^W R_I} = \frac{\partial q_i}{\partial {}^C p_i}\frac{\partial {}^C p_i}{\partial {}^C R_W}\frac{\partial {}^C R_W}{\partial {}^W R_I} \tag{11}$$
+    </div>
+    <p>详细推导在论文 §II-D 与 Appendix（公式 11-17, 18-42）。</p>
+
+    <h3>7.4 IMU 状态融合</h3>
+    <p>关键扰动关系（公式 22）：$(T(\delta\phi, \delta t) \cdot {}^C T_W)^{-1} \cdot {}^C T_I = {}^W T_I \boxplus T(\delta R, \delta\rho)$，推导得：</p>
+    <div class="formula">
+      $$\frac{\partial {}^C R_W}{\partial {}^W R_I} = -{}^C R_I,\quad \frac{\partial {}^C t_W}{\partial {}^W t_I} = -{}^C R_W,\quad \frac{\partial {}^C R_W}{\partial {}^W t_I} = -{}^C t_I^\wedge {}^C R_W \tag{29,32,33}$$
+    </div>
+    <p>所有 visual residual 的 Jacobian 都按 chain rule 传到 IMU pose 上，然后 IESKF 更新：</p>
+    <div class="formula">
+      $$K = (H^T R^{-1} H + P^{-1})^{-1} H^T R^{-1},\quad {}^W\check T_I = {}^W\hat T_I \boxplus T(\xi) \tag{39, 40}$$
+    </div>
+  </section>
+
+  <!-- ============ 8. 实验设置 ============ -->
+  <section id="exp-setup">
+    <h2><span class="num">8</span> 实验设置</h2>
+
+    <h3>8.1 硬件平台</h3>
+    <ul>
+      <li><b>桌面</b>：Intel i9-13900KF + 128 GB RAM + RTX-4090；</li>
+      <li><b>嵌入式</b>：NVIDIA Jetson Orin NX 16G（8-core CPU + 1024 CUDA cores + 16 GB LPDDR5）；</li>
+      <li><b>真机</b>：mobile chassis + Synchronizer + battery，跑完整自主导航 demo。</li>
+    </ul>
+
+    <h3>8.2 数据集</h3>
+    <table>
+      <thead><tr><th>数据集</th><th>类型</th><th>来源</th><th>GT</th></tr></thead>
+      <tbody>
+        <tr><td>CBD03</td><td>大学室外</td><td>FAST-LIVO2 [8]</td><td>自定义</td></tr>
+        <tr><td>HKU01</td><td>大学室外</td><td>FAST-LIVO2 [8]</td><td>自定义</td></tr>
+        <tr><td>HKisland03</td><td>UAV 海岛</td><td>MARS-LVIG [9]</td><td>D-RTK</td></tr>
+        <tr><td>HKairport01</td><td>UAV 机场</td><td>MARS-LVIG [9]</td><td>D-RTK</td></tr>
+        <tr><td>Playground01/02</td><td>室内</td><td>自录</td><td>MoCap</td></tr>
+        <tr><td>Landmark01</td><td>室内</td><td>自录</td><td>MoCap</td></tr>
+      </tbody>
+    </table>
+
+    <h3>8.3 参数配置</h3>
+    <ul>
+      <li><b>Indoor</b>：root voxel 0.03 m / 0.06 m，max subdivision 2 layers；</li>
+      <li><b>Outdoor (UAV)</b>：root voxel 0.5 m / 1.0 m，max subdivision 2 layers；</li>
+      <li><b>Sliding window size</b>：桌面 100,000 Gaussians，嵌入式 20,000；</li>
+      <li>15,000 iterations (=10 × 1500 frames) for fair comparison。</li>
+    </ul>
+  </section>
+
+  <!-- ============ 9. 渲染质量 ============ -->
+  <section id="exp-render">
+    <h2><span class="num">9</span> 实验 1：渲染质量（Table II）</h2>
+    <p class="lead">PSNR (dB, higher better) / Duration (s, lower better) / Memory (GB, lower better)。<mark>所有数字 1:1 照抄论文 Table II</mark>。</p>
+
+    <h3>9.1 Indoor 数据集</h3>
+    <table>
+      <thead><tr><th>Sequence</th><th>Method</th><th>PSNR/dB ↑</th><th>Dur./s ↓</th><th>Mem./GB ↓</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="6"><b>HKU01</b></td><td>3D-GS [1]</td><td>26.22</td><td>2128.6</td><td>13.8</td></tr>
+        <tr><td>SplaTAM [33]</td><td>24.06</td><td>292.2</td><td>2.6</td></tr>
+        <tr><td>MonoGS [51]</td><td>23.51</td><td>258.0</td><td>3.1</td></tr>
+        <tr><td>S3GS [60]</td><td>✗</td><td>✗</td><td>✗</td></tr>
+        <tr><td>LetsGo [48]</td><td>24.51</td><td>3231.3</td><td>18.1</td></tr>
+        <tr><td><b>GS-LIVO (Ours)</b></td><td><b>25.34</b></td><td><b>82.5</b></td><td><b>2.2</b></td></tr>
+        <tr><td rowspan="6"><b>CBD03</b></td><td>3D-GS [1]</td><td><b>29.54</b></td><td>1873.8</td><td>12.5</td></tr>
+        <tr><td>SplaTAM [33]</td><td>26.85</td><td>265.2</td><td>4.8</td></tr>
+        <tr><td>MonoGS [51]</td><td>27.10</td><td>278.4</td><td>4.6</td></tr>
+        <tr><td>S3GS [60]</td><td>24.92</td><td>3450.7</td><td>15.2</td></tr>
+        <tr><td>LetsGo [48]</td><td>25.51</td><td>3573.6</td><td>20.4</td></tr>
+        <tr><td><b>GS-LIVO (Ours)</b></td><td><b>27.52</b></td><td><b>88.4</b></td><td><b>2.2</b></td></tr>
+        <tr><td rowspan="6"><b>Playground01</b></td><td>3D-GS [1]</td><td><b>29.75</b></td><td>763.4</td><td>8.8</td></tr>
+        <tr><td>SplaTAM [33]</td><td>22.01</td><td>292.2</td><td>3.4</td></tr>
+        <tr><td>MonoGS [51]</td><td>21.15</td><td>281.0</td><td>3.1</td></tr>
+        <tr><td>S3GS [60]</td><td>20.50</td><td>2903.2</td><td>9.7</td></tr>
+        <tr><td>LetsGo [48]</td><td>25.20</td><td>3210.3</td><td>10.2</td></tr>
+        <tr><td><b>GS-LIVO (Ours)</b></td><td>24.09</td><td><b>48.5</b></td><td><b>1.5</b></td></tr>
+        <tr><td rowspan="6"><b>Playground02</b></td><td>3D-GS [1]</td><td><b>26.54</b></td><td>873.8</td><td>7.5</td></tr>
+        <tr><td>SplaTAM [33]</td><td>24.45</td><td>278.4</td><td>3.8</td></tr>
+        <tr><td>MonoGS [51]</td><td>25.93</td><td>265.2</td><td>4.6</td></tr>
+        <tr><td>S3GS [60]</td><td>22.24</td><td>2957.3</td><td>19.1</td></tr>
+        <tr><td>LetsGo [48]</td><td>23.12</td><td>2967.5</td><td>18.2</td></tr>
+        <tr><td><b>GS-LIVO (Ours)</b></td><td>25.52</td><td><b>63.4</b></td><td><b>1.2</b></td></tr>
+      </tbody>
+    </table>
+
+    <h3>9.2 Outdoor 数据集</h3>
+    <table>
+      <thead><tr><th>Sequence</th><th>Method</th><th>PSNR/dB ↑</th><th>Dur./s ↓</th><th>Mem./GB ↓</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="6"><b>HKisland03</b></td><td>3D-GS [1]</td><td><b>17.52</b></td><td>3494.1</td><td>21.6</td></tr>
+        <tr><td>SplaTAM [33]</td><td>12.60</td><td>790.0</td><td>10.5</td></tr>
+        <tr><td>MonoGS [51]</td><td>14.22</td><td>743.7</td><td>12.3</td></tr>
+        <tr><td>S3GS [60]</td><td>✗</td><td>✗</td><td>✗</td></tr>
+        <tr><td>LetsGo [48]</td><td><b>18.32</b></td><td>2803.3</td><td>17.6</td></tr>
+        <tr><td><b>GS-LIVO (Ours)</b></td><td>15.32</td><td><b>82.8</b></td><td><b>3.2</b></td></tr>
+        <tr><td rowspan="6"><b>HKairport01</b></td><td>3D-GS [1]</td><td>16.98</td><td>3919.8</td><td>22.8</td></tr>
+        <tr><td>SplaTAM [33]</td><td>12.39</td><td>915.2</td><td>11.0</td></tr>
+        <tr><td>MonoGS [51]</td><td>13.87</td><td>789.6</td><td>13.4</td></tr>
+        <tr><td>S3GS [60]</td><td>✗</td><td>✗</td><td>✗</td></tr>
+        <tr><td>LetsGo [48]</td><td><b>17.32</b></td><td>3103.3</td><td>18.1</td></tr>
+        <tr><td><b>GS-LIVO (Ours)</b></td><td>15.18</td><td><b>93.2</b></td><td><b>3.1</b></td></tr>
+      </tbody>
+    </table>
+
+    <div class="box box-good">
+      <div class="box-title">📈 主结论</div>
+      <ul>
+        <li>3D-GS [1] 离线 batch 训练 PSNR 最高（占据上限），但耗时 1800-3900 s；</li>
+        <li><b>GS-LIVO 在所有数据集上 Dur. 比基线快 3-50 倍，Memory 节省 4-10 倍</b>；</li>
+        <li>PSNR 略低于 3D-GS / LetsGo 但远超 SplaTAM / MonoGS；</li>
+        <li>S3GS 在多个 indoor 大场景与所有 outdoor 序列上<b>跑不通</b>（标为 ✗）；</li>
+        <li>outdoor PSNR 整体偏低（15-18 dB）—— UAV aerial 场景 GS 表示的固有挑战。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 10. 定位精度 ============ -->
+  <section id="exp-loc">
+    <h2><span class="num">10</span> 实验 2：定位精度（Table III/IV）</h2>
+
+    <h3>10.1 与传统 LIV-SLAM 对比（Table III）</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Sequence</th><th>RMSE/m ↓</th><th>Dur./ms ↓</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="2"><b>FAST-LIVO [7]</b></td><td>HKisland03</td><td><b>0.51</b></td><td><b>38.9</b></td></tr>
+        <tr><td>HKairport01</td><td><b>0.56</b></td><td><b>44.5</b></td></tr>
+        <tr><td rowspan="2">R3LIVE [5]</td><td>HKisland03</td><td>1.71</td><td>283.3</td></tr>
+        <tr><td>HKairport01</td><td>1.22</td><td>266.8</td></tr>
+        <tr><td rowspan="2">LVI-SAM [54]</td><td>HKisland03</td><td>4.12</td><td>73.5</td></tr>
+        <tr><td>HKairport01</td><td>5.21</td><td>84.8</td></tr>
+        <tr><td rowspan="2"><b>GS-LIVO (Ours)</b></td><td>HKisland03</td><td>0.58</td><td>82.8</td></tr>
+        <tr><td>HKairport01</td><td>0.63</td><td>93.2</td></tr>
+        <tr><td rowspan="2"><b>FAST-LIVO [7]</b></td><td>Playground01</td><td><b>0.005</b></td><td><b>10.5</b></td></tr>
+        <tr><td>Playground02</td><td><b>0.005</b></td><td><b>8.75</b></td></tr>
+        <tr><td rowspan="2">R3LIVE [5]</td><td>Playground01</td><td>0.014</td><td>60.6</td></tr>
+        <tr><td>Playground02</td><td>0.014</td><td>66.6</td></tr>
+        <tr><td rowspan="2">LVI-SAM [54]</td><td>Playground01</td><td>0.023</td><td>96.6</td></tr>
+        <tr><td>Playground02</td><td>0.021</td><td>86.6</td></tr>
+        <tr><td rowspan="2"><b>GS-LIVO (Ours)</b></td><td>Playground01</td><td>0.006</td><td>48.5</td></tr>
+        <tr><td>Playground02</td><td><b>0.005</b></td><td>63.4</td></tr>
+      </tbody>
+    </table>
+
+    <div class="box box-tip">
+      <div class="box-title">📌 解读</div>
+      <ul>
+        <li><b>FAST-LIVO 在 RMSE 和 Dur. 都最优</b>—— GS-LIVO 自己承认：FAST-LIVO 的 sparse patch warping 比维护稠密 dense Gaussian 更快；</li>
+        <li>但 GS-LIVO 的 RMSE 与 FAST-LIVO 接近（差距 < 0.1 m on outdoor，< 0.001 m on indoor），<b>同时维护一张 photorealistic dense Gaussian 地图</b>；</li>
+        <li>vs. R3LIVE：outdoor RMSE 0.58 vs 1.71，<b>3× 改善</b>；</li>
+        <li>vs. LVI-SAM：outdoor RMSE 0.58 vs 4.12，<b>7× 改善</b>。</li>
+      </ul>
+    </div>
+
+    <h3>10.2 与 GS-based SLAM 对比（Table IV）</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Sequence</th><th>RMSE/m ↓</th><th>Dur./ms ↓</th><th>Mem./GB ↓</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="2">SplaTAM [33]</td><td>Playground01</td><td>0.28</td><td>612.8</td><td>12.5</td></tr>
+        <tr><td>Playground02</td><td>0.23</td><td>831.6</td><td>21.0</td></tr>
+        <tr><td rowspan="2">MonoGS* [51]</td><td>Playground01</td><td>0.09</td><td>841.5</td><td>19.6</td></tr>
+        <tr><td>Playground02</td><td>0.11</td><td>851.2</td><td>17.2</td></tr>
+        <tr><td rowspan="2">MonoGS [51]</td><td>Playground01</td><td>0.18</td><td>541.5</td><td>21.0</td></tr>
+        <tr><td>Playground02</td><td>0.17</td><td>451.2</td><td>18.7</td></tr>
+        <tr><td rowspan="2"><b>GS-LIVO (Ours)</b></td><td>Playground01</td><td><b>0.006</b></td><td><b>48.5</b></td><td><b>1.2</b></td></tr>
+        <tr><td>Playground02</td><td><b>0.005</b></td><td><b>63.4</b></td><td><b>1.5</b></td></tr>
+        <tr><td colspan="2">All Outdoor (HKisland03/HKairport01)</td><td>SplaTAM / MonoGS*: ✗</td><td>—</td><td>—</td></tr>
+        <tr><td><b>GS-LIVO</b></td><td>HKisland03</td><td><b>0.58</b></td><td>82.8</td><td>8.0</td></tr>
+        <tr><td><b>GS-LIVO</b></td><td>HKairport01</td><td><b>0.63</b></td><td>93.2</td><td>9.5</td></tr>
+      </tbody>
+    </table>
+
+    <div class="box box-good">
+      <div class="box-title">🏆 关键</div>
+      <ul>
+        <li><b>vs. MonoGS*</b>（用 LiDAR 投影 depth 的 MonoGS）：RMSE <b>0.006 vs 0.09</b>（15× 提升），耗时 <b>48.5 ms vs 841.5 ms</b>，memory <b>1.2 vs 19.6 GB</b>；</li>
+        <li><b>vs. SplaTAM</b>：RMSE <b>0.006 vs 0.28</b>（45× 提升），同等数量级 memory 节省；</li>
+        <li><b>所有其他 GS-SLAM 在 outdoor UAV 序列上完全失败</b>—— GS-LIVO 独占这一 segment。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 11. Ablation ============ -->
+  <section id="ablation">
+    <h2><span class="num">11</span> 消融：sliding window 的关键作用</h2>
+
+    <h3>11.1 Indoor (Playground01, Fig. 10)</h3>
+    <table>
+      <thead><tr><th>指标</th><th>w/ Sliding Window</th><th>w/o Sliding Window</th></tr></thead>
+      <tbody>
+        <tr><td>PSNR (dB)</td><td>24.09</td><td>23.94</td></tr>
+        <tr><td>Total runtime (ms)</td><td><b>48.5</b></td><td>83.4</td></tr>
+        <tr><td>Maintenance time (s)</td><td>0.004</td><td>0.018</td></tr>
+        <tr><td>Optimization runtime (s)</td><td><b>0.023</b></td><td>0.073</td></tr>
+      </tbody>
+    </table>
+
+    <h3>11.2 Outdoor (HKisland03, Fig. 11)</h3>
+    <table>
+      <thead><tr><th>指标</th><th>w/ Sliding Window</th><th>w/o Sliding Window</th></tr></thead>
+      <tbody>
+        <tr><td>PSNR (dB)</td><td>15.18</td><td>15.64</td></tr>
+        <tr><td>Total runtime (ms)</td><td><b>93.2</b></td><td>250.7</td></tr>
+        <tr><td>Maintenance time (s)</td><td>0.006</td><td>0.017</td></tr>
+        <tr><td>Optimization runtime (s)</td><td><b>0.071</b></td><td>0.232</td></tr>
+      </tbody>
+    </table>
+
+    <h3>11.3 时序复杂度</h3>
+    <p>Fig. 9 给出两条线性关系（线性回归）：</p>
+    <ul>
+      <li><b>优化时间</b> ≈ 0 + slope × #Gaussians（10 iterations 内，最大 ~70 ms @ 500k Gaussians）；</li>
+      <li><b>Host-Device transfer time</b> ≈ 0 + slope × #Gaussians（最大 ~12 ms @ 400k Gaussians）。</li>
+    </ul>
+    <p>意味着 sliding window size 是<b>实时性的核心调节钮</b>。</p>
+  </section>
+
+  <!-- ============ 12. 嵌入式 ============ -->
+  <section id="embedded">
+    <h2><span class="num">12</span> 嵌入式部署：Jetson Orin NX 16G</h2>
+
+    <h3>12.1 配置</h3>
+    <ul>
+      <li>Root voxel size 0.5 m；max subdivision 2 layers；</li>
+      <li>Image resolution 256 × 216；</li>
+      <li>Sliding window size 20,000 Gaussians（桌面是 100,000）。</li>
+    </ul>
+
+    <h3>12.2 性能数字</h3>
+    <div class="stat-grid">
+      <div class="stat"><div class="num">23.52</div><div class="lbl">PSNR (dB)</div></div>
+      <div class="stat"><div class="num">15.3</div><div class="lbl">优化时间 (ms)</div></div>
+      <div class="stat"><div class="num">18.9</div><div class="lbl">Maintenance 时间 (ms)</div></div>
+      <div class="stat"><div class="num">48.3</div><div class="lbl">总流水 (ms)</div></div>
+      <div class="stat"><div class="num">~21</div><div class="lbl">Hz pipeline</div></div>
+    </div>
+
+    <p>论文宣称：<i>"To the best of our knowledge, this is the first real-time Gaussian-based SLAM system with online map updates deployed on an ARM-based embedded platform."</i></p>
+
+    <p>实际系统集成：用 Gaussian 地图生成 2D 占据栅格，A* 全局规划 + LQR 轨迹跟踪，完成 demo 中的自主导航（见 supplementary video）。</p>
+  </section>
+
+  <!-- ============ 13. 局限 ============ -->
+  <section id="limit">
+    <h2><span class="num">13</span> 局限与未来工作</h2>
+    <div class="pros-cons">
+      <div class="pros">
+        <b>✅ 强项</b>
+        <ul>
+          <li>第一个嵌入式实时 GS-SLAM，C++/CUDA 开源；</li>
+          <li>Sliding window + hash-indexed octree 工程优雅；</li>
+          <li>大场景 outdoor UAV 可用，多 dataset 全面验证；</li>
+          <li>定位精度逼近 FAST-LIVO（同期最强 LIV-SLAM）。</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <b>⚠️ 局限（§III.E）</b>
+        <ul>
+          <li>固定 LoD 层级（2 层）—— 未探索 self-adaptive LoD；</li>
+          <li>同色 Gaussian 未合并 —— 同质区域内存仍可压缩；</li>
+          <li><mark><b>纯几何 + 光度，无语义</b></mark>—— 这是关键缺口，下游导航只能用 occupancy；</li>
+          <li>无变化检测 / lifelong 支持 —— 当场景变化时旧 Gaussian 仍在；</li>
+          <li>无 loop closure（论文中未提及 LC 机制）。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 14. 与 EvidLife-Map 关系 ============ -->
+  <section id="evidlife" class="threat-section">
+    <h2><span class="num">14</span> ⭐ 与我们 EvidLife-Map 的关系（最重要章节）⭐</h2>
+    <p class="lead">这是本批 3 篇里<b>对我们威胁最大的一篇</b>。同样来自 HKUST 系（沈劭劼），同样宣称"实时 + 嵌入式 + LIV 融合"。<u>必须用最严苛的态度做差异化定位</u>。</p>
+
+    <h3>14.1 方法关系：部分竞争 + 部分互补</h3>
+    <div class="box box-key">
+      <div class="box-title">🎯 总判定</div>
+      <b>GS-LIVO ≠ EvidLife-Map，但两者有重合的"实时多传感器融合 + onboard 部署"目标。差异主要在三个维度：</b>
+      <ol>
+        <li><b>表示</b>：GS-LIVO 用 3DGS（连续可微，几何 + 光度），EvidLife-Map 用 <b>evidential voxel</b>（离散，几何 + Dirichlet 语义证据）；</li>
+        <li><b>不确定性</b>：GS-LIVO 完全没有 epistemic uncertainty，EvidLife-Map 用 vacuity 量化；</li>
+        <li><b>用途</b>：GS-LIVO 优化目标是"渲染质量 + 位姿精度"，EvidLife-Map 是"语义建图 + open-set 检测 + lifelong 衰减 + 闭环描述子"。</li>
+      </ol>
+    </div>
+
+    <h3>14.2 必须引用的位置</h3>
+    <ul>
+      <li><b>§I Introduction 第二段</b>：在讨论"近期 LIV-SLAM 进展"时必须引用 GS-LIVO 作为<u>最新代表</u>；</li>
+      <li><b>§II Related Work — 多个 subsection</b>：
+        <ul>
+          <li>(a) "Real-time LIV-SLAM" 节：GS-LIVO + FAST-LIVO2 + R3LIVE 并列；</li>
+          <li>(b) "3DGS-based SLAM" 节：GS-LIVO + SplaTAM + MonoGS；</li>
+          <li>(c) "Embedded SLAM" 节：GS-LIVO 是当前唯一 GS-on-Jetson 工作；</li>
+        </ul>
+      </li>
+      <li><b>§III Problem Formulation</b>：在定义我们的 voxel-level evidential mapping 时，要明确"我们 <b>不以 photorealistic rendering 为目标</b>"，以避开 GS-LIVO 的强项；</li>
+      <li><b>§IV.A Map Representation</b>：在 choice of representation 段落，对比 GS vs voxel 的<b>各自取舍</b>：GS 适合 view synthesis，voxel 适合 evidence accumulation + decay；</li>
+      <li><b>§V Experiments</b>：<b>不在 RQ5 baseline 表中列 GS-LIVO</b>—— 因为它不做语义不做 lifelong，不在我们的 evaluation surface 上；改在 §V.A "system context" 段落引用其 timing numbers 作为<b>"我们 vs GS-SLAM 同一 hardware 上的能耗预算参考"</b>。</li>
+    </ul>
+
+    <h3>14.3 实验对手：要不要做头对头？</h3>
+    <div class="box box-warn">
+      <div class="box-title">⚠️ 关键策略决定</div>
+      <b>不做头对头实验</b>。原因：
+      <ol>
+        <li>GS-LIVO 的输出是 photorealistic GS 地图 + dense odometry；EvidLife-Map 的输出是 evidential voxel 地图 + Dirichlet 不确定。<b>主要指标不重叠</b>（PSNR vs mIoU+vacuity AUROC）；</li>
+        <li>GS-LIVO <b>不做语义</b>，强行拼接 evidential head 会变成"我们扩展 GS-LIVO"—— <mark>那时 reviewer 会问"为什么不直接基于 GS-LIVO 开发"</mark>；</li>
+        <li>头对头有"输给同组前辈"的风险。HKUST 系内部 review 圈层会对沈劭劼实验室作品给足面子；</li>
+        <li>我们的目标 venue 是 IROS，<b>评审委员会有大量 HKUST 系外人士</b>，差异化定位才是策略。</li>
+      </ol>
+      <b>替代策略</b>：
+      <ul>
+        <li>在 §V.A 引用 GS-LIVO 的 <b>onboard timing 数字（48.3 ms / Jetson Orin NX）</b>作为"实时 + 嵌入式可行性"的<u>同侪基准</u>；</li>
+        <li>明确写"我们的方法与 GS-LIVO 是 <b>orthogonal contributions</b>：one targets photorealistic rendering, the other targets evidential semantic mapping with lifelong properties"；</li>
+        <li>在 §VI Future Work 提"a unified evidential-Gaussian map" 作为延伸方向 —— 这是<b>主动握手而非对抗</b>。</li>
+      </ul>
+    </div>
+
+    <h3>14.4 它的哪些设计可以借鉴</h3>
+    <ol>
+      <li><b>Hash-indexed octree</b>—— 我们的体素 indexing 可以直接借这套数据结构（公式 1：HashKey = ⌊W p / v_s⌋），节省自己设计 indexing 的工程量；</li>
+      <li><b>Sliding window 的 5 步增量更新</b>—— 我们 voxel decay 模块的"过 FoV 的 voxel 边缘化到压缩存储"完全可以套用这套 OVERLAP/DELETE/ADD 流程；</li>
+      <li><b>RAM (global) ↔ VRAM (active set)</b> 的 dual buffer pattern —— 让 EvidLife-Map 在 large-scale lifelong 部署时不超 VRAM；</li>
+      <li><b>IESKF + 多模态残差</b>—— 如果我们的 RQ3 traversability 要做联合状态估计，可以借鉴 GS-LIVO 的 chain rule Jacobian（公式 11-17）；</li>
+      <li><b>C++/CUDA 实现风格</b>—— 我们开源时如果对标 GS-LIVO 的工程质量，会显著加 reviewer 印象分。</li>
+    </ol>
+
+    <h3>14.5 我们 §III 需要明确 differentiate 的点</h3>
+    <div class="box box-key">
+      <div class="box-title">差异化定位（写进 §III.B "Design Principles"）</div>
+      <ol>
+        <li><b>表示选择的根本动机</b>：GS-LIVO 选 3DGS 因为 photorealistic rendering 需要可微表面；EvidLife-Map 选 evidential voxel 因为<b>vacuity 衰减需要离散单元</b>（连续 GS 上很难定义 "voxel age"）；</li>
+        <li><b>语义信息的处理</b>：GS-LIVO 完全没有语义（color SH 系数不是语义）；EvidLife-Map 的语义是 first-class citizen，<b>Dirichlet $\alpha$ 编码 K 类证据 + vacuity</b>；</li>
+        <li><b>OOD 检测</b>：GS-LIVO 没有；EvidLife-Map 通过 vacuity 直接做（RQ2）；</li>
+        <li><b>变化检测 / lifelong</b>：GS-LIVO 没有；EvidLife-Map 通过 vacuity-decay 主动 garbage-collect（RQ4 与 Khronos T1.1 在这点上是对比基准）；</li>
+        <li><b>评估指标的根本不同</b>：GS-LIVO 用 PSNR；EvidLife-Map 用 mIoU + ECE + AUROC + 4D F1。两套指标几乎不重叠，这本身就是 differentiator。</li>
+      </ol>
+    </div>
+
+    <div class="box box-warn">
+      <div class="box-title">⚠️ 必须诚实承认的事</div>
+      <ul>
+        <li>GS-LIVO 在<b>实时性 + 嵌入式部署</b>上是当前最强 — 48.3 ms / Jetson Orin NX，我们至少要做到接近水平才能立得住"实时 + onboard" 主张；</li>
+        <li>GS-LIVO 的<b>定位精度</b>逼近 FAST-LIVO（<0.001 m on Playground）—— EvidLife-Map 不与之竞争 odometry，必须明确"我们 take pose as input"；</li>
+        <li>GS-LIVO 的<b>渲染质量</b>是其核心优势，我们不能假装这不重要 —— 在 §VI Discussion 必须坦诚 "EvidLife-Map sacrifices photorealistic rendering for semantic uncertainty";</li>
+        <li>GS-LIVO 的<b>工程成熟度</b>（C++/CUDA、Jetson 部署、自主导航 demo）<u>是我们短期难以企及的</u>，我们的优势必须建立在 <b>方法学统一性（一标量三用途）</b>而非 system maturity。</li>
+      </ul>
+    </div>
+
+    <h3>14.6 三个关键的 "守势" 防御点</h3>
+    <div class="box box-key">
+      <div class="box-title">如果 reviewer 提以下问题，我们要怎么答（写进 rebuttal 文档）</div>
+      <ol>
+        <li><b>"为什么不基于 GS-LIVO 开发？"</b><br>
+        答：我们的核心贡献是 <b>evidential 表示的统一应用</b>（一标量三用途），需要 voxel 离散表示来支持 vacuity decay。GS 表示与 evidential 衰减是<b>不兼容</b>的设计选择（连续 GS 无 voxel age 概念）；</li>
+        <li><b>"为什么不与 GS-LIVO 做头对头？"</b><br>
+        答：(i) 评估指标不重叠（PSNR vs mIoU/ECE/AUROC）；(ii) GS-LIVO 不做语义，所以无法 fair compare on semantic metrics；(iii) 我们引用 GS-LIVO 的 timing 作为<b>同侪可行性基准</b>，更恰当；</li>
+        <li><b>"GS-LIVO 是不是已经把 LIV-SLAM 做到头了？"</b><br>
+        答：在 photorealistic rendering 维度是的，但<b>SLAM 不只是渲染</b>。lifelong、open-set、不确定性建模等维度仍开放 — EvidLife-Map 就是这些维度的回答。</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ 15. 总结 ============ -->
+  <section id="takeaway">
+    <h2><span class="num">15</span> 总结与启示</h2>
+
+    <h3>15.1 一句话</h3>
+    <div class="box box-key" style="font-size:1.05rem">
+      <mark>GS-LIVO 用 hash-indexed octree + sliding window 把 3DGS-SLAM 从"离线高质量"压缩到"嵌入式实时"，是当前 LiDAR-Inertial-Visual + 3DGS 赛道的 SOTA 系统；其工程优雅与方法学组合都很强，是 EvidLife-Map 在 § II 必须正面回应的最大威胁。</mark>
+    </div>
+
+    <h3>15.2 给 EvidLife-Map 的 6 个具体行动项</h3>
+    <ol>
+      <li><b>§I Intro</b>：开头必须提及 GS-LIVO 代表的"实时 LIV-SLAM" 进展，并立即说我们 orthogonal contribution；</li>
+      <li><b>§II Related Work</b> 用 1.5 段（不少于）讨论 GS-LIVO + 同期 LIV-GaussMap + Gaussian-LIC + MM3DGS；</li>
+      <li><b>§III.A 设计原则</b>：明确写"为什么选 voxel 而非 GS"—— vacuity decay 需要离散；</li>
+      <li><b>§IV.A 与 §IV.D</b>：借鉴其 hash-indexed octree + sliding window pattern，并 cite；</li>
+      <li><b>§V.A System Context</b>：引用 GS-LIVO 的 48.3 ms / Jetson Orin NX 作为同侪 timing 基准；</li>
+      <li><b>§VI Future Work</b>：提"unified evidential-Gaussian map" 作为 future direction —— 主动握手以减低对抗。</li>
+    </ol>
+
+    <h3>15.3 关联文献</h3>
+    <div class="box box-tip">
+      <div class="box-title">🎓 必读列表</div>
+      <ul>
+        <li><b>FAST-LIVO2 [8]</b> (T-RO 2024)：GS-LIVO 的直接 predecessor，patch-based + IESKF；</li>
+        <li><b>R3LIVE [5]</b> / R3LIVE++ [6]：colored point cloud + photometric error；</li>
+        <li><b>FAST-LIO2 [3]</b>：LIO 基础，HKU 张富组奠基；</li>
+        <li><b>MonoGS [51]</b> / SplaTAM [33] / GS-SLAM [34]：纯 visual 3DGS-SLAM 三件套；</li>
+        <li><b>LIV-GaussMap [37]</b> / Gaussian-LIC [47]：同期 LIV+GS（GS-LIVO 一作 Sheng Hong 本人的 [37]）；</li>
+        <li><b>Octree-GS [45]</b> / LoG [46]：LoD 思想；</li>
+        <li><b>H2-Mapping [40]</b> / H3-Mapping [41]：HKUST 同组 NeRF on edge。</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <p>📄 论文：<i>GS-LIVO: Real-Time LiDAR, Inertial, and Visual Multi-sensor Fused Odometry with Gaussian Mapping</i><br>
+    🏢 arXiv:2501.08672v1 [cs.RO], 2025-01-15 (T-RO 2025 submission)<br>
+    👥 Sheng Hong*, Chunran Zheng*, Yishu Shen, Changze Li, Fu Zhang, Tong Qin†, Shaojie Shen<br>
+    🏢 HKUST Aerial Robotics + HKU MARS Lab + SJTU Global Institute of Future Technology<br>
+    🔗 开源：https://github.com/HKUST-Aerial-Robotics/GS-LIVO<br>
+    📅 精读报告生成日期：2026-05-28 · 由 paper_reader_agent 基于 PDF 原文逐节重写 · <b>对 EvidLife-Map 单一最大威胁，必须最早最仔细处理差异化定位</b></p>
+  </footer>
+
+</div>
+
+</body>
+</html>

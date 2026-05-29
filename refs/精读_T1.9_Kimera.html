@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T1.9 精读：Kimera — From SLAM to Spatial Perception with 3D Dynamic Scene Graphs（IJRR 2021）</title>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<style>
+  :root {
+    --primary: #1d4ed8;
+    --primary-dark: #1e3a8a;
+    --primary-light: #3b82f6;
+    --accent: #dc2626;
+    --warning: #f59e0b;
+    --success: #16a34a;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #111827;
+    --text-light: #6b7280;
+    --border: #e5e7eb;
+    --code-bg: #f1f5f9;
+    --hero-grad: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif; line-height: 1.78; color: var(--text); background: var(--bg); margin: 0; padding: 0; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 28px 80px; }
+  .hero { background: var(--hero-grad); color: white; border-radius: 16px; padding: 64px 56px 56px; margin-bottom: 32px; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3); }
+  .hero::before { content: '👑'; position: absolute; top: -20px; right: -20px; font-size: 220px; opacity: 0.07; transform: rotate(-15deg); }
+  .hero .badge { display: inline-block; background: rgba(255,255,255,0.18); color: #fff; padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 600; margin-bottom: 18px; backdrop-filter: blur(4px); }
+  .hero h1 { margin: 0 0 16px; font-size: 2.1rem; line-height: 1.3; font-weight: 700; }
+  .hero .sub { font-size: 1.05rem; opacity: 0.92; margin-bottom: 24px; font-weight: 300; }
+  .hero .info { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 28px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,0.2); }
+  .hero .info div .label { font-size: 0.78rem; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.5px; }
+  .hero .info div .value { font-size: 1rem; font-weight: 600; margin-top: 2px; }
+  .toc { position: sticky; top: 16px; z-index: 50; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: 12px; padding: 16px 22px; margin-bottom: 28px; box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
+  .toc summary { cursor: pointer; font-weight: 600; color: var(--primary-dark); list-style: none; display: flex; align-items: center; gap: 8px; }
+  .toc summary::before { content: '📑'; }
+  .toc ol { margin: 12px 0 0; padding-left: 20px; columns: 2; column-gap: 28px; }
+  .toc li { margin: 6px 0; break-inside: avoid; }
+  .toc a { color: var(--text); text-decoration: none; font-size: 0.93rem; }
+  .toc a:hover { color: var(--primary); }
+  section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 36px 40px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); scroll-margin-top: 80px; }
+  section h2 { font-size: 1.7rem; color: var(--primary-dark); margin: 0 0 6px; display: flex; align-items: baseline; gap: 12px; }
+  section h2 .num { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; background: var(--primary); color: white; border-radius: 50%; font-size: 1rem; flex-shrink: 0; }
+  section .lead { color: var(--text-light); font-size: 1rem; margin: 0 0 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  section h3 { margin: 28px 0 10px; color: var(--primary); font-size: 1.18rem; border-left: 4px solid var(--primary); padding-left: 14px; }
+  section h4 { margin: 20px 0 8px; font-size: 1.02rem; color: var(--text); }
+  section p { margin: 10px 0; }
+  section ul, section ol { padding-left: 24px; }
+  section li { margin: 6px 0; }
+  .box { border-radius: 10px; padding: 16px 22px; margin: 18px 0; border-left: 4px solid; }
+  .box-key   { background: #eff6ff; border-color: var(--primary); }
+  .box-warn  { background: #fef2f2; border-color: var(--accent); }
+  .box-tip   { background: #fffbeb; border-color: var(--warning); }
+  .box-good  { background: #f0fdf4; border-color: var(--success); }
+  .box-quote { background: #f8fafc; border-color: var(--text-light); font-style: italic; color: #475569; }
+  .box-title { font-weight: 700; margin-bottom: 6px; }
+  .box-key .box-title { color: var(--primary-dark); }
+  .box-warn .box-title { color: var(--accent); }
+  .box-tip .box-title { color: #b45309; }
+  .box-good .box-title { color: #166534; }
+  code { background: var(--code-bg); padding: 2px 7px; border-radius: 4px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.88em; color: #be185d; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 18px 22px; border-radius: 10px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  .formula { background: #fafbfc; border: 1px solid var(--border); border-radius: 8px; padding: 14px 20px; margin: 12px 0; font-size: 1.05rem; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.9rem; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: linear-gradient(180deg, #1d4ed8, #1e3a8a); color: white; font-weight: 600; }
+  tbody tr:nth-child(even) { background: #fafbfc; }
+  tbody tr:hover { background: #eff6ff; }
+  td .win { color: var(--success); font-weight: 700; }
+  td .lose { color: var(--accent); font-weight: 700; }
+  td .num-big { font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); }
+  .diagram { background: #0f172a; color: #e2e8f0; padding: 22px 28px; border-radius: 10px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.84rem; line-height: 1.5; overflow-x: auto; white-space: pre; margin: 16px 0; }
+  .diagram .hl { color: #fbbf24; font-weight: bold; }
+  .diagram .arrow { color: #60a5fa; }
+  .diagram .label { color: #34d399; }
+  .arch { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 20px 0; }
+  .arch .mod { background: linear-gradient(135deg, #ffffff, #f1f5f9); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+  .arch .mod h5 { margin: 0 0 8px; color: var(--primary-dark); font-size: 1rem; display: flex; align-items: center; gap: 6px; }
+  .arch .mod p { font-size: 0.9rem; color: var(--text-light); margin: 4px 0; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 22px 0; }
+  .stat { background: linear-gradient(135deg, #dbeafe, #ffffff); border-radius: 12px; padding: 16px 20px; text-align: center; border: 1px solid #bfdbfe; }
+  .stat .num { font-size: 1.7rem; font-weight: 800; color: var(--primary-dark); line-height: 1.1; }
+  .stat .lbl { font-size: 0.85rem; color: var(--text-light); margin-top: 4px; }
+  .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .pros, .cons { padding: 16px 20px; border-radius: 10px; }
+  .pros { background: #f0fdf4; border-left: 4px solid var(--success); }
+  .cons { background: #fef2f2; border-left: 4px solid var(--accent); }
+  .chip { display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; margin-right: 6px; margin-bottom: 4px; }
+  .chip-blue { background: #dbeafe; color: #1e40af; }
+  .chip-green { background: #dcfce7; color: #166534; }
+  .chip-red { background: #fee2e2; color: #991b1b; }
+  .chip-yellow { background: #fef3c7; color: #92400e; }
+  mark { background: linear-gradient(transparent 55%, #fde68a 55%); padding: 0 2px; font-weight: 600; }
+  footer { margin-top: 36px; padding-top: 22px; border-top: 1px solid var(--border); color: var(--text-light); font-size: 0.88rem; text-align: center; }
+  @media (max-width: 720px) {
+    .container { padding: 16px 14px; }
+    .hero { padding: 36px 24px 30px; }
+    .hero h1 { font-size: 1.5rem; }
+    section { padding: 22px 20px; }
+    .arch, .pros-cons { grid-template-columns: 1fr; }
+    .toc ol { columns: 1; }
+  }
+  @media print {
+    body { background: white; }
+    .toc { position: static; }
+    section, .hero { page-break-inside: avoid; box-shadow: none; }
+    .hero { background: #1e3a8a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ============ HERO ============ -->
+  <div class="hero">
+    <span class="badge">👑 Tier 1 文献精读 · T1.9 Kimera</span>
+    <h1>Kimera: From SLAM to Spatial Perception<br>with 3D Dynamic Scene Graphs</h1>
+    <div class="sub">SPARK Lab MSM 系列的奠基论文 —— 首次从 VIO 输入构造完整 5-layer Dynamic Scene Graph<br>VIO + Mesh + Semantics + PGMO + Humans + Objects + BuildingParser，6 个核心模块开源</div>
+    <div class="info">
+      <div><div class="label">📚 发表</div><div class="value">IJRR Vol.40, No.12-14, 2021</div></div>
+      <div><div class="label">📅 类别</div><div class="value">3D Dynamic Scene Graph · MSM 奠基</div></div>
+      <div><div class="label">🏢 单位</div><div class="value">MIT SPARK Lab (LIDS)</div></div>
+      <div><div class="label">👥 一作 / 通讯</div><div class="value">Antoni Rosinol / Luca Carlone</div></div>
+      <div><div class="label">🔗 代码</div><div class="value">MIT-SPARK/Kimera</div></div>
+      <div><div class="label">🎯 角色</div><div class="value">Khronos / Clio / Hydra 共同祖先</div></div>
+      <div><div class="label">📊 数据集</div><div class="value">EuRoC + uHumans + uHumans2</div></div>
+      <div><div class="label">💻 测试</div><div class="value">desktop CPU + Nvidia Jetson TX2</div></div>
+    </div>
+  </div>
+
+  <!-- ============ TOC ============ -->
+  <details class="toc" open>
+    <summary>目录（点击展开 / 收起）</summary>
+    <ol>
+      <li><a href="#bg">背景：human-like spatial perception 的三大支柱</a></li>
+      <li><a href="#contrib">论文的四大贡献</a></li>
+      <li><a href="#dsg">§2 3D Dynamic Scene Graph 形式化</a></li>
+      <li><a href="#arch">§3 Kimera 总架构（Core + DSG）</a></li>
+      <li><a href="#vio">§3.1 Kimera-VIO：IMU 预积分 + 固定滞后平滑</a></li>
+      <li><a href="#mesh-sem">§3.2-3.3 Kimera-Mesher + Kimera-Semantics</a></li>
+      <li><a href="#pgmo">§3.4 Kimera-PGMO：pose graph + mesh deformation</a></li>
+      <li><a href="#humans">§3.5 Kimera-Humans：SMPL + pose-graph tracking</a></li>
+      <li><a href="#objects-bp">§3.6-3.7 Kimera-Objects + BuildingParser</a></li>
+      <li><a href="#exp-setup">§4.1 数据集（uHumans2 release）</a></li>
+      <li><a href="#exp-vio">§4.2 VIO 精度（EuRoC, vs 6 SOTA）</a></li>
+      <li><a href="#exp-mesh">§4.3-4.4 几何 + 语义重建精度</a></li>
+      <li><a href="#exp-pgmo">§4.5 Loop closure 与 mesh deformation</a></li>
+      <li><a href="#exp-humans">§4.6 Humans + Objects 定位</a></li>
+      <li><a href="#exp-rooms">§4.7 Places + Rooms 解析</a></li>
+      <li><a href="#exp-time">§4.8-4.9 Timing（含 TX2 嵌入式）</a></li>
+      <li><a href="#planning">§5-6 Motivating examples + 层次路径规划</a></li>
+      <li><a href="#limits">局限与作者承诺的未来工作</a></li>
+      <li><a href="#evidlife">§9 与 EvidLife-Map 的关系（核心）</a></li>
+      <li><a href="#takeaway">总结与启示</a></li>
+    </ol>
+  </details>
+
+  <!-- ============ 1. 背景 ============ -->
+  <section id="bg">
+    <h2><span class="num">1</span> 背景：human-like spatial perception 的三大支柱</h2>
+    <p class="lead">Kimera 的动机是把"高级场景理解"做齐三件事——这三句话也定义了 SPARK Lab 后续 5 年路线图：</p>
+    <ol>
+      <li><b>Metric-semantic understanding</b>：几何 + 语义同步在场景中"接地"，不像传统 SLAM 只给几何，也不像 deep 语义分割只给 2D；</li>
+      <li><b>多尺度抽象</b>：从 voxel/mesh → object → place → room → building → city，让 task planning 在合适层级展开；</li>
+      <li><b>Static + dynamic + relations</b>：不只 object constellation，还要捕捉<b>人/机器人 agents</b>及其与场景的时空关系。</li>
+    </ol>
+
+    <div class="box box-quote">
+      "Humans are able to form a complex mental model of the environment they move in. This mental model captures geometric and semantic aspects of the scene, describes the environment at multiple levels of abstractions (e.g., objects, rooms, buildings), includes static and dynamic entities and their relations." —— Abstract
+    </div>
+
+    <h3>1.1 历史脉络</h3>
+    <ul>
+      <li>2D 拓扑地图（Kuipers, 1978/2000）→ 层次但 2D；</li>
+      <li>SLAM++ / SemanticFusion / Voxblox → 单层 metric-semantic，无 hierarchy；</li>
+      <li>Armeni et al. 2019 / Kim et al. 2019 → 提出 3D-SG 概念但 <b>需要预先 annotated mesh</b>；</li>
+      <li><b>Kimera (本文)</b> → 第一个 from sensor data 自动构造完整 5-layer DSG 的系统。</li>
+    </ul>
+  </section>
+
+  <!-- ============ 2. 贡献 ============ -->
+  <section id="contrib">
+    <h2><span class="num">2</span> 论文的四大贡献</h2>
+
+    <div class="arch">
+      <div class="mod">
+        <h5>① 3D Dynamic Scene Graph 形式化（§2）</h5>
+        <p>5-layer DSG：(1) metric-semantic mesh, (2) objects + agents, (3) places + structures, (4) rooms, (5) building。<b>首次把"agents（人、机器人）"作为一层</b>，并允许 compositional 扩展（neighborhood / city 层）。</p>
+      </div>
+      <div class="mod">
+        <h5>② Kimera Spatial Perception Engine（§3）</h5>
+        <p>2 个子系统、6 个核心模块：Kimera-VIO / Mesher / Semantics / PGMO（合称 Kimera-Core）+ Kimera-Humans / Objects / BuildingParser（Kimera-DSG）。<b>所有 Core 模块开源</b>。</p>
+      </div>
+      <div class="mod">
+        <h5>③ 大量评测 + uHumans2 数据集发布（§4）</h5>
+        <p>EuRoC + uHumans + 12 个新场景的 uHumans2（含 apartment / office / subway / neighborhood，有人群动态）。在 TX2 嵌入式上跑实时。</p>
+      </div>
+      <div class="mod">
+        <h5>④ DSG 应用：层次语义路径规划（§5-6）</h5>
+        <p>用 DSG 的 layered 结构做 A* 路径规划，"building → room → places" 三级，比 volumetric ESDF 上的 A* <b>快几个数量级</b>。</p>
+      </div>
+    </div>
+
+    <div class="box box-good">
+      <div class="box-title">🏆 与 2020 RSS 版本（Rosinol et al. 2020b）的增量</h3>
+      <ul>
+        <li>新增 Kimera-PGMO（loop closure 同时变形 mesh，而非只优化 pose graph）；</li>
+        <li>实现并测试层次语义路径规划；</li>
+        <li>更全面 evaluation + 真机数据集；</li>
+        <li>uHumans2 共 12 个新场景（含户外）；</li>
+        <li>在 Nvidia TX2 上的嵌入式实时性验证。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 3. DSG 形式化 ============ -->
+  <section id="dsg">
+    <h2><span class="num">3</span> §2 3D Dynamic Scene Graph 形式化</h2>
+    <p class="lead">DSG 是一个 <b>layered directed graph</b>：节点是 spatial concept（每个节点带 spatial 坐标和 shape/bbox），边是 spatio-temporal relation。单层室内建筑的 5 层结构如下。</p>
+
+    <div class="diagram">┌──────────────────────────────────────────────────────────────────┐
+│  <span class="hl">Layer 5: Building</span>                                                 │
+│    one node per building. attrs: pose, bbox, semantic class       │
+└──────────────────────────────────────────────────────────────────┘
+                            ▲ contains
+┌──────────────────────────────────────────────────────────────────┐
+│  <span class="hl">Layer 4: Rooms</span>                                                    │
+│    nodes: kitchen, bedroom, corridor, ...                         │
+│    edges (intra): adjacency (door)                                │
+│    edges (inter): contains places                                 │
+└──────────────────────────────────────────────────────────────────┘
+                            ▲ contains
+┌──────────────────────────────────────────────────────────────────┐
+│  <span class="hl">Layer 3: Places + Structures</span>                                      │
+│    Places: obstacle-free locations, edges = straight-line reach   │
+│    Structures: walls / floor / ceiling (the "stuff")              │
+└──────────────────────────────────────────────────────────────────┘
+                            ▲ nearby
+┌──────────────────────────────────────────────────────────────────┐
+│  <span class="hl">Layer 2: Objects + Agents</span>                                         │
+│    Objects: static (chair, desk). attrs: pose, bbox, class        │
+│    Agents: humans + robots. attrs: pose-graph trajectory, mesh    │
+└──────────────────────────────────────────────────────────────────┘
+                            ▲ vertices belong-to
+┌──────────────────────────────────────────────────────────────────┐
+│  <span class="hl">Layer 1: Metric-Semantic Mesh</span>                                     │
+│    nodes = 3D vertices. attrs: pos, normal, RGB, panoptic label   │
+│    edges = mesh triangle faces                                    │
+└──────────────────────────────────────────────────────────────────┘</div>
+
+    <div class="box box-key">
+      <div class="box-title">🎯 DSG 与 knowledge base 的本质区别</div>
+      DSG 不是抽象 ontology——<b>每个节点都 spatially grounded</b>（位置 / bounding box）。这让它直接 actionable，可以喂给 motion planner / collision checker，而不只是给 LLM 看。
+    </div>
+
+    <h3>3.1 Agents 的特殊地位</h3>
+    <p>论文区分两类 Layer 2 节点：</p>
+    <ul>
+      <li><b>Objects</b>：静态。一个 node + pose/bbox/class 即可；</li>
+      <li><b>Agents</b>（humans, robots）：时变。每个 agent 是一个 <b>pose graph</b>（时间戳 3D pose 序列，边是相对测量）+ shape mesh（SMPL）。</li>
+    </ul>
+
+    <h3>3.2 Compositionality（Remark 2）</h3>
+    <p>DSG 可以加层：building 上面加 level（多层楼）、再加 neighborhood、再加 city。这是 Khronos 后来加"时间维"扩展为 4D-DSG 的理论基础。</p>
+  </section>
+
+  <!-- ============ 4. Arch ============ -->
+  <section id="arch">
+    <h2><span class="num">4</span> §3 Kimera 总架构（Core + DSG）</h2>
+
+    <div class="diagram">┌─────────────── INPUT: stereo / RGB-D images + IMU ───────────────┐
+└────────────────────────────────┬─────────────────────────────────┘
+                                 │
+                                 <span class="arrow">▼</span>
+   ┌─────────────────────── KIMERA-CORE (real-time) ──────────────────────┐
+   │  Kimera-VIO ──► IMU preintegration + fixed-lag smoothing (GTSAM)     │
+   │      │                                                               │
+   │      ▼                                                               │
+   │  Kimera-Mesher ──► per-frame + multi-frame 3D mesh (<7-15 ms)        │
+   │      │                                                               │
+   │      ▼                                                               │
+   │  Kimera-Semantics ──► Voxblox TSDF + bundled raycasting + Bayesian   │
+   │      │           ──► global metric-semantic mesh                     │
+   │      ▼                                                               │
+   │  Kimera-PGMO   ──► loop-closure-aware pose graph + mesh deformation  │
+   │      │             (generalizes Kimera-RPGO)                         │
+   │      ▼                                                               │
+   │  globally consistent <span class="label">3D mesh = DSG Layer 1</span>                            │
+   └──────────────────────────────────┬───────────────────────────────────┘
+                                      │
+                                      <span class="arrow">▼</span>
+   ┌──────────────────── KIMERA-DSG (mostly offline) ─────────────────────┐
+   │  Kimera-Objects ──► Euclidean clustering for unknown shape           │
+   │                  ──► CAD fitting w/ TEASER++ for known shape         │
+   │                  → DSG Layer 2 (objects)                             │
+   │  Kimera-Humans  ──► GraphCMR SMPL detection + pose-graph tracking     │
+   │                  → DSG Layer 2 (agents)                              │
+   │  Kimera-BuildingParser                                               │
+   │      • Voxblox ESDF → Oleynikova et al. topological graph            │
+   │      • normal-based wall segmentation                                │
+   │      • horizontal ESDF slice → 2D rooms                              │
+   │      → DSG Layers 3-5 (places, structures, rooms, building)          │
+   └──────────────────────────────────────────────────────────────────────┘</div>
+
+    <h3>4.1 实时性策略</h3>
+    <ul>
+      <li>Kimera-Core 用 <b>5 个线程</b>：IMU front-end（IMU 速率）/ VIO back-end / Mesher / Semantics / PGMO；</li>
+      <li>per-frame mesh 在 < 20 ms 出，用于 obstacle avoidance；</li>
+      <li>Semantics 慢线程（~0.1 s / keyframe），不影响控制；</li>
+      <li>Kimera-DSG 整体在 mesh build 完后<b>顺序运行</b>（offline），但每个模块可以单独跑实时变种（这正是后来 Hydra 做的事）。</li>
+    </ul>
+  </section>
+
+  <!-- ============ 5. VIO ============ -->
+  <section id="vio">
+    <h2><span class="num">5</span> §3.1 Kimera-VIO：IMU 预积分 + 固定滞后平滑</h2>
+    <p class="lead">实现的是 Forster et al. 2017 的 keyframe-based MAP visual-inertial estimator。本节把关键公式写下来——这是后续所有 SPARK Lab 工作（Hydra/Khronos/Clio）的 VIO 基底。</p>
+
+    <h3>5.1 IMU 预积分（on-manifold）</h3>
+    <p>令两个连续 keyframe 之间的相对 state 增量为 $\Delta\mathbf{R}_{ij}$（旋转）、$\Delta\mathbf{v}_{ij}$（速度增量）、$\Delta\mathbf{p}_{ij}$（位置增量）。Forster et al. 的预积分把 raw IMU $(\boldsymbol{\omega}, \mathbf{a})$ 在<b>流形上</b>组合为 compact 测量：</p>
+    <div class="formula">
+      $$\Delta\mathbf{R}_{ij} = \prod_{k=i}^{j-1} \mathrm{Exp}\big((\tilde{\boldsymbol{\omega}}_k - \mathbf{b}^g_k) \Delta t\big)$$
+    </div>
+    <div class="formula">
+      $$\Delta\mathbf{v}_{ij} = \sum_{k=i}^{j-1} \Delta\mathbf{R}_{ik}\, (\tilde{\mathbf{a}}_k - \mathbf{b}^a_k)\, \Delta t$$
+    </div>
+    <div class="formula">
+      $$\Delta\mathbf{p}_{ij} = \sum_{k=i}^{j-1} \Big[\Delta\mathbf{v}_{ik}\, \Delta t + \tfrac{1}{2}\Delta\mathbf{R}_{ik}\, (\tilde{\mathbf{a}}_k - \mathbf{b}^a_k)\, \Delta t^2 \Big]$$
+    </div>
+    <p>这些量与 keyframe 处的状态独立——所以可以离线"压缩"raw IMU 流。前端 ~40 μs / sample。</p>
+
+    <h3>5.2 视觉前端</h3>
+    <ul>
+      <li>Shi-Tomasi corner 检测 + Lukas-Kanade 光流跟踪；</li>
+      <li>左右目立体匹配 + 几何验证（mono 5-point RANSAC / stereo 3-point RANSAC）；</li>
+      <li><b>DVIO 变种</b>：用 IMU rotation 做 2-point (stereo) / 1-point (mono) RANSAC，在动态场景里更鲁棒；</li>
+      <li>把 IMU 给的 rotational optical flow 当 LK tracker 的 initial guess。</li>
+    </ul>
+
+    <h3>5.3 后端 factor graph</h3>
+    <p>每个 keyframe 把 preintegrated IMU factor + structureless vision factor 加进 <b>iSAM2</b>（GTSAM 增量求解）。Outlier 处理：先 DLT 三角化 → 把退化点（深度负 / 视差小）和重投影误差大的点剔除 → 再消元。Smoother horizon 之外的状态 marginalize out。</p>
+
+    <h3>5.4 EuRoC ATE 结果（Table 1, 单位 m）</h3>
+    <table>
+      <thead><tr><th>Seq.</th><th>OKVIS</th><th>MSCKF</th><th>ROVIO</th><th>VINS-Mono</th><th>Kimera-VIO</th><th>Basalt</th><th>ORB-SLAM3</th><th>Kimera-RPGO</th><th>Kimera-PGMO</th></tr></thead>
+      <tbody>
+        <tr><td>MH_1</td><td>0.16</td><td>0.42</td><td>0.21</td><td>0.15</td><td>0.11</td><td><b>0.08</b></td><td><b>0.04</b></td><td>0.13</td><td>0.09</td></tr>
+        <tr><td>MH_5</td><td>0.47</td><td>0.48</td><td>0.52</td><td>0.30</td><td>0.15</td><td>0.08</td><td>0.08</td><td>0.15</td><td>0.18</td></tr>
+        <tr><td>V1_1</td><td>0.09</td><td>0.34</td><td>0.10</td><td>0.08</td><td>0.05</td><td>0.04</td><td>0.04</td><td>0.06</td><td>0.05</td></tr>
+        <tr><td>V2_3</td><td>0.29</td><td>1.13</td><td>0.14</td><td>0.27</td><td>0.21</td><td>—</td><td><b>0.02</b></td><td>0.24</td><td>0.23</td></tr>
+      </tbody>
+    </table>
+    <p>结论：Kimera-VIO 在 fixed-lag smoothing 类别里全部 sequence 上稳居前二（次于 Basalt / ORB-SLAM3，但前者用 stereo + PGO，更可比的同类对手是 OKVIS / VINS-Mono，Kimera 全胜）。</p>
+  </section>
+
+  <!-- ============ 6. Mesh + Semantics ============ -->
+  <section id="mesh-sem">
+    <h2><span class="num">6</span> §3.2-3.3 Kimera-Mesher + Kimera-Semantics</h2>
+
+    <h3>6.1 Kimera-Mesher</h3>
+    <ul>
+      <li><b>Per-frame mesh</b>：在当前 keyframe 上 2D Delaunay 三角化跟踪到的特征 → 用 VIO back-end 给的 3D 估计反投影成 3D mesh，<b>&lt;7 ms</b>；</li>
+      <li><b>Multi-frame mesh</b>：在 VIO 滑窗内融合 per-frame mesh（去重 + 用最新 VIO 估计更新顶点），<b>~15 ms</b>；</li>
+      <li>检测到 planar surface 时给 VIO 加 regularity factor，紧耦合 mesh-VIO；</li>
+      <li><b>Table 3</b>：Multi-frame mesh RMSE ~0.45 m vs Global mesh ~0.40 m（V1_01），但前者快两个数量级。</li>
+    </ul>
+
+    <h3>6.2 Kimera-Semantics</h3>
+    <p>基于 Voxblox 的<b>bundled raycasting</b>扩展，做 3 件事：</p>
+    <ol>
+      <li>构造 global mesh（TSDF + marching cubes）；</li>
+      <li>给 mesh 语义标签：用 2D semseg（实验用 Mask-RCNN），bundled raycast 时<b>沿 ray 累计 label 频率向量</b>，<b>仅在 TSDF truncation distance 内</b>累加（省 compute）；</li>
+      <li>每 voxel 用 Bayesian 更新维护"label probability vector"，最后取 argmax 做 mesh vertex label。</li>
+    </ol>
+
+    <h3>6.3 §4.4 Table 6 — Kimera-Semantics 关键数字（simulated）</h3>
+    <table>
+      <thead><tr><th>Configuration</th><th>mIoU [%]</th><th>Accuracy [%]</th><th>Geometric RMSE [m]</th><th>ATE [m]</th></tr></thead>
+      <tbody>
+        <tr><td>GT depth + GT pose</td><td><b>80.10</b></td><td><b>94.68</b></td><td><b>0.079</b></td><td>0.00</td></tr>
+        <tr><td>GT depth + DVIO pose</td><td>80.03</td><td>94.50</td><td>0.131</td><td>0.04</td></tr>
+        <tr><td>Dense stereo + DVIO pose</td><td>57.23</td><td>80.74</td><td>0.215</td><td>0.04</td></tr>
+      </tbody>
+    </table>
+    <p><b>关键发现</b>：bundled raycasting + VIO 引入的误差极小（mIoU 仅 -0.07%）；最大损失来自 dense stereo —— textureless wall 上 stereo 失败 → 几何 + 语义同时受损。</p>
+  </section>
+
+  <!-- ============ 7. PGMO ============ -->
+  <section id="pgmo">
+    <h2><span class="num">7</span> §3.4 Kimera-PGMO：Pose Graph + Mesh Optimization</h2>
+    <p class="lead">这是 IJRR 2021 版相对 2020 RSS 版的重大新增——把 mesh deformation 和 pose graph optimization 合并在<b>同一个 factor graph</b>里，loop closure 一来同时校正轨迹 + 全局 mesh。</p>
+
+    <h3>7.1 Loop closure 检测</h3>
+    <ul>
+      <li>DBoW2 + ORB → putative loops；</li>
+      <li>mono 5-point + stereo 3-point RANSAC 做几何 verification；</li>
+      <li>关键创新：作者<b>不</b>把 DBoW2 调严格，反而<b>让 backend 用 PCM 来抗 outlier</b>——这跟其他 SLAM 系统（ORB-SLAM3, VINS-Mono 拒绝 loop）哲学相反。</li>
+    </ul>
+
+    <h3>7.2 Outlier rejection — Kimera-RPGO 的 PCM 变种</h3>
+    <p>Pairwise Consistent Measurement set Maximization (PCM, Mangelson et al. 2018) 原是多机器人设计；作者改成：</p>
+    <ol>
+      <li>每个新 loop 先做 <b>odometry consistency check</b>（chi-squared on cycle error）；</li>
+      <li>通过后再与已有 loops 两两 pairwise consistency；</li>
+      <li><b>增量地</b>更新 adjacency matrix $A$（不是从头算），保证 online；</li>
+      <li>用 Pattabiraman et al. 2015 的 fast max clique 找最大一致 loop 集。</li>
+    </ol>
+
+    <h3>7.3 Pose Graph & Mesh Deformation（Kimera-PGMO，Fig. 8）</h3>
+    <p>构造统一 deformation graph：</p>
+    <ul>
+      <li><b>Pose vertices</b> $X_i$：机器人 pose；</li>
+      <li><b>Mesh vertices</b> $M_k$：用 octree-based vertex clustering 简化 mesh（voxel size 1-4 m）后得到的代表顶点；</li>
+      <li>Edges：mesh 简化保留的 connectivity（绿色）+ pose-mesh visibility 边（黄色）+ pose graph odometry/loop edges（蓝色）。</li>
+    </ul>
+    <p>对每条 deformation graph 边写一个 factor（local frame 之间的相对约束）。Loop closure 来时，整张 deformation graph 在 GTSAM 中一次性优化，<b>mesh 跟着 pose 变形</b>，没有 de-integration / rebuild。</p>
+
+    <div class="box box-key">
+      <div class="box-title">🎯 RPGO vs PGMO 的取舍（Remark 3）</div>
+      <ul>
+        <li><b>Kimera-RPGO</b>：只优化 pose graph，mesh 不变形；快但 mesh 不一致；</li>
+        <li><b>Kimera-PGMO</b>：同时变形 mesh，更慢（EuRoC 中 pose graph 14k edges → ~140 ms）但 mesh-pose 一致；</li>
+        <li>用户根据应用挑选。Hydra 选 PGMO 的子集做 scene graph 整体变形。</li>
+      </ul>
+    </div>
+
+    <h3>7.4 §4.5 Table 7 — Mesh + Semantic 精度（uHumans2 Neighborhood, 0 humans）</h3>
+    <table>
+      <thead><tr><th>Metric</th><th>Kimera-Semantics</th><th>Kimera-PGMO</th></tr></thead>
+      <tbody>
+        <tr><td>Geometric RMSE [m]</td><td>0.27</td><td><b>0.09</b></td></tr>
+        <tr><td>Semantic Acc [%]</td><td>62.9</td><td><b>93.3</b></td></tr>
+      </tbody>
+    </table>
+    <p>大场景里 PGMO 把语义精度从 62.9% 一举推到 <b>93.3%</b>——loop closure 不仅修轨迹，<b>修轨迹 → mesh 变形 → semantic label 重对齐 → 语义精度暴涨</b>。这个数字非常震撼。</p>
+  </section>
+
+  <!-- ============ 8. Humans ============ -->
+  <section id="humans">
+    <h2><span class="num">8</span> §3.5 Kimera-Humans：SMPL + pose-graph tracking</h2>
+    <p class="lead">把人不仅当点而是当<b>时变 mesh</b>来跟踪。这是 DSG agent layer 的灵魂。</p>
+
+    <h3>8.1 检测</h3>
+    <ul>
+      <li>2D semseg 给出 human pixel mask；</li>
+      <li>裁剪到 bbox → GraphCMR (Kolotouros et al. 2019b) <b>从单图回归 SMPL mesh</b>（顶点 + camera 参数）；</li>
+      <li>用 PnP（Zheng et al. 2013）算 mesh 到 camera 的 6-DoF pose；</li>
+      <li>从 depth map 拿 pelvis 3D 位置 → 转世界坐标（用 VIO pose）；</li>
+      <li><b>Dynamic masking</b>：把 human pixel 在 Kimera-Semantics 的 raycast 里只标 free space，不污染静态 mesh。</li>
+    </ul>
+
+    <h3>8.2 跟踪（per-human pose graph）</h3>
+    <ol>
+      <li>每个 human 维护一个 pose graph，节点是 pelvis 时间戳 pose；</li>
+      <li>相邻节点用<b>零速先验</b>（permissive noise）做 motion factor；</li>
+      <li>GraphCMR 检测当 prior factor 加入；</li>
+      <li>data association：最近欧氏距离 + 一致性检查（joint motion 上界 3 m/s, joint displacement 上界 3 m, beta 参数差异 < 0.1）；</li>
+      <li>Pose-graph pruning：< 10 节点的 graph 视为虚警删除；</li>
+      <li>Kimera-RPGO + PCM 优化每个 human 的 trajectory。</li>
+    </ol>
+
+    <h3>8.3 §4.6 Table 8 — Human 定位误差（uH2 Office, 12 humans, m）</h3>
+    <table>
+      <thead><tr><th>方法</th><th>误差 [m]</th></tr></thead>
+      <tbody>
+        <tr><td>Single Image</td><td>2.00</td></tr>
+        <tr><td>Single Image filtered</td><td>1.43</td></tr>
+        <tr><td>Pose-Graph Track</td><td>1.16</td></tr>
+        <tr><td>+ Mesh Check</td><td>1.05</td></tr>
+        <tr><td>+ Beta Check</td><td><b>0.61</b></td></tr>
+      </tbody>
+    </table>
+    <p>逐项消融：filtering + pose graph + mesh feasibility + beta-parameter（SMPL shape）四件套把误差从 2.0 m 降到 0.61 m，<b>降幅 70%</b>。</p>
+  </section>
+
+  <!-- ============ 9. Objects + BuildingParser ============ -->
+  <section id="objects-bp">
+    <h2><span class="num">9</span> §3.6-3.7 Kimera-Objects + Kimera-BuildingParser</h2>
+
+    <h3>9.1 Kimera-Objects</h3>
+    <ul>
+      <li><b>Unknown shape</b>：提取语义类对应 mesh → PCL Euclidean clustering（距离阈值 = 2× voxel size = 0.1 m）→ centroid + canonical bbox；</li>
+      <li><b>Known shape</b>（给定 CAD 模型）：
+        <ol>
+          <li>3D Harris keypoints (radius 0.15 m, NMS thresh $10^{-4}$) on CAD + object mesh；</li>
+          <li>keypoint matching → 多 outliers；</li>
+          <li><b>TEASER++</b> (Yang et al. 2020) 鲁棒 registration → 6-DoF object pose + bbox。</li>
+        </ol>
+      </li>
+    </ul>
+
+    <h3>9.2 §4.6 Table 8 — Object localization（uH2 Office, 12 humans, m）</h3>
+    <table>
+      <thead><tr><th>Type</th><th>Error [m]</th></tr></thead>
+      <tbody>
+        <tr><td>Unknown object</td><td>1.32</td></tr>
+        <tr><td>Known Couch (CAD)</td><td><b>0.21</b></td></tr>
+        <tr><td>Known Chair (CAD)</td><td><b>0.22</b></td></tr>
+      </tbody>
+    </table>
+    <p>CAD fitting 把误差从 ~1.3 m 降到 ~0.2 m。Outdoor neighborhood 上 Car 类的 CAD 拟合 ~3.3 m（依赖 trajectory drift）。</p>
+
+    <h3>9.3 Kimera-BuildingParser</h3>
+
+    <h4>Places</h4>
+    <p>用 Voxblox ESDF + Oleynikova et al. (2018) sparse topological graph，节点稀疏采样 free space，边 = 直线 traversability。每个 object/agent 关联到最近 place。</p>
+
+    <h4>Structures</h4>
+    <p>对 wall / floor / ceiling 直接从 semseg label 提；wall 进一步按 room 切：用<b>带 oriented normal 的 mesh vertex</b> 查找最近 places node，按 $\frac{\mathbf{n} \cdot \mathbf{d}}{\|\mathbf{d}\|^2}$ 加权投票决定 wall vertex 的 room ID。</p>
+
+    <h4>Rooms</h4>
+    <p>Kimera 的 room detection 是<b>批处理</b>的（这正是 Hydra 改进的地方）：</p>
+    <ol>
+      <li>切 ceiling 下 0.3 m 的<b>水平 2D ESDF 切片</b>；</li>
+      <li>truncate 到距离 > 0.2 m → 关闭 door 小开口 → 得 disconnected 2D ESDFs（即 rooms）；</li>
+      <li>把 Places node 按其 (x, y) 落入哪个 2D ESDF 标 room；</li>
+      <li>剩余未标 nodes 用 majority voting 在拓扑图邻域里迭代。</li>
+    </ol>
+
+    <div class="box box-warn">
+      <div class="box-title">⚠️ Kimera Room detection 的硬假设</div>
+      "存在水平 ceiling，且高度已知"——这正是 Hydra 摆脱的假设。对 split-level / multi-floor / 复杂户型，Kimera 的 room detection 会失败（uH2 Apartment precision 68% / recall 61%，AeroAstro 71% / 67%）。
+    </div>
+
+    <h3>9.4 §4.7 Room 解析结果</h3>
+    <table>
+      <thead><tr><th>Scene</th><th>Precision</th><th>Recall</th></tr></thead>
+      <tbody>
+        <tr><td>uH2 Office</td><td><b>99%</b></td><td><b>99%</b></td></tr>
+        <tr><td>uH2 Subway</td><td>87%</td><td>92%</td></tr>
+        <tr><td>real-life White Owl</td><td>93%</td><td>94%</td></tr>
+        <tr><td>real-life School</td><td>91%</td><td>90%</td></tr>
+        <tr><td>uH2 Apartment (split-level)</td><td>68%</td><td>61%</td></tr>
+        <tr><td>real-life AeroAstro (narrow)</td><td>71%</td><td>67%</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 10. exp setup ============ -->
+  <section id="exp-setup">
+    <h2><span class="num">10</span> §4.1 数据集</h2>
+    <ul>
+      <li><b>EuRoC (Burri et al. 2016)</b>：标准 MAV VIO benchmark，11 序列（MH_1-5, V1_1-3, V2_1-3），静态；</li>
+      <li><b>uHumans (Rosinol et al. 2020b)</b>：原 RSS 版释放的 Unity 仿真，Office 场景 + 12/24/60 人；</li>
+      <li><b>uHumans2（本文 release）</b>：<b>12 个新场景</b> in Unity，覆盖 apartment / office / subway / neighborhood，含 indoor + outdoor，<b>含人群</b>；</li>
+      <li><b>真实采集</b>：3 个场景——School、AeroAstro（Intel RealSense D435i 自制 rig）、White Owl（Microsoft Azure Kinect）。</li>
+    </ul>
+  </section>
+
+  <!-- ============ 11. exp-vio ============ -->
+  <section id="exp-vio">
+    <h2><span class="num">11</span> §4.2 VIO 精度（参见 §5 表）</h2>
+    <p>已在 §5.4 给出。补充：Table 2 显示 Kimera-RPGO 在 DBoW2 loop closure threshold $\alpha$ 从 $10^1$ 到 $10^{-3}$ 全范围都稳定在 0.05 m（V1_01），<b>无 PCM 时同范围波动 0.05-1.74 m</b>。PCM 是 Kimera robustness 的关键。</p>
+
+    <h3>11.1 §4.2.1 Dynamic 场景的 robustness（Table 4）</h3>
+    <p>uH2 Office 12 humans 上：5-point RANSAC 0.50 → 2-point 0.50 → DVIO（2-point + IMU-aided tracking）<b>0.45</b>，Kimera-PGMO 进一步到 <b>0.32</b>。uH2 Neighborhood 36 humans：DVIO 11.58 m → Kimera-PGMO <b>1.48 m</b>，loop closure + mesh deformation 在大场景的威力。</p>
+  </section>
+
+  <!-- ============ 12. mesh exp ============ -->
+  <section id="exp-mesh">
+    <h2><span class="num">12</span> §4.3-4.4 几何 + 语义重建精度</h2>
+    <p>关键数字已在 §6.3 / §7.4 给出。补充 §4.3.1 dynamic masking 的效果（Table 5）：</p>
+    <ul>
+      <li>uH2 Office 60 humans，GT pose：<b>without DM 0.19 m → with DM 0.06 m</b>，降 68%；</li>
+      <li>uH2 Subway 36 humans，DVIO pose：without DM 0.49 m → with DM 0.43 m。</li>
+    </ul>
+    <p>结论：dynamic masking 即使 pose 完美也是必需的——动态物体在 mesh 上留 "contrail"。</p>
+  </section>
+
+  <!-- ============ 13. pgmo exp ============ -->
+  <section id="exp-pgmo">
+    <h2><span class="num">13</span> §4.5 Loop closure 与 mesh deformation</h2>
+    <p>关键数字已在 §7.4 给出。补充：</p>
+    <ul>
+      <li>EuRoC V1_01：mesh deformation 前 RMSE 15 cm → 后 13 cm（小场景增益小）；</li>
+      <li>uHumans Office 24 humans：geometric RMSE 0.30 → <b>0.17</b>，semantic Acc 73.2% → <b>81.6%</b>；</li>
+      <li>大场景才能看出 PGMO 真威力。</li>
+    </ul>
+  </section>
+
+  <!-- ============ 14. humans exp ============ -->
+  <section id="exp-humans">
+    <h2><span class="num">14</span> §4.6 Humans + Objects</h2>
+    <p>关键数字已在 §8.3 / §9.2 给出。一个有趣的<b>失败案例</b>：Apartment 场景里 Kimera-Humans 反向 —— Single Image 4.32 m 比所有 enhancement 都好。论文坦诚承认是 specular reflection 导致 false detection。</p>
+  </section>
+
+  <!-- ============ 15. rooms exp ============ -->
+  <section id="exp-rooms">
+    <h2><span class="num">15</span> §4.7 Places + Rooms</h2>
+    <p>关键数字已在 §9.4 给出。注意：作者明确指出 Apartment / AeroAstro 失败是 ESDF 切片的几何假设崩——这正是 <b>Hydra 摆脱 ceiling 假设的动机</b>。</p>
+  </section>
+
+  <!-- ============ 16. timing ============ -->
+  <section id="exp-time">
+    <h2><span class="num">16</span> §4.8-4.9 Timing（含 TX2 嵌入式）</h2>
+
+    <h3>16.1 Kimera-Core（desktop, EuRoC V1_01）</h3>
+    <table>
+      <thead><tr><th>Module</th><th>Time</th></tr></thead>
+      <tbody>
+        <tr><td>IMU front-end</td><td>~40 μs（&gt;200 Hz）</td></tr>
+        <tr><td>Vision front-end (frame)</td><td>~7.5 ms</td></tr>
+        <tr><td>Vision front-end (keyframe)</td><td>~51 ms</td></tr>
+        <tr><td>Kimera-Mesher (per-frame)</td><td>&lt;7 ms</td></tr>
+        <tr><td>Kimera-Mesher (multi-frame)</td><td>~15 ms</td></tr>
+        <tr><td>VIO back-end</td><td>&lt;60 ms</td></tr>
+        <tr><td>LCD</td><td>&lt;180 ms</td></tr>
+        <tr><td>Kimera-RPGO</td><td>~50 ms (734 edges, 728 nodes)</td></tr>
+        <tr><td>Kimera-PGMO</td><td>~140 ms (14914 edges, 1759 nodes)</td></tr>
+        <tr><td>Kimera-Semantics</td><td>~0.1 s / keyframe</td></tr>
+      </tbody>
+    </table>
+
+    <h3>16.2 Kimera-DSG (offline)</h3>
+    <p>Subway scene (~3000 m²) 约 30 min；分解：</p>
+    <ul>
+      <li>ESDF (Voxblox) ~10 min</li>
+      <li>Topological map (Oleynikova) ~10 min</li>
+      <li>Room detection ~2 min</li>
+      <li>Kimera-Objects 12 min</li>
+      <li>Kimera-Humans ~33 ms/img on RTX 2080 Ti GPU</li>
+    </ul>
+
+    <h3>16.3 §4.9 TX2 嵌入式</h3>
+    <ul>
+      <li>Kimera-VIO 在 MAXN 模式默认参数下满足 real-time；</li>
+      <li>提供 <code>fast</code>（250 features / 5 s horizon）和 <code>faster</code>（200 features / 4.5 s horizon）配置，分别 85% / 75% keyframe time + 65% / 50% backend time；</li>
+      <li>Kimera-Semantics @ 0.1 m voxel size 在 TX2 上 <b>65.8 ms / update</b>；</li>
+      <li>fast/faster 会拖低 hard sequences (MH_*) 上的 APE，需 trade-off。</li>
+    </ul>
+  </section>
+
+  <!-- ============ 17. planning ============ -->
+  <section id="planning">
+    <h2><span class="num">17</span> §5-6 Motivating examples + 层次路径规划</h2>
+
+    <h3>17.1 §5 DSG 支持的查询</h3>
+    <ul>
+      <li><b>Obstacle avoidance & planning</b>：bounding volume hierarchy (BVH) 自动从 DSG 层次得到，加速 collision check；</li>
+      <li><b>Human-robot interaction</b>：支持 "where was this person at time t?" / "which object did this person pick in Room A?" 这种时空查询；</li>
+      <li><b>Long-term autonomy</b>：高 abstraction 节点 compact，<mark>可以选择性 forget 局部 detail 但保留 room/building 记忆</mark>（这正是 R2 lifelong 设计的灵感来源）；</li>
+      <li><b>Prediction</b>：mesh 模型可喂物理仿真做 rollout。</li>
+    </ul>
+
+    <h3>17.2 §6 层次语义路径规划（Table 9）</h3>
+    <p>用 A* 在 building → room → places 三层级 hierarchical replan。把 uHumans Office 场景复制成 grid 拼成 N 个 building 的大场景测试：</p>
+    <table>
+      <thead><tr><th>#Buildings</th><th>ESDF A* [s]</th><th>Hierarchical Total [s]</th><th>ESDF Path [m]</th><th>Hierarchical Path [m]</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><b>420.4</b></td><td>0.340</td><td>54.2</td><td>56.3</td></tr>
+        <tr><td>2</td><td>944.8</td><td>0.775</td><td>101.2</td><td>109.8</td></tr>
+        <tr><td>6</td><td><b>21389.2</b></td><td>1.244</td><td>311.5</td><td>329.2</td></tr>
+      </tbody>
+    </table>
+    <p><mark>6 building 场景：ESDF 21389 s（约 6 小时）vs hierarchical 1.24 s</mark>——4 个数量级加速，且路径只长 5.7%。这是 DSG 的杀手锏 application。</p>
+  </section>
+
+  <!-- ============ 18. Limits ============ -->
+  <section id="limits">
+    <h2><span class="num">18</span> 局限与作者承诺的未来工作</h2>
+
+    <div class="pros-cons">
+      <div class="pros">
+        <b>✅ 优势</b>
+        <ul>
+          <li>第一个 from-sensor 的完整 5-layer DSG；</li>
+          <li>6 个模块全部开源；</li>
+          <li>uHumans2 数据集开放；</li>
+          <li>嵌入式实时；</li>
+          <li>层次规划数量级加速；</li>
+          <li>已是 SPARK Lab 5 年系列工作（Hydra/Khronos/Clio）共同祖先。</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <b>⚠️ 局限</b>
+        <ul>
+          <li>Kimera-DSG 大部分模块 <b>offline</b>——Hydra 解决；</li>
+          <li>Room detection 假设 ceiling height 已知——Hydra 解决；</li>
+          <li><b>无 uncertainty / open-set</b>——Clio 部分解决；</li>
+          <li><b>无 4D / dynamic objects</b>（只跟人，不跟移动 object）——Khronos 解决；</li>
+          <li>Dense stereo 是 mIoU 杀手（80% → 57%）；需更好深度传感器；</li>
+          <li>Object segmentation 严重依赖 Mask-RCNN 质量；</li>
+          <li>BuildingParser 对 complex / outdoor 场景失败；</li>
+          <li>Human tracking 在 specular reflection 下会乱（Apartment 反例）。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 19. EvidLife-Map 关系 ============ -->
+  <section id="evidlife">
+    <h2><span class="num">19</span> §9 与 EvidLife-Map 的关系</h2>
+    <p class="lead">Kimera 是 SPARK Lab 系列的奠基论文，也是 R2 设计的"概念骨架"。我们需要明确：哪些 Kimera 组件被我们复用、哪些被替代、§II related work 如何定位。</p>
+
+    <h3>19.1 与 Khronos 的延续关系</h3>
+    <p>Kimera 的 DSG 是<b>静态的</b>——agent layer 的人是时变的，但<b>对象层是 snapshot</b>。Khronos (T1.1) 把 DSG 升级为 <b>4D-DSG</b>，引入 "spatio-<i>temporal</i> entities"：物体可以出现、消失、移动，每个 entity 带 timestamps。Kimera 的 5-layer × 时间扩展 = Khronos 的 4D 表示。EvidLife-Map 的 voxel decay 与 Khronos 的 temporal entity 是<mark>互补设计</mark>：</p>
+    <ul>
+      <li>Khronos 在 entity-level 处理动态（"这把椅子昨天在这，今天在那"）；</li>
+      <li>EvidLife-Map 在 voxel-level 处理 evidence 不确定度（"这个 voxel 100 frame 没被观察，vacuity ↑，应该 decay"）；</li>
+      <li>结合：vacuity decay 可以 trigger Khronos 的 entity-level "object disappeared" 推断，作为 RQ5 dynamic baseline 的 hybrid 设计。</li>
+    </ul>
+
+    <h3>19.2 复用 / 替代 / 改造的逐模块决策</h3>
+    <table>
+      <thead><tr><th>Kimera 模块</th><th>EvidLife-Map 决策</th><th>理由</th></tr></thead>
+      <tbody>
+        <tr><td><b>Kimera-VIO</b></td><td><span class="chip chip-green">直接复用</span></td><td>开源稳定，与 Hydra/Khronos 同源；不是我们创新点</td></tr>
+        <tr><td><b>Kimera-RPGO / PGMO</b></td><td><span class="chip chip-green">复用 PCM outlier</span> + 改造 backend</td><td>PCM 是 SOTA outlier rejection；我们 §III.M2 vacuity-LC 接在 PCM 之前作为 candidate filter</td></tr>
+        <tr><td><b>Kimera-Mesher</b></td><td><span class="chip chip-red">不用</span></td><td>per-frame mesh 我们用 nvblox+Voxfield 替代</td></tr>
+        <tr><td><b>Kimera-Semantics</b></td><td><span class="chip chip-yellow">部分替代</span></td><td>bundled raycasting 思路保留，但 Bayesian label update <b>升级为 Dirichlet evidential update</b>，并加 vacuity 分量</td></tr>
+        <tr><td><b>Kimera-Humans</b></td><td><span class="chip chip-red">不用</span></td><td>本文不做人体跟踪；若 RQ5 需要可用 Khronos 的 dynamic entity 替代</td></tr>
+        <tr><td><b>Kimera-Objects (TEASER++ CAD fitting)</b></td><td><span class="chip chip-yellow">参考</span></td><td>不在本文 scope，但若做 RQ4 lifelong object tracking 可借鉴</td></tr>
+        <tr><td><b>Kimera-BuildingParser</b></td><td><span class="chip chip-red">不用</span></td><td>用 Hydra 的 incremental GVD + dilation rooms 替代</td></tr>
+      </tbody>
+    </table>
+
+    <h3>19.3 §II related work 中 Kimera 的定位写法</h3>
+    <p>建议 paragraph 写法（约 100 字 + cite）：</p>
+    <div class="box box-quote">
+      "Kimera [Rosinol et al., IJRR'21] established the canonical full-stack <b>3D Dynamic Scene Graph</b> pipeline from visual-inertial data, comprising VIO, mesh, semantics (via Bayesian update over Voxblox), pose-graph-and-mesh optimization, and a building parser. Its 5-layer DSG (mesh → objects/agents → places/structures → rooms → building) became the de facto representation underlying subsequent online (Hydra [Hughes et al., RSS'22]) and 4D (Khronos [Schmid et al., RSS'24]) extensions. <b>EvidLife-Map builds on the same DSG abstraction</b> but augments Layer 1 from a deterministic semantic label to a <b>Dirichlet evidence vector</b>, enabling a single vacuity scalar to drive open-set detection (Layer 2 unknown nodes), loop-closure triggering (Layer 2 agent comparisons), and lifelong decay (mesh-vertex pruning)—three tasks that Kimera's pipeline currently addresses through three separate modules (PCM, GraphCMR consistency, hand-tuned mask thresholds)."
+    </div>
+
+    <h3>19.4 IMU 预积分公式我们要不要引</h3>
+    <p>Kimera-VIO 的 IMU 预积分公式（§5.1 我们抄了）是 Forster et al. 2017 的，<b>不是 Kimera 原创</b>。R2 §III.M0 (state estimation) 可以一句话指出 "we adopt Kimera-VIO [Rosinol 2021] with no modification"，<mark>不需要重写预积分公式</mark>。但如果 reviewer 问"为什么不用 ORB-SLAM3"——答："Kimera-VIO 是 SPARK 系列共享的 VIO，便于与 Hydra/Khronos 等 baseline 公平对比"。</p>
+
+    <h3>19.5 对 RQ5 Khronos dynamic 的启示</h3>
+    <p>Kimera 已经有了 dynamic masking（pixel 级把人遮掉避免污染静态 mesh）。Khronos 把这个思路扩展到 entity 级。EvidLife-Map 的 <b>vacuity decay</b> 提供了第三个机制：voxel 级。三者互补：</p>
+    <ul>
+      <li>Pixel mask（Kimera）：检测期就排除；</li>
+      <li>Entity track（Khronos）：跟踪移动的 known object；</li>
+      <li>Vacuity decay（ours）：unknown / 长期不在的 voxel 自然消亡。</li>
+    </ul>
+    <p><mark>RQ5 baseline 设计</mark>：Kimera (no dynamic handling) → Kimera + dynamic mask → Khronos → Khronos + vacuity decay，逐步消融。</p>
+
+    <div class="box box-key">
+      <div class="box-title">💡 一句话定位</div>
+      Kimera = <b>SPARK Lab MSM 系列的"基类"</b>，定义了 DSG 抽象、VIO 底座、loop closure pipeline，但每一层都是 closed-set + deterministic + offline。EvidLife-Map 不替代 Kimera，而是<b>替换其 Semantics 层为 Dirichlet evidence，把三种独立机制（PCM-LC / Bayesian update / dynamic mask）统一到一个 vacuity 标量</b>——这正是论文的核心 thesis。
+    </div>
+  </section>
+
+  <!-- ============ 20. 总结 ============ -->
+  <section id="takeaway">
+    <h2><span class="num">20</span> 总结与启示</h2>
+
+    <h3>20.1 一句话总结</h3>
+    <div class="box box-key" style="font-size: 1.05rem;">
+      <mark>"Kimera = 第一个 from-sensor 自动构造 5-layer 3D Dynamic Scene Graph 的 Spatial Perception Engine；6 模块开源（VIO + Mesher + Semantics + PGMO + Humans + Objects + BuildingParser），uHumans2 数据集发布；为 Hydra/Khronos/Clio 等 SPARK Lab 系列开辟了 5 年路线图，也是 EvidLife-Map 的概念骨架与公平对比基底。"</mark>
+    </div>
+
+    <h3>20.2 对 R2 / EvidLife-Map 的关键启示</h3>
+    <ol>
+      <li><b>5-layer DSG 是 MSM 领域 de facto 抽象</b>——不要重新设计图层，直接接 Kimera/Hydra 既有 layer，只<b>替换其单一组件</b>（Layer 1 的 semantics 模型）；</li>
+      <li><b>"三层独立机制"的痛点</b>：Kimera 用 PCM 做 LC outlier、用 Bayesian update 做 label fusion、用 dynamic mask 做动态过滤——<mark>三套机制共享同一组 voxel 但完全独立</mark>。EvidLife-Map 用 vacuity 标量统一，恰好打中这个痛点；</li>
+      <li><b>"Loop closure 不仅修轨迹，更修 mesh + semantics"</b>（§7.4 Neighborhood Acc 62.9% → 93.3%）——我们必须保证 vacuity-LC 触发后<b>同时</b>更新 voxel 浓度（不只是 mesh deformation）；</li>
+      <li><b>层次 path planning 4 个数量级加速</b>提醒我们：<b>DSG 不只是表示，更是任务 enabler</b>——若我们做任何 downstream task（RQ3 traversability planning），用 DSG 层次结构能极大加速；</li>
+      <li><b>uHumans2 是 community 标准 benchmark</b>——R2 应该至少在 uH2 Office / Neighborhood 上跑实验，便于与 Kimera/Hydra/Khronos/Clio 直接对比。</li>
+    </ol>
+
+    <h3>20.3 该看哪个 follow-up</h3>
+    <div class="box box-tip">
+      <div class="box-title">🎓 延伸阅读（SPARK Lab 系列）</div>
+      <ol>
+        <li><b>Rosinol et al., RSS 2020a (Kimera, ICRA short)</b>：本文 Core 部分的会议先驱；</li>
+        <li><b>Rosinol et al., RSS 2020b (3D Dynamic Scene Graph)</b>：DSG 概念的奠基；</li>
+        <li><b>Hydra (T1.8, RSS 2022)</b>：把 Kimera-DSG 改造为 real-time + 增量；</li>
+        <li><b>Khronos (T1.1, RSS 2024)</b>：4D 扩展，dynamic + persistent entities；</li>
+        <li><b>Clio (T1.2, RAL 2024)</b>：task-driven + open-set 扩展；</li>
+        <li><b>Hughes et al., 2024 RSS workshop</b>：lifelong 设定下的 DSG 讨论。</li>
+      </ol>
+    </div>
+  </section>
+
+  <footer>
+    <p>📄 论文：<i>Kimera: From SLAM to Spatial Perception with 3D Dynamic Scene Graphs</i><br>
+    🏢 IJRR Vol.40, No.12-14, 2021, pp. 1510-1546 · 👥 Antoni Rosinol, Andrew Violette, Marcus Abate, Nathan Hughes, Yun Chang, Jingnan Shi, Arjun Gupta, Luca Carlone (MIT LIDS / SPARK Lab)<br>
+    🔗 Code: github.com/MIT-SPARK/Kimera · 📅 精读报告生成日期：2026-05-28 · 由 Claude 基于全文 PDF 重写</p>
+  </footer>
+
+</div>
+
+</body>
+</html>

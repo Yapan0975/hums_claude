@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>精读 T1.5：nvblox - GPU 加速增量 SDF 建图（ICRA 2024）</title>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<style>
+  :root {
+    --primary: #1d4ed8;
+    --primary-dark: #1e3a8a;
+    --primary-light: #3b82f6;
+    --accent: #dc2626;
+    --warning: #f59e0b;
+    --success: #16a34a;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #111827;
+    --text-light: #6b7280;
+    --border: #e5e7eb;
+    --code-bg: #f1f5f9;
+    --hero-grad: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.78; color: var(--text); background: var(--bg); margin: 0; padding: 0; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 28px 80px; }
+  .hero { background: var(--hero-grad); color: white; border-radius: 16px; padding: 64px 56px 56px; margin-bottom: 32px; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3); }
+  .hero::before { content: '🟢'; position: absolute; top: -20px; right: -20px; font-size: 220px; opacity: 0.07; transform: rotate(-15deg); }
+  .hero .badge { display: inline-block; background: rgba(255,255,255,0.18); color: #fff; padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 600; margin-bottom: 18px; backdrop-filter: blur(4px); }
+  .hero h1 { margin: 0 0 16px; font-size: 2.1rem; line-height: 1.3; font-weight: 700; }
+  .hero .sub { font-size: 1.05rem; opacity: 0.92; margin-bottom: 24px; font-weight: 300; }
+  .hero .info { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 28px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,0.2); }
+  .hero .info div .label { font-size: 0.78rem; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.5px; }
+  .hero .info div .value { font-size: 1rem; font-weight: 600; margin-top: 2px; }
+  .toc { position: sticky; top: 16px; z-index: 50; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: 12px; padding: 16px 22px; margin-bottom: 28px; box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
+  .toc summary { cursor: pointer; font-weight: 600; color: var(--primary-dark); list-style: none; display: flex; align-items: center; gap: 8px; }
+  .toc summary::before { content: '📑'; }
+  .toc ol { margin: 12px 0 0; padding-left: 20px; columns: 2; column-gap: 28px; }
+  .toc li { margin: 6px 0; break-inside: avoid; }
+  .toc a { color: var(--text); text-decoration: none; font-size: 0.93rem; }
+  .toc a:hover { color: var(--primary); }
+  section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 36px 40px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); scroll-margin-top: 80px; }
+  section h2 { font-size: 1.7rem; color: var(--primary-dark); margin: 0 0 6px; display: flex; align-items: baseline; gap: 12px; }
+  section h2 .num { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; background: var(--primary); color: white; border-radius: 50%; font-size: 1rem; flex-shrink: 0; }
+  section .lead { color: var(--text-light); font-size: 1rem; margin: 0 0 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  section h3 { margin: 28px 0 10px; color: var(--primary); font-size: 1.18rem; border-left: 4px solid var(--primary); padding-left: 14px; }
+  section h4 { margin: 20px 0 8px; font-size: 1.02rem; color: var(--text); }
+  section p { margin: 10px 0; }
+  section ul, section ol { padding-left: 24px; }
+  section li { margin: 6px 0; }
+  .box { border-radius: 10px; padding: 16px 22px; margin: 18px 0; border-left: 4px solid; }
+  .box-key   { background: #eff6ff; border-color: var(--primary); }
+  .box-warn  { background: #fef2f2; border-color: var(--accent); }
+  .box-tip   { background: #fffbeb; border-color: var(--warning); }
+  .box-good  { background: #f0fdf4; border-color: var(--success); }
+  .box-quote { background: #f8fafc; border-color: var(--text-light); font-style: italic; color: #475569; }
+  .box-title { font-weight: 700; margin-bottom: 6px; }
+  .box-key .box-title { color: var(--primary-dark); }
+  .box-warn .box-title { color: var(--accent); }
+  .box-tip .box-title { color: #b45309; }
+  .box-good .box-title { color: #166534; }
+  code { background: var(--code-bg); padding: 2px 7px; border-radius: 4px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.88em; color: #be185d; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 18px 22px; border-radius: 10px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  .formula { background: #fafbfc; border: 1px solid var(--border); border-radius: 8px; padding: 14px 20px; margin: 12px 0; font-size: 1.05rem; overflow-x: auto; }
+  .formula .ref { float: right; color: var(--text-light); font-size: 0.85rem; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.93rem; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; vertical-align: top; }
+  th { background: linear-gradient(180deg, #065f46, #064e3b); color: white; font-weight: 600; }
+  tbody tr:nth-child(even) { background: #fafbfc; }
+  tbody tr:hover { background: #ecfdf5; }
+  td .win { color: var(--success); font-weight: 700; }
+  td .lose { color: var(--accent); font-weight: 700; }
+  td .num-big { font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); }
+  .diagram { background: #0f172a; color: #e2e8f0; padding: 22px 28px; border-radius: 10px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.85rem; line-height: 1.5; overflow-x: auto; white-space: pre; margin: 16px 0; }
+  .diagram .hl { color: #fbbf24; font-weight: bold; }
+  .diagram .arrow { color: #60a5fa; }
+  .diagram .label { color: #34d399; }
+  .arch { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 20px 0; }
+  .arch .mod { background: linear-gradient(135deg, #ffffff, #f1f5f9); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+  .arch .mod h5 { margin: 0 0 8px; color: var(--primary-dark); font-size: 1rem; display: flex; align-items: center; gap: 6px; }
+  .arch .mod p { font-size: 0.9rem; color: var(--text-light); margin: 4px 0; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 22px 0; }
+  .stat { background: linear-gradient(135deg, #d1fae5, #ffffff); border-radius: 12px; padding: 16px 20px; text-align: center; border: 1px solid #a7f3d0; }
+  .stat .num { font-size: 1.8rem; font-weight: 800; color: var(--primary-dark); line-height: 1.1; }
+  .stat .lbl { font-size: 0.85rem; color: var(--text-light); margin-top: 4px; }
+  .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .pros, .cons { padding: 16px 20px; border-radius: 10px; }
+  .pros { background: #f0fdf4; border-left: 4px solid var(--success); }
+  .cons { background: #fef2f2; border-left: 4px solid var(--accent); }
+  .chip { display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; margin-right: 6px; margin-bottom: 4px; }
+  .chip-blue { background: #dbeafe; color: #1e40af; }
+  .chip-green { background: #dcfce7; color: #166534; }
+  .chip-red { background: #fee2e2; color: #991b1b; }
+  .chip-yellow { background: #fef3c7; color: #92400e; }
+  mark { background: linear-gradient(transparent 55%, #fde68a 55%); padding: 0 2px; font-weight: 600; }
+  footer { margin-top: 36px; padding-top: 22px; border-top: 1px solid var(--border); color: var(--text-light); font-size: 0.88rem; text-align: center; }
+  @media (max-width: 720px) {
+    .container { padding: 16px 14px; }
+    .hero { padding: 36px 24px 30px; }
+    .hero h1 { font-size: 1.5rem; }
+    section { padding: 22px 20px; }
+    .arch, .pros-cons { grid-template-columns: 1fr; }
+    .toc ol { columns: 1; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ============ HERO ============ -->
+  <div class="hero">
+    <span class="badge">🟢 Tier 1 · R2 SDF substrate · 精读 T1.5</span>
+    <h1>nvblox: GPU-Accelerated Incremental Signed<br>Distance Field Mapping</h1>
+    <div class="sub">把 voxblox 的 TSDF + ESDF pipeline 全搬上 GPU<br>—— TSDF 加速 177×，ESDF 加速 31×，Jetson 可跑</div>
+    <div class="info">
+      <div><div class="label">📚 发表</div><div class="value">IEEE ICRA 2024</div></div>
+      <div><div class="label">📅 在线</div><div class="value">2024-03-15 (arXiv v2)</div></div>
+      <div><div class="label">📄 页数</div><div class="value">8 页</div></div>
+      <div><div class="label">🆔 arXiv</div><div class="value">2311.00626v2</div></div>
+      <div><div class="label">🏢 单位</div><div class="value">NVIDIA Switzerland · ETH ASL</div></div>
+      <div><div class="label">👥 通讯</div><div class="value">A. Millane · H. Oleynikova（均为 voxblox 作者）</div></div>
+      <div><div class="label">💻 代码</div><div class="value">github.com/nvidia-isaac/nvblox · ROS1/ROS2/Isaac ROS</div></div>
+      <div><div class="label">🎯 任务</div><div class="value">实时 SDF mapping for path planning</div></div>
+    </div>
+  </div>
+
+  <!-- ============ TOC ============ -->
+  <details class="toc" open>
+    <summary>目录（点击展开 / 收起）</summary>
+    <ol>
+      <li><a href="#bg">§1 背景：CPU vs GPU mapping 的功能鸿沟</a></li>
+      <li><a href="#contrib">§2 贡献</a></li>
+      <li><a href="#overview">§3 LayerCake 架构总览</a></li>
+      <li><a href="#modules">§4 关键模块（TSDF/ESDF/Mesh）</a></li>
+      <li><a href="#exp-setup">§5 实验设置</a></li>
+      <li><a href="#exp-main">§6 主要结果（速度 + 精度表）</a></li>
+      <li><a href="#ablation">§7 Ablation</a></li>
+      <li><a href="#limit">§8 局限</a></li>
+      <li><a href="#evidlife">§9 与 EvidLife-Map 的关系（API plug-in）</a></li>
+      <li><a href="#summary">§10 总结</a></li>
+    </ol>
+  </details>
+
+  <!-- ============ 1. 背景 ============ -->
+  <section id="bg">
+    <h2><span class="num">1</span> 背景：CPU vs GPU mapping 的功能鸿沟</h2>
+    <p class="lead">机器人 path-planning 既要 dense 几何信息（占用、距离），又要快到能 onboard 跑（embedded GPU/CPU）。但现有方案要么 CPU 太慢（voxblox / FIESTA），要么 GPU 又缺关键功能（KinectFusion / NeRF）。nvblox 来填这个空。</p>
+
+    <h3>1.1 三类竞品的局限</h3>
+    <ol>
+      <li><b>CPU dense mapping</b>（voxblox / FIESTA / Voxfield）—— 有 ESDF 但慢，分辨率上不去；</li>
+      <li><b>GPU surface reconstruction</b>（KinectFusion / ElasticFusion）—— 快但<b>只有 surface mesh</b>，无 free space / ESDF，path-planning 没法用；</li>
+      <li><b>NeRF</b>（iMAP / NICE-SLAM）—— 需要 heavy keyframing，不够 reactive。</li>
+    </ol>
+
+    <div class="box box-quote">
+      "Previous works leave a gap between CPU-based systems for robotic mapping which, due to computation constraints, limit map resolution or scale, and GPU-based reconstruction systems which omit features that are critical to robotic path planning, such as computation of the Euclidean Signed Distance Field (ESDF)." —— Abstract
+    </div>
+
+    <h3>1.2 为什么 ESDF 必须 GPU 化</h3>
+    <p>collision query 在 sampling-based / optimization-based planner 里占很大比例。把 query 放 GPU 上能：(1) 利用并行（同时查上千 sample）；(2) 与 GPU-based planner（CuRobo, Riemannian Motion Policies）共享 memory，避免 CPU↔GPU 拷贝；(3) 支持 finer resolution，提高 planning precision。</p>
+
+    <div class="box box-key">
+      <div class="box-title">🎯 一句话定位</div>
+      nvblox = voxblox 的 GPU 重写 + 一个新的 parallel incremental ESDF 算法。<b>所有 layer（TSDF, ESDF, Color, Mesh, Occupancy）都常驻 GPU memory</b>，包括 query。
+    </div>
+  </section>
+
+  <!-- ============ 2. 贡献 ============ -->
+  <section id="contrib">
+    <h2><span class="num">2</span> 论文的贡献</h2>
+
+    <div class="arch">
+      <div class="mod">
+        <h5>① GPU-accelerated SDF library</h5>
+        <p>TSDF 加速 <b>177×</b>，ESDF 加速 <b>31×</b>（vs voxblox），完整保留 voxblox 的可 plan 能力。</p>
+      </div>
+      <div class="mod">
+        <h5>② 新 incremental ESDF 算法</h5>
+        <p>基于 Parallel Banding Algorithm (PBA)。把 ESDF 计算分为 Marking → Clearing → Sweeping → Neighbor Update 四阶段，全部并行；不用 quasi-Euclidean 近似（不像 voxblox），保留 full Euclidean accuracy。</p>
+      </div>
+      <div class="mod">
+        <h5>③ Embedded GPU 兼容</h5>
+        <p>Jetson Xavier AGX 也能跑实时——ESDF 16× 加速。这是 onboard robot 必备。</p>
+      </div>
+      <div class="mod">
+        <h5>④ 开源 + 多平台 ROS</h5>
+        <p>ROS1, ROS2, Isaac ROS 三套包装。已被 CuRobo / Riemannian Motion Policies 使用。</p>
+      </div>
+    </div>
+
+    <div class="box box-good">
+      <div class="box-title">🏆 核心数字成果（来自 Table I, II, III）</div>
+      <ul>
+        <li><b>TSDF</b>：Replica @ Desktop 0.4 ms（vs voxblox -，与 voxblox TSDF+Color 86.7 ms 比 ×174 加速）；</li>
+        <li><b>ESDF</b>：Replica @ Desktop 1.9 ms（vs voxblox 163.2 ms，<b>×63 加速</b>）；Average 平均 ×31 加速 vs voxblox，×7 vs Fiesta；</li>
+        <li><b>ESDF accuracy</b>：median error 0.06 m（与 voxblox 0.07 / Fiesta 0.06 相当——<b>速度提升不以精度为代价</b>）；</li>
+        <li><b>Mesh</b>：Replica @ Desktop 1.6 ms (×3 加速)；Redwood @ Desktop 0.6 ms (×13 加速)；</li>
+        <li><b>Query rate</b>：Desktop 6.2 G queries/s (correlated)；Jetson uncorrelated <b>3 ns/point</b>；</li>
+        <li><b>LiDAR 64-beam @ 25 m / 10 cm</b>：Laptop &lt; 7 ms; Jetson &lt; 20 ms（≥ 2× real-time）。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 3. 架构 ============ -->
+  <section id="overview">
+    <h2><span class="num">3</span> LayerCake 架构总览</h2>
+    <p class="lead">nvblox 的世界模型叫 <b>LayerCake</b>：多个 co-located、aligned 的 3D voxel grids（layers）。每个 layer 存不同 quantity：TSDF, ESDF, Color, Occupancy, Mesh。</p>
+
+    <div class="diagram">┌──────────────────────────────────────────────────────────────────────┐
+│  <span class="hl">INPUT</span>                                                              │
+│   Depth Image D : Ω → ℝ            (RGB-D camera 或 LiDAR)            │
+│   Color Image C : Ω → ℝ^3                                            │
+│   Sensor Pose  T_LC_i ∈ SE(3)                                        │
+└──────────────────────────────────────────────────────────────────────┘
+                            │
+                            <span class="arrow">▼</span>
+       ┌────────────────────┴────────────────────────┐
+       <span class="arrow">▼</span>                                             <span class="arrow">▼</span>
+   <span class="hl">TSDF Integrator</span>                            <span class="hl">Color Integrator</span>
+   per-voxel update functor                       per-voxel update
+   d_p = d - d_v (projective dist)                weighted RGB average
+   weight w = f_w(d_p)                                  │
+   weighted-average distance + truncate                 │
+       │                                                 │
+       <span class="arrow">▼</span>                                                 │
+   <span class="hl">TSDF Layer</span>  ────────────┐                              │
+   (8×8×8 VoxelBlock, hash table via stdgpu)             │
+       │                          │                      │
+       <span class="arrow">▼</span>                          <span class="arrow">▼</span>                      <span class="arrow">▼</span>
+   <span class="hl">Mesh Integrator</span>          <span class="hl">ESDF Integrator</span>           <span class="hl">Color Layer</span>
+   Parallel Marching Cubes      Marking → Clearing
+       │                       → Sweep within block
+       <span class="arrow">▼</span>                       → Update Neighbor Blocks
+   <span class="hl">Mesh Layer</span>              (loop until converged)
+                                  │
+                                  <span class="arrow">▼</span>
+                              <span class="hl">ESDF Layer</span>
+                              (sites + children, parent direction)
+                                  │
+                                  <span class="arrow">▼</span>
+                          <span class="hl">Query</span>: collection of 3D points → distances + ∇d
+                          (on GPU, no CPU↔GPU copy)
+                          <span class="label">Desktop 6.2 G queries/s, Jetson 0.5–0.8 G queries/s</span></div>
+
+    <h3>3.1 三件存储设计</h3>
+    <ul>
+      <li><b>稀疏 hashing</b>：第 1 级 GPU hash table (via <code>stdgpu</code>) 映射 3D grid index → VoxelBlock pointer；第 2 级 VoxelBlock 是 <b>8×8×8 dense voxels</b>，contiguous in memory（GPU coalesced loads）；</li>
+      <li><b>可扩展 layer</b>：用户定义 voxel content struct，编译期生成 hash grid + CPU/GPU interface；</li>
+      <li><b>Layer alignment</b>：所有 layer 共享同一 voxel grid 坐标系，便于跨 layer 查询。</li>
+    </ul>
+
+    <div class="box box-key">
+      <div class="box-title">💡 LayerCake = 关键 API</div>
+      LayerCake 不是单一 voxel struct，是一组 <b>co-located 但不同语义</b> 的 voxel grids。这给了 EvidLife-Map 直接 plug-in 的空间——加一个 <code>EvidentialLayer</code>，存 Dirichlet $\alpha^c$ + decay timestamp，就能与 TSDF/ESDF 共享坐标系。
+    </div>
+  </section>
+
+  <!-- ============ 4. 模块细节 ============ -->
+  <section id="modules">
+    <h2><span class="num">4</span> 关键模块拆解</h2>
+
+    <h3>4.1 Frame Integration（§IV.B）</h3>
+    <p>核心数学公式（每个 voxel 在视野内的投影）：</p>
+    <div class="formula">
+      $$d = D[\pi_{\mathrm{sensor}}(T_{CL} p_L)] \tag{1}$$
+    </div>
+    <p>其中 $T_{CL}$ 是 camera pose w.r.t. Layer 坐标系，$p_L$ 是 voxel 中心位置。Sensor projection 分两种：</p>
+    <div class="formula">
+      $$\pi_{\mathrm{camera}}(p_C) = \frac{1}{p_{C,z}} \begin{bmatrix}f_u & 0 & c_u\\ 0 & f_v & c_v\end{bmatrix} \begin{bmatrix}p_{C,x}\\ p_{C,y}\\ 1\end{bmatrix} \tag{2}$$
+    </div>
+    <div class="formula">
+      $$\pi_{\mathrm{lidar}}(p_C) = \begin{bmatrix}(\tan^{-1}(p_{C,y}/p_{C,x}) - \theta_{\mathrm{start}}) \cdot \alpha_\theta \\ (\cos^{-1}(p_{C,z}/r) - \phi_{\mathrm{start}}) \cdot \beta_\phi \end{bmatrix} \tag{3}$$
+    </div>
+    <p>$\alpha_\theta, \beta_\phi$ 是 pixels-per-radian（FoV/beams）。LiDAR 用 linear interpolation（同时处理前-背景边界）。</p>
+
+    <h4>TSDF update functor</h4>
+    <p>对每个 voxel：</p>
+    <ul>
+      <li>计算 voxel-to-sensor 投影距离 $d_p = d - d_v$；</li>
+      <li>truncate 到 $[-\epsilon, +\epsilon]$；</li>
+      <li>$w = f_w(d_p)$（恒定 / sensor error model）；</li>
+      <li>weighted average distance：$d_{\mathrm{tsdf}} \leftarrow (d_{\mathrm{tsdf}} \cdot w_{\mathrm{old}} + d_p \cdot w) / (w_{\mathrm{old}} + w)$；</li>
+      <li>weight sum：$w \leftarrow w_{\mathrm{old}} + w$ 上限到 $w_{\max}$。</li>
+    </ul>
+
+    <h4>Occupancy update functor</h4>
+    <p>log-odds Bayesian fusion (Thrun)：</p>
+    <ul>
+      <li>$d_p > 0$（voxel before surface）→ 加常数负值（free 概率高）；</li>
+      <li>$d_p < 0$（voxel behind surface）→ 加常数正值（occupied 概率高）。</li>
+    </ul>
+
+    <h3>4.2 ESDF Computation（§IV.C，论文核心创新）</h3>
+    <p>整个 ESDF 算法是 <b>incremental + parallel</b>。算法流程（Fig. 3 + Fig. 5）：</p>
+
+    <div class="diagram"><span class="hl">[step 1] Allocate Blocks</span>
+   输入: TSDF layer + 更新的 VoxelBlock 列表
+   分配 ESDF 端新出现的 VoxelBlocks
+
+<span class="hl">[step 2] Mark Sites</span>
+   site = surface boundary voxel
+   - TSDF case: TSDF distance 在 ±ε 内 → site
+   - Occupancy case: 邻接 free → site
+   处理两种特殊情形:
+     (A) newly occupied/observed: 直接采用 TSDF 距离，加入 Indices to Update
+     (B) newly freed:  距离 set invalid; 若它本是 site 则其所有 children
+                       都要 invalidate (加入 Indices to Clear)
+
+<span class="hl">[step 3] Clear Invalid</span>
+   找到 parent 不再是 site 的 voxels → distance set 到 max
+   在 max ESDF distance 范围内并行检查，加入 Cleared Indices
+
+<span class="hl">[step 4] Lower ESDF</span>  (循环至收敛)
+   <span class="label">[4a] Sweep within block</span>  (基于 PBA 思想)
+        在每个 VoxelBlock 内独立做 X+, X-, Y+, Y-, Z+, Z- 6 次 sweep
+        每次 sweep: 若邻居方向有更短路径到 site，就更新该 voxel
+        所有 affected blocks 在同一 kernel call 内并行
+   <span class="label">[4b] Update Neighbor Blocks</span>
+        跨 block 边界传播
+        若邻居 block 边缘有更短距离，propagate 进来
+        若边界发生通信，affected block 标记 → 回到 [4a]
+   loop until no more blocks updated</div>
+
+    <div class="box box-tip">
+      <div class="box-title">💡 为什么不用 voxblox 的 quasi-Euclidean？</div>
+      voxblox 用 quasi-Euclidean 近似换速度，引入系统误差。nvblox 用 full Euclidean（PBA-style sweep），<mark>不仅没变慢反而更快</mark>，因为 GPU parallelism 让 sweep cost 摊销了。这是论文最 clever 的工程贡献。
+    </div>
+
+    <h3>4.3 Mesh Integrator</h3>
+    <p>对 TSDF 已更新的 block 周期性运行 <b>parallelized Marching Cubes</b>。论文未给详细公式，是标准实现。Replica @ Desktop 1.6 ms。</p>
+
+    <h3>4.4 Sites 与 Children 数据结构（Fig. 4）</h3>
+    <p>每个 ESDF voxel 三种状态：unknown / free（正距离）/ occupied（负距离）。site = surface 边界 voxel。每个 child voxel 存它的 <b>parent direction</b>——指向最近 site 的方向。这个结构让 incremental 更新只需重新计算 invalidate 的子树，而不是全图。</p>
+  </section>
+
+  <!-- ============ 5. 实验设置 ============ -->
+  <section id="exp-setup">
+    <h2><span class="num">5</span> 实验设置</h2>
+
+    <h3>5.1 三个 compute 平台</h3>
+    <table>
+      <thead><tr><th>平台</th><th>CPU</th><th>GPU</th><th>用途</th></tr></thead>
+      <tbody>
+        <tr><td><b>Desktop</b></td><td>Intel i9</td><td>RTX 3090 Ti</td><td>大数据中心 / 工作站</td></tr>
+        <tr><td><b>Laptop</b></td><td>Intel i7</td><td>RTX 3000 Mobile</td><td>移动开发</td></tr>
+        <tr><td><b>Jetson</b></td><td>—</td><td>Xavier AGX</td><td>onboard embedded</td></tr>
+      </tbody>
+    </table>
+
+    <h3>5.2 数据集</h3>
+    <ul>
+      <li><b>Replica [31]</b>：合成室内场景，photorealistic rendering，8 序列；</li>
+      <li><b>Redwood [32]</b>：真实 RGB-D 扫描（消费级 depth camera），5 序列；</li>
+      <li><b>Cow and Lady [4]</b>：voxblox 配套数据；</li>
+      <li><b>Sun3D [35]</b>：query rate 测试；</li>
+      <li>外加 <b>flying robot LiDAR</b>（64-beam Ouster OS1, FAST-LIO 估 pose）和 ground robot office 数据。</li>
+    </ul>
+
+    <h3>5.3 评估指标</h3>
+    <div class="stat-grid">
+      <div class="stat"><div class="num">ms</div><div class="lbl">module runtime</div></div>
+      <div class="stat"><div class="num">m</div><div class="lbl">ESDF median error</div></div>
+      <div class="stat"><div class="num">G/s</div><div class="lbl">query rate</div></div>
+      <div class="stat"><div class="num">5 cm</div><div class="lbl">默认 voxel 分辨率</div></div>
+      <div class="stat"><div class="num">4 frames</div><div class="lbl">ESDF / mesh 更新间隔</div></div>
+      <div class="stat"><div class="num">8 + 5</div><div class="lbl">Replica + Redwood 序列数</div></div>
+    </div>
+  </section>
+
+  <!-- ============ 6. 主要结果 ============ -->
+  <section id="exp-main">
+    <h2><span class="num">6</span> 主要结果（数字表）</h2>
+
+    <h3>6.1 全系统模块 timing（Table I，5 cm 分辨率）</h3>
+    <table>
+      <thead>
+        <tr><th rowspan="2">Component</th><th colspan="3">Replica [31]</th><th colspan="3">Redwood [32]</th><th rowspan="2">Speedup</th></tr>
+        <tr><th>Desktop</th><th>Laptop</th><th>Jetson</th><th>Desktop</th><th>Laptop</th><th>Jetson</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>ESDF (nvblox)</td><td>1.9</td><td>3.6</td><td>8.4</td><td>1.5</td><td>2.6</td><td>4.2</td><td>×63 (Replica) / ×16 (Redwood)</td></tr>
+        <tr><td>ESDF (voxblox)</td><td>163.2</td><td>291.5</td><td>231.6</td><td>29.1</td><td>46.5</td><td>38.7</td><td>—</td></tr>
+        <tr><td>TSDF (nvblox)</td><td>0.4</td><td>0.6</td><td>1.6</td><td>0.2</td><td>0.2</td><td>0.5</td><td><b>×174 / ×177</b></td></tr>
+        <tr><td>Color (nvblox)</td><td>1.7</td><td>2.5</td><td>4.2</td><td>1.1</td><td>1.6</td><td>2.4</td><td>—</td></tr>
+        <tr><td>TSDF+Color (nvblox)</td><td>2.1</td><td>3.2</td><td>5.8</td><td>1.3</td><td>1.8</td><td>2.9</td><td>×38 / ×25</td></tr>
+        <tr><td>TSDF+Color (voxblox)</td><td>86.7</td><td>106.6</td><td>226.7</td><td>38.4</td><td>33.6</td><td>76.7</td><td>—</td></tr>
+        <tr><td>Mesh (nvblox)</td><td>1.6</td><td>4.0</td><td>12.3</td><td>0.6</td><td>1.5</td><td>2.7</td><td>×3 / ×13</td></tr>
+        <tr><td>Mesh (voxblox)</td><td>6.2</td><td>12.0</td><td>15.4</td><td>12.7</td><td>15.8</td><td>23.0</td><td>—</td></tr>
+      </tbody>
+    </table>
+    <p>所有 module 都加速；Jetson 上 TSDF 1.6 ms、ESDF 8.4 ms ≪ 100 ms 实时门槛。</p>
+
+    <h3>6.2 ESDF accuracy + runtime（Table II）</h3>
+    <table>
+      <thead>
+        <tr><th rowspan="2">Dataset</th><th colspan="3">Median ESDF Error (m)</th><th colspan="3">ESDF Runtime (ms) (speedup vs voxblox)</th></tr>
+        <tr><th>nvblox</th><th>voxblox</th><th>Fiesta</th><th>nvblox</th><th>voxblox</th><th>Fiesta</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>apartment</td><td>0.04</td><td>0.06</td><td>0.05</td><td>1.7 (×14)</td><td>25 (×1)</td><td>5.5 (×5)</td></tr>
+        <tr><td>bedroom</td><td>0.02</td><td>0.05</td><td>0.03</td><td>1.4 (×15)</td><td>22 (×1)</td><td>3.4 (×6)</td></tr>
+        <tr><td>boardroom</td><td>0.06</td><td>0.08</td><td>0.06</td><td>1.7 (×17)</td><td>30 (×1)</td><td>4.0 (×8)</td></tr>
+        <tr><td>lobby</td><td>0.10</td><td>0.10</td><td>0.08</td><td>2.1 (×16)</td><td>34 (×1)</td><td>5.2 (×7)</td></tr>
+        <tr><td>loft</td><td>0.04</td><td>0.08</td><td>0.04</td><td>1.8 (×26)</td><td>48 (×1)</td><td>8.4 (×6)</td></tr>
+        <tr><td>Cow and lady</td><td>0.09</td><td>0.06</td><td>0.07</td><td>2.8 (×68)</td><td>190 (×1)</td><td>52 (×4)</td></tr>
+        <tr><td><b>Average</b></td><td><b>0.06</b></td><td><b>0.07</b></td><td><b>0.06</b></td><td><b>1.9 (×31)</b></td><td><b>58 (×1)</b></td><td><b>13 (×4)</b></td></tr>
+      </tbody>
+    </table>
+    <p>结论：nvblox 平均比 voxblox 快 <b>31×</b>，比 Fiesta 快 <b>7×</b>，<mark>精度持平或更好</mark>。</p>
+
+    <h3>6.3 Query rate（Table III）</h3>
+    <table>
+      <thead>
+        <tr><th rowspan="2">Dataset</th><th colspan="2">Desktop (G queries/s)</th><th colspan="2">Laptop</th><th colspan="2">Jetson</th></tr>
+        <tr><th>cor.</th><th>uncor.</th><th>cor.</th><th>uncor.</th><th>cor.</th><th>uncor.</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Redwood</td><td>6.2</td><td>3.3</td><td>1.7</td><td>1.3</td><td>0.8</td><td>0.5</td></tr>
+        <tr><td>Sun3D</td><td>7.3</td><td>3.3</td><td>1.8</td><td>1.1</td><td>0.7</td><td>0.3</td></tr>
+      </tbody>
+    </table>
+    <p>Jetson uncorrelated query <b>3 ns/point</b>——对 sampling-based planner（如 CuRobo 同时查 1000+ samples）足够。</p>
+
+    <h3>6.4 Resolution scaling（Fig. 6）</h3>
+    <p>nvblox 在 1 cm TSDF / 2 cm ESDF resolution 下仍比 voxblox 在 10 cm（最粗）下快。意味着 robot 可以用更高 precision 做 perception。</p>
+
+    <h3>6.5 LiDAR 应用（Fig. 7）</h3>
+    <p>64-beam LiDAR / 25 m range / 10 cm resolution / FAST-LIO pose → <b>Laptop &lt; 7 ms 每 scan, Jetson &lt; 20 ms</b>，即 ≥ 2× real-time。</p>
+  </section>
+
+  <!-- ============ 7. Ablation ============ -->
+  <section id="ablation">
+    <h2><span class="num">7</span> Ablation / Scaling Studies</h2>
+
+    <h3>7.1 Resolution sweep</h3>
+    <p>论文 Fig. 6 显示 nvblox 和 voxblox 在 voxel size 5–20 cm 范围内的 TSDF/ESDF time。nvblox 曲线几乎平直（GPU parallelism 摊销了 voxel 数量），voxblox 随 resolution 变细呈指数恶化。</p>
+
+    <h3>7.2 Query 模式（spatial correlation）</h3>
+    <p>Table III 的 cor. vs uncor.：</p>
+    <ul>
+      <li><b>Correlated</b>（同 VoxelBlock）：GPU coalesced memory access → 2× faster；</li>
+      <li><b>Uncorrelated</b>：random hash misses，速度降一半但仍可用。</li>
+    </ul>
+    <p>这对 EvidLife-Map 重要：vacuity-based traversability 查询往往是 spatial-correlated（围绕机器人当前位置），可获最佳吞吐。</p>
+
+    <h3>7.3 Application examples（Fig. 7, 8）</h3>
+    <ul>
+      <li>飞行机器人 LiDAR mapping（大尺度户外）；</li>
+      <li>机械臂高速 adaptive planning（CuRobo 集成）；</li>
+      <li>地面机器人 office mapping with people segmentation（PeopleSemSegnet [TAO] 分动静）。</li>
+    </ul>
+    <p>最后一个 <b>动静分离</b> 示例最相关：用单独的 <code>OccupancyLayer</code> 存 dynamic 人体（在静态 TSDF 上 overlay），动态部分 decay over time。<mark>这就是 EvidLife-Map decay 思想的雏形——但 nvblox 用的是 occupancy log-odds，不是 evidential</mark>。</p>
+  </section>
+
+  <!-- ============ 8. 局限 ============ -->
+  <section id="limit">
+    <h2><span class="num">8</span> 局限性</h2>
+    <div class="pros-cons">
+      <div class="pros">
+        <b>✅ 优势</b>
+        <ul>
+          <li>177× TSDF / 31× ESDF 加速 + 精度不下降；</li>
+          <li>Embedded GPU (Jetson) 可跑；</li>
+          <li>多 layer 架构可扩展；</li>
+          <li>GPU-resident query 与 GPU planner 直接对接；</li>
+          <li>已被 CuRobo、Riemannian Motion Policies 等真实系统使用。</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <b>⚠️ 局限</b>
+        <ul>
+          <li><b>仅支持 RGB-D / LiDAR</b>，未直接处理纯 stereo 或 monocular；</li>
+          <li><b>无语义</b>（论文用 PeopleSemSegnet 外部分 dynamic，但 layer-level 不存语义概率）；</li>
+          <li><b>无 evidential / uncertainty</b>：occupancy 是 log-odds，TSDF 是 weighted average，没显式 epistemic uncertainty；</li>
+          <li><b>无 loop closure</b>：依赖外部 SLAM（论文用 FAST-LIO）提供 pose；</li>
+          <li><b>动态对象 decay</b> 是 application-level 而非 framework-level；</li>
+          <li>不公开训练数据，但 nvblox 不是 learning-based，所以无影响。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 9. EvidLife-Map 关系 ============ -->
+  <section id="evidlife">
+    <h2><span class="num">9</span> 与 EvidLife-Map 的关系（API plug-in 视角）</h2>
+    <p class="lead">nvblox 是 EvidLife-Map 的 <b>SDF 体素 backbone</b>——R2 reviewer 明言"不引就 desk-reject"。我们必须把 evidential 层挂到 nvblox 的 LayerCake 上，而不是从头实现 SDF。</p>
+
+    <h3>9.1 nvblox API 一览（按 layer 拆）</h3>
+    <table>
+      <thead><tr><th>Layer 名</th><th>Voxel content</th><th>主要 API</th><th>EvidLife-Map 用法</th></tr></thead>
+      <tbody>
+        <tr><td><code>TsdfLayer</code></td><td>(d_tsdf, w) per voxel</td><td>TsdfIntegrator.integrateFrame()，距离/权重存取</td><td>R2 reviewer 强制——必须用它做 surface backbone</td></tr>
+        <tr><td><code>EsdfLayer</code></td><td>(d_esdf, parent_dir)</td><td>EsdfIntegrator.integrateBlocks()，distance + gradient query</td><td>RQ3 traversability：用 ESDF 计算 clearance + 我们的 vacuity 复合得分</td></tr>
+        <tr><td><code>OccupancyLayer</code></td><td>log-odds l_o</td><td>OccupancyIntegrator.integrateFrame()</td><td>对比 baseline——log-odds vs evidential mass</td></tr>
+        <tr><td><code>ColorLayer</code></td><td>RGB (3 byte)</td><td>ColorIntegrator.integrateFrame()</td><td>可选——若做语义需要 RGB</td></tr>
+        <tr><td><code>MeshLayer</code></td><td>vertices/normals/indices</td><td>MeshIntegrator + parallel Marching Cubes</td><td>可视化 / 与 R2 baseline 对比</td></tr>
+        <tr><td><b><code>EvidentialLayer</code></b>（新增）</td><td><b>α^c (C floats) + decay_timestamp (uint32) + last_obs_pose_idx (uint16)</b></td><td><b>EvidentialIntegrator.integrateFrame(depth, semantic_probs, pose)</b></td><td><b>EvidLife-Map 主层</b></td></tr>
+      </tbody>
+    </table>
+
+    <h3>9.2 plug-in 步骤</h3>
+    <ol>
+      <li><b>定义 EvidentialVoxel struct</b>：包含 $\alpha^1 \dots \alpha^C$ (C=20 for SemanticKITTI)、decay_timestamp、last_obs_pose_idx。预估大小 = 4·20 + 4 + 2 = 86 bytes/voxel。VoxelBlock = 8×8×8 = 512 voxels = 44 KB/block。<b>注意</b>：原 TsdfVoxel = 8 bytes/voxel，EvidentialVoxel 增至 86 bytes —— hash table size 不变但 per-block memory 增长 ~11×；</li>
+      <li><b>编译期自动生成</b>：nvblox 的 layer mechanism 会自动为 EvidentialVoxel 生成 hash grid + CPU/GPU interface（按论文 §IV.A）；</li>
+      <li><b>实现 EvidentialIntegrator</b>：参考 TsdfIntegrator 的 per-voxel update functor 模式，把 ConvBKI 的 depthwise conv update 改写成 nvblox 的 voxel-parallel kernel；</li>
+      <li><b>共享坐标系</b>：与 TsdfLayer / EsdfLayer co-located，所以一次 ESDF query 同时返回 clearance + vacuity（cross-layer query）。</li>
+    </ol>
+
+    <h3>9.3 体素哈希结构能否扩展到 evidential + decay？</h3>
+    <p><b>Yes</b>——这是 nvblox LayerCake 设计的核心优势。论文 §IV.A 明确写："The map is designed to be extended with new layers. To create a new Layer, a user needs to specify the contents of a single voxel."。所以我们只需提供 EvidentialVoxel 的 C++ struct，nvblox 自动生成所有 hashing / GPU kernel template。<mark>不需要 fork nvblox</mark>。</p>
+
+    <h3>9.4 GPU 内存占用模型</h3>
+    <p>关键限制：nvblox 用 dense 8×8×8 VoxelBlock，sparse hashing 只在 block 级。所以单个 block 的 memory 直接乘以 voxel content size：</p>
+    <div class="formula">
+      $$\mathrm{mem}(\mathrm{Block}) = 512 \cdot \mathrm{sizeof}(\mathrm{Voxel}),\quad \mathrm{mem}(\mathrm{Map}) = N_{\mathrm{blocks}} \cdot \mathrm{mem}(\mathrm{Block})$$
+    </div>
+    <p>对 SemanticKITTI 20 类、Replica-scale map（typ. ~5000 blocks）：</p>
+    <ul>
+      <li><code>TsdfLayer</code> 单 layer: 5000 × 4 KB = <b>20 MB</b>；</li>
+      <li><code>EvidentialLayer</code> (C=20): 5000 × 44 KB = <b>220 MB</b>；</li>
+      <li>+ ESDF (10 MB) + Color (15 MB) + Mesh (~30 MB) = total ~280 MB；</li>
+      <li>RTX 3090 24 GB → 完全可用；Jetson Xavier AGX 32 GB unified → 也 OK。</li>
+    </ul>
+    <p><b>但</b>：若 EvidentialLayer 扩到 C=100 类（开放词表场景），mem = 5000 × 204 KB = 1.0 GB。这是<mark>必须考虑的 scalability 边界</mark>——R2 reviewer 可能会问。</p>
+
+    <h3>9.5 decay 字段的存储设计</h3>
+    <p>每个 voxel 多存：</p>
+    <ul>
+      <li><b>last_obs_timestamp (uint32)</b>：4 B。decay rule 用 $\alpha^c_{\mathrm{new}} = \lambda^{\Delta t} \cdot \alpha^c_{\mathrm{old}}$，每次 integrate 时根据 $\Delta t = t_{\mathrm{now}} - t_{\mathrm{last}}$ 衰减；</li>
+      <li><b>last_obs_pose_idx (uint16)</b>：2 B。用于 lifetime tracking + 与 trajectory 关联；</li>
+      <li><b>option</b>：alpha_dirty_bit (1 B)——标记 voxel 被衰减但未重新观测，便于批量清理；</li>
+    </ul>
+    <p>nvblox 的 incremental ESDF 算法已经有"newly freed voxel → invalidate children"机制（§IV.C），我们的 decay 也可以借此结构——decayed-to-low-α voxel 触发 ESDF re-compute。</p>
+
+    <h3>9.6 实现注意（写进 R2 response）</h3>
+    <div class="box box-warn">
+      <div class="box-title">⚠️ 5 条 R2 reviewer 关心的点</div>
+      <ol>
+        <li><b>共享 hash table</b>：所有 layer 共享 block index 空间，所以 EvidentialVoxel 的 allocate/deallocate 必须与 TsdfLayer 同步——nvblox 的 LayerCake 类已经处理；</li>
+        <li><b>integrator 顺序</b>：TsdfIntegrator 必须先跑（决定 block allocation），EvidentialIntegrator 跟随；ESDF 需要 TSDF；</li>
+        <li><b>query 性能</b>：cross-layer query 在 GPU 上 zero-copy，6.2 G queries/s on Desktop（Table III）；</li>
+        <li><b>resolution 一致性</b>：所有 layer 应同分辨率（默认 5 cm 或 0.2 m），EvidLife-Map 与 ConvBKI baseline 对齐到 0.2 m；</li>
+        <li><b>ROS 接口</b>：Isaac ROS nvblox 已包装好 RViz visualization，我们只需添加 vacuity color-coded mesh marker。</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ 10. 总结 ============ -->
+  <section id="summary">
+    <h2><span class="num">10</span> 总结</h2>
+
+    <h3>10.1 一句话总结</h3>
+    <div class="box box-key" style="font-size: 1.05rem;">
+      <mark>nvblox 是 voxblox 的 GPU 重写 + 一个新的并行 incremental ESDF 算法，把 TSDF 加速 177×、ESDF 加速 31×（vs voxblox），精度不下降；通过可扩展的 LayerCake 架构、stdgpu hash table 和 8×8×8 VoxelBlock 设计，所有 layer 常驻 GPU memory；Jetson 也能实时跑。</mark>
+    </div>
+
+    <h3>10.2 对 EvidLife-Map 的核心 takeaway</h3>
+    <ol>
+      <li><b>不要 fork nvblox</b>——LayerCake 已经提供"用户定义 voxel content struct → 编译期生成 hash grid + GPU kernel template"的机制，我们只需写 EvidentialVoxel struct + EvidentialIntegrator；</li>
+      <li><b>EvidentialLayer 与 TSDF / ESDF 共享坐标系</b>——cross-layer query 在 GPU 上 zero-copy；</li>
+      <li><b>per-block memory 警觉</b>：C=20 时 EvidentialVoxel 44 KB/block，比 TSDF 大 11×；C=100 时 204 KB/block——必须做 ablation；</li>
+      <li><b>incremental decay 蹭 nvblox 的 invalidate-children 机制</b>——voxel decay 到阈值以下可以触发 ESDF re-compute，避免显式清理 loop。</li>
+    </ol>
+
+    <h3>10.3 实现注意（R2 response 直接照用）</h3>
+    <ul>
+      <li>基于 <code>github.com/nvidia-isaac/nvblox</code> v0.0.5+（ICRA 2024 版本）；</li>
+      <li>添加 EvidentialLayer，voxel content = α[C] + ts + pose_idx；</li>
+      <li>integrator 顺序：Tsdf → Color → Evidential → ESDF → Mesh；</li>
+      <li>分辨率与 ConvBKI baseline 对齐 0.2 m；</li>
+      <li>Jetson Xavier 测试以证 onboard 可行性。</li>
+    </ul>
+  </section>
+
+  <footer>
+    <p>📄 论文：<i>nvblox: GPU-Accelerated Incremental Signed Distance Field Mapping</i><br>
+    🏢 IEEE ICRA 2024 · arXiv:2311.00626v2<br>
+    👥 A. Millane, H. Oleynikova, E. Wirbel, R. Steiner, V. Ramasamy, D. Tingdahl, R. Siegwart<br>
+    📅 精读报告生成日期：2026-05-28 · 由 paper_reader_agent 基于原文逐节重写 · 为 EvidLife-Map R2 SDF backbone 准备</p>
+  </footer>
+
+</div>
+
+</body>
+</html>

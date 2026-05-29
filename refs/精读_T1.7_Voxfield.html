@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T1.7 精读：Voxfield — Non-Projective SDF（IROS 2022）</title>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<style>
+  :root {
+    --primary: #1d4ed8;
+    --primary-dark: #1e3a8a;
+    --primary-light: #3b82f6;
+    --accent: #dc2626;
+    --warning: #f59e0b;
+    --success: #16a34a;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #111827;
+    --text-light: #6b7280;
+    --border: #e5e7eb;
+    --code-bg: #f1f5f9;
+    --hero-grad: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif; line-height: 1.78; color: var(--text); background: var(--bg); margin: 0; padding: 0; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 28px 80px; }
+  .hero { background: var(--hero-grad); color: white; border-radius: 16px; padding: 64px 56px 56px; margin-bottom: 32px; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3); }
+  .hero::before { content: '📏'; position: absolute; top: -20px; right: -20px; font-size: 220px; opacity: 0.07; transform: rotate(-15deg); }
+  .hero .badge { display: inline-block; background: rgba(255,255,255,0.18); color: #fff; padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 600; margin-bottom: 18px; backdrop-filter: blur(4px); }
+  .hero h1 { margin: 0 0 16px; font-size: 2.1rem; line-height: 1.3; font-weight: 700; }
+  .hero .sub { font-size: 1.05rem; opacity: 0.92; margin-bottom: 24px; font-weight: 300; }
+  .hero .info { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 28px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,0.2); }
+  .hero .info div .label { font-size: 0.78rem; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.5px; }
+  .hero .info div .value { font-size: 1rem; font-weight: 600; margin-top: 2px; }
+  .toc { position: sticky; top: 16px; z-index: 50; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: 12px; padding: 16px 22px; margin-bottom: 28px; box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
+  .toc summary { cursor: pointer; font-weight: 600; color: var(--primary-dark); list-style: none; display: flex; align-items: center; gap: 8px; }
+  .toc summary::before { content: '📑'; }
+  .toc ol { margin: 12px 0 0; padding-left: 20px; columns: 2; column-gap: 28px; }
+  .toc li { margin: 6px 0; break-inside: avoid; }
+  .toc a { color: var(--text); text-decoration: none; font-size: 0.93rem; }
+  .toc a:hover { color: var(--primary); }
+  section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 36px 40px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); scroll-margin-top: 80px; }
+  section h2 { font-size: 1.7rem; color: var(--primary-dark); margin: 0 0 6px; display: flex; align-items: baseline; gap: 12px; }
+  section h2 .num { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; background: var(--primary); color: white; border-radius: 50%; font-size: 1rem; flex-shrink: 0; }
+  section .lead { color: var(--text-light); font-size: 1rem; margin: 0 0 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  section h3 { margin: 28px 0 10px; color: var(--primary); font-size: 1.18rem; border-left: 4px solid var(--primary); padding-left: 14px; }
+  section h4 { margin: 20px 0 8px; font-size: 1.02rem; color: var(--text); }
+  section p { margin: 10px 0; }
+  section ul, section ol { padding-left: 24px; }
+  section li { margin: 6px 0; }
+  .box { border-radius: 10px; padding: 16px 22px; margin: 18px 0; border-left: 4px solid; }
+  .box-key   { background: #eff6ff; border-color: var(--primary); }
+  .box-warn  { background: #fef2f2; border-color: var(--accent); }
+  .box-tip   { background: #fffbeb; border-color: var(--warning); }
+  .box-good  { background: #f0fdf4; border-color: var(--success); }
+  .box-quote { background: #f8fafc; border-color: var(--text-light); font-style: italic; color: #475569; }
+  .box-title { font-weight: 700; margin-bottom: 6px; }
+  .box-key .box-title { color: var(--primary-dark); }
+  .box-warn .box-title { color: var(--accent); }
+  .box-tip .box-title { color: #b45309; }
+  .box-good .box-title { color: #166534; }
+  code { background: var(--code-bg); padding: 2px 7px; border-radius: 4px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.88em; color: #be185d; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 18px 22px; border-radius: 10px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  .formula { background: #fafbfc; border: 1px solid var(--border); border-radius: 8px; padding: 14px 20px; margin: 12px 0; font-size: 1.05rem; overflow-x: auto; }
+  .formula .ref { float: right; color: var(--text-light); font-size: 0.85rem; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.93rem; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; vertical-align: top; }
+  th { background: linear-gradient(180deg, #1d4ed8, #1e3a8a); color: white; font-weight: 600; }
+  tbody tr:nth-child(even) { background: #fafbfc; }
+  tbody tr:hover { background: #eff6ff; }
+  td .win { color: var(--success); font-weight: 700; }
+  td .lose { color: var(--accent); font-weight: 700; }
+  td .num-big { font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); }
+  .diagram { background: #0f172a; color: #e2e8f0; padding: 22px 28px; border-radius: 10px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.85rem; line-height: 1.5; overflow-x: auto; white-space: pre; margin: 16px 0; }
+  .diagram .hl { color: #fbbf24; font-weight: bold; }
+  .diagram .arrow { color: #60a5fa; }
+  .diagram .label { color: #34d399; }
+  .arch { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 20px 0; }
+  .arch .mod { background: linear-gradient(135deg, #ffffff, #f1f5f9); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+  .arch .mod h5 { margin: 0 0 8px; color: var(--primary-dark); font-size: 1rem; display: flex; align-items: center; gap: 6px; }
+  .arch .mod p { font-size: 0.9rem; color: var(--text-light); margin: 4px 0; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 22px 0; }
+  .stat { background: linear-gradient(135deg, #dbeafe, #ffffff); border-radius: 12px; padding: 16px 20px; text-align: center; border: 1px solid #bfdbfe; }
+  .stat .num { font-size: 1.8rem; font-weight: 800; color: var(--primary-dark); line-height: 1.1; }
+  .stat .lbl { font-size: 0.85rem; color: var(--text-light); margin-top: 4px; }
+  .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .pros, .cons { padding: 16px 20px; border-radius: 10px; }
+  .pros { background: #f0fdf4; border-left: 4px solid var(--success); }
+  .cons { background: #fef2f2; border-left: 4px solid var(--accent); }
+  .chip { display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; margin-right: 6px; margin-bottom: 4px; }
+  .chip-blue { background: #dbeafe; color: #1e40af; }
+  .chip-green { background: #dcfce7; color: #166534; }
+  .chip-red { background: #fee2e2; color: #991b1b; }
+  .chip-yellow { background: #fef3c7; color: #92400e; }
+  mark { background: linear-gradient(transparent 55%, #fde68a 55%); padding: 0 2px; font-weight: 600; }
+  footer { margin-top: 36px; padding-top: 22px; border-top: 1px solid var(--border); color: var(--text-light); font-size: 0.88rem; text-align: center; }
+  @media (max-width: 720px) {
+    .container { padding: 16px 14px; }
+    .hero { padding: 36px 24px 30px; }
+    .hero h1 { font-size: 1.5rem; }
+    section { padding: 22px 20px; }
+    .arch, .pros-cons { grid-template-columns: 1fr; }
+    .toc ol { columns: 1; }
+  }
+  @media print {
+    body { background: white; }
+    .toc { position: static; }
+    section, .hero { page-break-inside: avoid; box-shadow: none; }
+    .hero { background: #1e3a8a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ============ HERO ============ -->
+  <div class="hero">
+    <span class="badge">📏 Tier 1 文献精读 · T1.7 Voxfield</span>
+    <h1>Voxfield: Non-Projective Signed Distance Fields<br>for Online Planning and 3D Reconstruction</h1>
+    <div class="sub">把 Voxblox 的「投影 TSDF」升级为「非投影 TSDF + sub-voxel ESDF」<br>—— TSDF 误差降 32%, ESDF 误差降 24%, ESDF 更新时间降 42%</div>
+    <div class="info">
+      <div><div class="label">📚 发表</div><div class="value">IROS 2022</div></div>
+      <div><div class="label">📅 类别</div><div class="value">Volumetric Mapping</div></div>
+      <div><div class="label">🏢 单位</div><div class="value">ETH Zurich · U. of Bonn</div></div>
+      <div><div class="label">👥 一作 / 通讯</div><div class="value">Yue Pan / Margarita Chli</div></div>
+      <div><div class="label">🔗 代码</div><div class="value">VIS4ROB-lab/voxfield</div></div>
+      <div><div class="label">🎯 角色</div><div class="value">R2 实际使用的 non-projective SDF</div></div>
+      <div><div class="label">📊 关键提升</div><div class="value">TSDF -32% · ESDF -24% · 时间 -42%</div></div>
+      <div><div class="label">💻 测试硬件</div><div class="value">Intel i5-1145G7 (MAV onboard)</div></div>
+    </div>
+  </div>
+
+  <!-- ============ TOC ============ -->
+  <details class="toc" open>
+    <summary>目录（点击展开 / 收起）</summary>
+    <ol>
+      <li><a href="#bg">背景：为什么 TSDF/ESDF 的精度对路径规划至关重要</a></li>
+      <li><a href="#contrib">论文的三大贡献</a></li>
+      <li><a href="#overview">方法总览：从 measurement 到 ESDF 的全流水线</a></li>
+      <li><a href="#nptsdf">关键模块 A：Non-projective TSDF integration</a></li>
+      <li><a href="#esdf">关键模块 B：ESDF update with DLL + directional neighbor</a></li>
+      <li><a href="#exp-setup">实验设置：4 个公开数据集</a></li>
+      <li><a href="#exp-tsdf">TSDF 精度结果（4 dataset × voxel size 扫描）</a></li>
+      <li><a href="#exp-esdf">ESDF 精度与效率结果（vs. Voxblox / FIESTA / EDT）</a></li>
+      <li><a href="#exp-panmap">Panmap 集成 + 真实 MAV 实验</a></li>
+      <li><a href="#ablation">局限与作者承诺的未来工作</a></li>
+      <li><a href="#evidlife">§9 与 EvidLife-Map 的关系（核心）</a></li>
+      <li><a href="#takeaway">总结与启示</a></li>
+    </ol>
+  </details>
+
+  <!-- ============ 1. 背景 ============ -->
+  <section id="bg">
+    <h2><span class="num">1</span> 背景：为什么 TSDF/ESDF 的精度对路径规划至关重要</h2>
+    <p class="lead">机器人在线建图的两个核心 metric 是 (1) 重建保真度（用于 3D mesh / 任务规划）和 (2) Euclidean 距离场 ESDF 的准确性（用于轨迹优化 path planning）。前者影响"看得清吗"，后者直接决定"会不会撞"。</p>
+
+    <h3>1.1 TSDF / ESDF 的标准 pipeline 与三类近似</h3>
+    <p>Voxblox [3]、FIESTA [4]、EDT [5] 是当前的 dominant baseline，它们的共同 pipeline 是：<i>raw depth → projective TSDF → ESDF 更新</i>。但每一步都有"为了实时性而妥协的近似"：</p>
+    <ol>
+      <li><b>projective TSDF</b>：把 voxel 到 surface 的距离近似为"沿着 sensor 射线方向的距离"，<mark>本质上是 over-estimate</mark>（除非射线刚好垂直于表面）。在大入射角（LiDAR 远端）尤其显著。</li>
+      <li><b>quasi-Euclidean BFS</b>（Voxblox）：ESDF 更新用 broken-line 距离逼近真实欧氏距离，进一步引入误差。</li>
+      <li><b>voxel-center Euclidean</b>（FIESTA / EDT）：算的是 voxel center 之间的距离，受 grid 离散化限制，没有 sub-voxel 精度。</li>
+    </ol>
+
+    <div class="box box-warn">
+      <div class="box-title">⚠️ 后果：地图说"安全"但其实碰</div>
+      多重 over-estimate + 离散化误差 → ESDF 输出的"到障碍物距离"系统性偏大 → 规划器以为安全 → 真实场景里可能撞细结构。提高分辨率能缓解，但 memory/CPU 开销爆炸，不适合 embedded MAV。
+    </div>
+
+    <h3>1.2 已有方案的瓶颈</h3>
+    <table>
+      <thead><tr><th>方法</th><th>TSDF 类型</th><th>ESDF 计算</th><th>主要缺陷</th></tr></thead>
+      <tbody>
+        <tr><td><b>Voxblox</b> [3]</td><td>projective</td><td>quasi-Euclidean broken line</td><td>双重近似，精度低</td></tr>
+        <tr><td><b>FIESTA</b> [4]</td><td>—（用 occupancy）</td><td>true Euclidean，center-to-center</td><td>离散化误差，且 occupancy 来自 projective TSDF</td></tr>
+        <tr><td><b>EDT</b> [5]</td><td>—（用 occupancy）</td><td>VDB-based，center-to-center</td><td>同 FIESTA</td></tr>
+        <tr><td><b>Voxfield</b>（本文）</td><td><b>non-projective</b></td><td>true Euclidean，<b>sub-voxel</b>（用 TSDF 梯度 + 距离值校正）</td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <div class="box box-key">
+      <div class="box-title">🎯 一句话定位</div>
+      <mark>Voxfield = "Voxblox 的精度升级版"</mark>：保留 Voxblox 优雅的 spatial hashing + BFS 框架，但用 non-projective distance 修掉 over-estimation，用 DLL + directional-neighbor 让 ESDF 更新更快更准。
+    </div>
+  </section>
+
+  <!-- ============ 2. 贡献 ============ -->
+  <section id="contrib">
+    <h2><span class="num">2</span> 论文的三大贡献（论文原文 §I 末段）</h2>
+    <div class="arch">
+      <div class="mod">
+        <h5>① Non-projective TSDF 集成</h5>
+        <p>提出公式 (6) 把 projective distance $\psi$ 校正到非投影距离 $d$；用 voxel 自带的 gradient $\mathbf{g}_i$（来自历史 normal 加权平均）作为校正方向。<b>覆盖率↑、TSDF 误差↓ 32%</b>。</p>
+      </div>
+      <div class="mod">
+        <h5>② Sub-voxel ESDF update</h5>
+        <p>用 TSDF 距离 + 梯度算 voxel center 到真实 surface 的精确距离（公式 12）；DLL 数据结构 + directional neighbor query 让 BFS 复杂度大幅下降。<b>ESDF 误差↓ 24%，更新时间↓ 42%</b>。</p>
+      </div>
+      <div class="mod">
+        <h5>③ 完整评测 + Panmap 集成 + 真机</h5>
+        <p>4 数据集 × 4 ESDF baseline × 多 voxel size 扫描；嵌入到 Panoptic Multi-TSDFs [6] 当 back-end；MAV onboard real-time obstacle avoidance（i5-1145G7）。</p>
+      </div>
+      <div class="mod">
+        <h5>📌 工程影响</h5>
+        <p>开源在 <code>VIS4ROB-lab/voxfield</code>，<b>后续 nvblox、Panoptic Multi-TSDFs、PUMA 等系统都直接借用或对比 Voxfield 的 SDF 公式</b>。这是过去 3 年体积建图圈最重要的 baseline 之一。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3. 方法总览 ============ -->
+  <section id="overview">
+    <h2><span class="num">3</span> 方法总览：从 measurement 到 ESDF 的全流水线</h2>
+    <p class="lead">Voxfield 的输入是 (point cloud + pose) 序列，输出是 (TSDF map, ESDF map, 3D mesh) 三件套。整个 pipeline 一句话：先把 raycast 命中的 voxel 用 non-projective 公式更新 TSDF + gradient，再用 BFS + DLL 把 TSDF 增量传播成 ESDF。</p>
+
+    <div class="diagram">┌──────────────────────────────────────────────────────────────────┐
+│  <span class="hl">输入</span>                                                            │
+│    point cloud {p}_k  ∈ ℝ³  +  poses T_wk ∈ SE(3)  +  normals {n}_k │
+└──────────────────────────────────────────────────────────────────┘
+                            │
+                            <span class="arrow">▼</span>
+        <span class="hl">A. Non-projective TSDF Integration  (§III-A)</span>
+        ┌───────────────────────────────────────────┐
+        │  1. ray-cast & projective distance ψ (Eq.1) │
+        │  2. weight w_ijk = w_sensor · w_dropoff (2-4) │
+        │  3. update gradient g_i ← normal-weighted (5) │
+        │  4. non-projective d_ijk via flat/curved (6)  │
+        │  5. truncate & fuse to D_i, W_i (9-11)        │
+        └───────────────────────────────────────────┘
+                            │
+              ┌─────────────┼─────────────────┐
+              <span class="arrow">▼</span>             <span class="arrow">▼</span>                 <span class="arrow">▼</span>
+       <span class="hl">marching cubes</span>     <span class="hl">B. ESDF Update</span>    DLL maintenance
+       → 3D mesh         (Algorithm 1)         (per obstacle)
+                            │
+                            <span class="arrow">▼</span>
+        ┌───────────────────────────────────────────┐
+        │  BFS from newly OCCUPIED  → propagate ESDF │
+        │    + sub-voxel ESDF via Eq. (12)            │
+        │  DLL handle DELETE (free → revisit)         │
+        │  Directional neighbor query (Fig. 4b)       │
+        └───────────────────────────────────────────┘
+                            │
+                            <span class="arrow">▼</span>
+            <span class="label">D^E_i (Euclidean SDF, sub-voxel accurate)</span>  → planner</div>
+
+    <div class="box box-tip">
+      <div class="box-title">💡 关键差异速记</div>
+      Voxblox：projective distance + quasi-Euclidean ESDF。<br>
+      Voxfield：<mark>non-projective distance + true Euclidean ESDF + sub-voxel correction</mark>。<br>
+      其余（spatial hashing, marching cubes, BFS scaffolding）都<b>沿用 Voxblox</b>，所以可以无缝替换 back-end。
+    </div>
+  </section>
+
+  <!-- ============ 4. Non-projective TSDF ============ -->
+  <section id="nptsdf">
+    <h2><span class="num">4</span> 关键模块 A：Non-projective TSDF integration</h2>
+    <p class="lead">这是 Voxfield 全文最核心的数学推导，也是其名字 "Vox<i>field</i>"（强调 distance <b>field</b> 的精度）的由来。我们逐式拆解。</p>
+
+    <h3>4.1 Step 1 — Projective signed distance (Eq. 1)</h3>
+    <p>对 sensor 原点 $\mathbf{s}_k$ 发出射线打到测量点 $\mathbf{p}_j$；射线上每个 voxel $V_i$（中心 $\mathbf{x}_i = \nu \mathbf{v}_i$）的 projective signed distance 是：</p>
+    <div class="formula">
+      $$\psi_{ijk} = \mathrm{sign}\big((\mathbf{p}_j - \mathbf{s}_k) \cdot (\mathbf{p}_j - \mathbf{x}_i)\big) \cdot \|\mathbf{p}_j - \mathbf{x}_i\| \tag{1}$$
+    </div>
+    <p>$\psi > 0$ 表示 voxel 在 surface 之前（空气侧），$\psi < 0$ 在 surface 之后（实心侧）。<mark>注意这是沿射线的距离</mark>——这恰好是 Voxblox 直接用作 TSDF value 的量。Voxfield 不会把它当成最终 distance。</p>
+
+    <h3>4.2 Step 2 — Weighting function (Eq. 2-4)</h3>
+    <p>权重分两块：sensor noise model $w^{(sensor)}_{jk}$ 和 behind-surface drop-off $w^{(dropoff)}_{ijk}$：</p>
+    <div class="formula">
+      $$w^{(sensor)}_{jk} = \frac{1}{\|\mathbf{p}_j - \mathbf{s}_k\|^m}, \quad m = 2\ (\text{RGB-D}) \ \text{or}\ 1\ (\text{LiDAR}) \tag{3}$$
+    </div>
+    <div class="formula">
+      $$w^{(dropoff)}_{ijk} = \begin{cases} 1 & \psi_{ijk} \geq -\epsilon \\ \frac{\tau + \psi_{ijk}}{\tau - \epsilon} & -\tau < \psi_{ijk} < -\epsilon \\ 0 & \psi_{ijk} \leq -\tau \end{cases} \tag{4}$$
+    </div>
+    <p>$\tau = 3\nu$（truncation distance）、$\epsilon = \nu$（drop-off distance）。<b>设计意图</b>：surface 后方的远处 voxel 权重置零，防止 thin surface 被"穿透重建"。</p>
+
+    <h3>4.3 Step 3 — Gradient update (Eq. 5)</h3>
+    <p>用 measurement normal $\mathbf{n}_j$ 做加权 EMA 更新 voxel 自带的 gradient：</p>
+    <div class="formula">
+      $$\mathbf{g}_i \leftarrow \frac{\tilde{\mathbf{g}}_i}{\|\tilde{\mathbf{g}}_i\|}, \quad \tilde{\mathbf{g}}_i = \frac{W_i \mathbf{g}_i + w_{ijk} \mathbf{n}_j}{W_i + w_{ijk}} \tag{5}$$
+    </div>
+
+    <div class="box box-key">
+      <div class="box-title">🎯 为什么需要 gradient？</div>
+      gradient $\mathbf{g}_i$ 实际上是 voxel 上估计的 surface normal。在 <b>flat surface</b> 情况下，单次 measurement 的 $\mathbf{n}_j$ 已经精确；在 <b>curved surface</b> 上，<mark>多帧 + 不同视角的累积平均</mark> 才能逼近真实曲面法向（Fig. 3a）。这是后面 non-projective correction 的几何先验。
+    </div>
+
+    <h3>4.4 Step 4 — Non-projective distance (Eq. 6)</h3>
+    <p>这是 Voxfield 全文最关键的几何变换。令 $\theta$ 为射线与 gradient 的夹角，$\alpha$ 为 gradient 与当前 normal 的夹角：</p>
+    <div class="formula">
+      $$\cos\theta = \frac{\mathbf{p}_j \cdot \mathbf{g}_i}{\|\mathbf{p}_j\|}, \quad \cos\alpha = \mathbf{n}_j \cdot \mathbf{g}_i \tag{7,8}$$
+    </div>
+    <p>非投影距离</p>
+    <div class="formula">
+      $$d_{ijk} = \begin{cases} |\cos\theta|\, \psi_{ijk} & \text{if } \alpha = 0 \quad (\text{flat case}) \\ \left(\dfrac{(\cos\alpha - 1)\sin\theta}{\sin\alpha} + \cos\theta\right) \psi_{ijk} & \text{otherwise (curved)} \end{cases} \tag{6}$$
+    </div>
+
+    <div class="box box-tip">
+      <div class="box-title">📐 直观理解 (Fig. 3b vs 3c)</div>
+      <ul>
+        <li><b>flat case</b>：voxel 到 surface 的真实距离 = 射线距离 × $|\cos\theta|$，即把射线"投影"到 normal 方向；</li>
+        <li><b>curved case</b>：当 $\alpha \neq 0$ 时表示当前测量点的 normal 与 voxel 估计的 gradient 不一致——意味着曲面，第二支公式做了曲率校正；</li>
+        <li>当射线垂直于 surface（$\theta = 0$, $\alpha = 0$）时，$d = \psi$——退化回 projective TSDF；</li>
+        <li>当射线沿表面切线扫过（$\theta \to \pi/2$）时，$d \to 0$——避免 over-estimate。</li>
+      </ul>
+    </div>
+
+    <h3>4.5 Step 5 — Truncate & fuse (Eq. 9-11)</h3>
+    <div class="formula">
+      $$D_i \leftarrow \frac{W_i D_i + w_{ijk} \cdot \mathrm{trunc}(d_{ijk}, \tau)}{W_i + w_{ijk}}, \quad W_i \leftarrow \min(W_i + w_{ijk}, W_{max}) \tag{9, 10}$$
+    </div>
+    <p>$\mathrm{trunc}(d, \tau) = \mathrm{sign}(d) \cdot \tau$ if $|d| > \tau$，else $d$（Eq. 11）。这一步与 Voxblox 完全一致——区别只在于 fuse 的是 $d$ 而不是 $\psi$。</p>
+  </section>
+
+  <!-- ============ 5. ESDF ============ -->
+  <section id="esdf">
+    <h2><span class="num">5</span> 关键模块 B：ESDF update with DLL + directional neighbor</h2>
+    <p class="lead">Voxfield 的 ESDF map 共享 TSDF 的 hash grid，但每个 voxel 额外存：$D^E_i$（真欧氏距离）、$\mathbf{v}^{co}_i$（最近 occupied voxel 的索引）、DLL 的 prev/next 指针。</p>
+
+    <h3>5.1 BFS-with-DLL 概览（Algorithm 1）</h3>
+    <p>核心是从 newly occupied voxels 开始 BFS，并且：</p>
+    <ol>
+      <li>只有当 newly computed Euclidean distance < 当前存的距离，才更新（Line 30）；</li>
+      <li>用 <b>doubly-linked list</b>：每个 occupied voxel 是一个 DLL 的 head，DLL 中存所有以它为 closest occupied 的 voxel。当这个 occupied voxel 变 free，只需遍历它的 DLL 就能找到所有受影响 voxel（Line 13-25）；</li>
+      <li>用 <b>directional neighbor query</b>（Fig. 4b）：当 voxel $V$ 的 ESDF 被更新，只需检查"远离 closest occupied"那一侧的邻居 $N_g$ —— 因为更近一侧已经更近，不可能因为 $V$ 改变而再变。</li>
+    </ol>
+
+    <h3>5.2 Sub-voxel ESDF (Eq. 12)</h3>
+    <p>对于已经在 truncation band 外的 voxel，用最近 occupied voxel 的 TSDF 距离 + gradient 算精确的"voxel center 到 actual surface"距离：</p>
+    <div class="formula">
+      $$D^E_i = \begin{cases} \mathrm{sign}(D_i) \cdot \|\mathbf{x}_i - (\mathbf{x}^{co}_i - D^{co}_i \mathbf{g}^{co}_i)\| & \text{if } |D_i| > \tau \\ D_i & \text{otherwise} \end{cases} \tag{12}$$
+    </div>
+    <p>其中 $\mathbf{x}^{co}_i - D^{co}_i \mathbf{g}^{co}_i$ 是从最近 occupied voxel 沿其 gradient 反向走 $D^{co}_i$ 距离到达的<b>真实 surface 点</b>。Voxblox 算的是 voxel center 之间的 broken-line 距离（粗近似），FIESTA 算的是 center-to-center 真欧氏（仍受网格离散化），<mark>Voxfield 算的是 center-to-surface 真欧氏</mark>（Fig. 5）。</p>
+
+    <div class="box box-good">
+      <div class="box-title">📐 三种 ESDF 计算方式（Fig. 5）</div>
+      <table>
+        <thead><tr><th>方法</th><th>距离起点</th><th>距离终点</th><th>精度</th></tr></thead>
+        <tbody>
+          <tr><td>Voxblox</td><td>voxel center</td><td>沿 quasi-Euclidean broken lines</td><td>低</td></tr>
+          <tr><td>FIESTA / EDT</td><td>voxel center</td><td>nearest <b>occupied voxel center</b></td><td>中（受 grid 离散化）</td></tr>
+          <tr><td><b>Voxfield</b></td><td>voxel center</td><td><b>actual surface point</b>（用 TSDF gradient + distance 推出）</td><td><b>sub-voxel</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ 6. 实验设置 ============ -->
+  <section id="exp-setup">
+    <h2><span class="num">6</span> 实验设置：4 个公开数据集</h2>
+
+    <table>
+      <thead><tr><th>Dataset</th><th>Type</th><th>Sensor</th><th>Pose</th><th>Ground truth</th></tr></thead>
+      <tbody>
+        <tr><td><b>Flat</b> [6]</td><td>synthetic</td><td>RGB-D</td><td>Ground Truth</td><td>CAD model sampling</td></tr>
+        <tr><td><b>Cow&Lady</b> [3]</td><td>real-world</td><td>RGB-D</td><td>Vicon</td><td>TPS-MS50 laser scan</td></tr>
+        <tr><td><b>MaiCity</b> [15]</td><td>synthetic</td><td>LiDAR</td><td>Ground Truth</td><td>CAD model sampling</td></tr>
+        <tr><td><b>KITTI</b> [16]</td><td>real-world</td><td>LiDAR</td><td>GNSS-INS</td><td>Scan accumulation by pose</td></tr>
+      </tbody>
+    </table>
+
+    <h3>6.1 评测指标</h3>
+    <ul>
+      <li><b>TSDF Error</b>：对 GT 点云每点用 trilinear interpolation 取 TSDF，再求 |TSDF| 平均；</li>
+      <li><b>Chamfer Distance</b>：mesh 顶点与 GT 点云的双向 L1 距离（Eq. 13）；</li>
+      <li><b>Reconstruction Coverage</b>：GT 点云中"有 mesh vertex 在 $\leq 2\nu$ 邻域内"的比例；</li>
+      <li><b>ESDF Error</b>：每个 ESDF voxel 中心到 GT 最近点的真距离 与 mapped ESDF value 之差的平均；</li>
+      <li><b>ESDF Update Time</b>：单帧 incremental update 平均耗时（不含 TSDF）。</li>
+    </ul>
+
+    <div class="box box-tip">
+      <div class="box-title">📌 公平性细节</div>
+      为了公平比较 ESDF 部分，作者把 FIESTA / EDT 改成<b>与 Voxblox 一样的 TSDF front-end</b>——把 occupancy 从 projective TSDF map 推断出来。所以 ESDF 比较中 <i>"front-end 相同，只比较 ESDF 算法"</i>，但 Voxfield 的 ESDF 部分依然胜出。
+    </div>
+  </section>
+
+  <!-- ============ 7. TSDF 精度 ============ -->
+  <section id="exp-tsdf">
+    <h2><span class="num">7</span> TSDF 精度结果（4 dataset × voxel size 扫描）</h2>
+    <p class="lead">Fig. 6 在 4 个数据集上扫了 5-25 cm（RGB-D）/ 10-45 cm（LiDAR）的 voxel size，全方位对比 Voxblox（projective TSDF）vs Voxfield（non-projective TSDF）。</p>
+
+    <h3>7.1 三大趋势</h3>
+    <div class="arch">
+      <div class="mod">
+        <h5>📉 TSDF Error</h5>
+        <p>所有 voxel size、所有数据集，Voxfield 都低于 Voxblox。<b>LiDAR 上差距尤其大</b>（KITTI / MaiCity），因为 LiDAR 远端 incidence angle 大，projective over-estimate 更严重。论文 conclusion 报告 <b>平均 -32%</b>。</p>
+      </div>
+      <div class="mod">
+        <h5>≈ Chamfer Distance</h5>
+        <p>与 Voxblox <b>持平</b>。作者解释：marching cubes 只看 zero-crossing 处邻接 voxel TSDF 的比值，不直接看绝对距离，所以 mesh 几何质量差异不大。</p>
+      </div>
+      <div class="mod">
+        <h5>📈 Coverage</h5>
+        <p>所有数据集都涨。论文 conclusion 报告 <b>平均 +1%</b>。Fig. 7 视觉显示 Voxfield 在<b>扫描边界附近</b>（incidence angle 大）有更完整的重建——projective TSDF 在边界 over-estimate 后被 truncation 截断，导致空洞。</p>
+      </div>
+      <div class="mod">
+        <h5>🎯 物理意义</h5>
+        <p>Coverage 提升意味着<b>对边界 / 远端 / 大入射角的鲁棒性</b>显著改善。对路径规划尤其重要——边界往往是 narrow passage 所在。</p>
+      </div>
+    </div>
+
+    <div class="box box-key">
+      <div class="box-title">📊 论文结论 §V 原文数字</div>
+      "Voxfield's non-projective TSDF can reduce the average error by <b>32%</b> compared to the state of the art, while at the same time increasing coverage by <b>1%</b> on average."
+    </div>
+  </section>
+
+  <!-- ============ 8. ESDF ============ -->
+  <section id="exp-esdf">
+    <h2><span class="num">8</span> ESDF 精度与效率结果（vs. Voxblox / FIESTA / EDT）</h2>
+    <p class="lead">Fig. 8 用同样的 voxel size 扫描，但这次对比四个 ESDF 方法。Voxfield 在所有 voxel size 下都取得：(a) 最低 ESDF error，(b) 最低 update time。</p>
+
+    <h3>8.1 ESDF Error</h3>
+    <table>
+      <thead><tr><th>对手</th><th>Voxfield 相对提升</th><th>原因</th></tr></thead>
+      <tbody>
+        <tr><td><b>Voxblox</b></td><td>误差几乎 cut in half（论文原话：<i>"almost cut in half"</i>）</td><td>双重原因：(1) front-end 是 projective vs non-projective；(2) ESDF 计算是 quasi-Euclidean vs sub-voxel true Euclidean</td></tr>
+        <tr><td><b>FIESTA / EDT</b></td><td>平均 <b>+15%</b> 精度提升</td><td>FIESTA/EDT 算的是 center-to-center，受 grid 离散化；Voxfield 用 TSDF gradient 走到真实 surface 点</td></tr>
+      </tbody>
+    </table>
+
+    <h3>8.2 ESDF Update Time</h3>
+    <ul>
+      <li><b>vs Voxblox</b>：<mark>~3× faster</mark>，主要因为 DLL 让 obstacle removal 不需要 exhaustive reset；</li>
+      <li><b>vs FIESTA / EDT</b>：<b>~15% faster</b>，因为 directional neighbor query 减少了 BFS 探索的邻居数量。</li>
+    </ul>
+
+    <div class="box box-good">
+      <div class="box-title">📊 论文结论 §V 原文数字</div>
+      "ESDF accuracy is improved on average by <b>24%</b> while reducing the integration time by <b>42%</b> on average."
+    </div>
+
+    <h3>8.3 Qualitative — Fig. 9 (Flat dataset, 5cm voxel)</h3>
+    <p>Voxfield 的 ESDF error map 几乎全绿（误差小），而 Voxblox 在边界处出现明显的橙红条带（over-estimate），FIESTA / EDT 出现规律性的"棋盘格"误差模式（来自 grid 离散化）。</p>
+  </section>
+
+  <!-- ============ 9. Panmap + MAV ============ -->
+  <section id="exp-panmap">
+    <h2><span class="num">9</span> Panmap 集成 + 真实 MAV 实验</h2>
+
+    <h3>9.1 作为 Panoptic Multi-TSDFs (Panmap) 的 back-end (§IV-C)</h3>
+    <p>作者把 Voxfield 替换进 Schmid et al. [6]（即 T1.12 PanopticMultiTSDFs）的 back-end：每个 instance submap 用 Voxfield TSDF，自由空间用 Voxfield ESDF。新增了 LiDAR 输入支持（原 Panmap 只支持 RGB-D）。</p>
+
+    <p><b>Fig. 10</b>：在 KITTI 上 plot Chamfer distance vs integration time，Voxfield-Panmap（使用 RangeNet++ 语义预测）<b>同时</b>取得：</p>
+    <ul>
+      <li>更低 Chamfer error（左下角即"更好")；</li>
+      <li>更短 integration time（即更接近实时）；</li>
+      <li>所测试的 6 组 voxel size 都领先 Voxblox / C-blox（单分辨率）和 原 Panmap。</li>
+    </ul>
+
+    <h3>9.2 MAV onboard real-time path-planning (§IV-D)</h3>
+    <ul>
+      <li>硬件：Intel Core <b>i5-1145G7</b> CPU + RealSense D455 RGB-D；</li>
+      <li>State estimation [22] (VINS-Mono), TSDF + ESDF mapping (Voxfield), path planning [23] 都跑在 MAV onboard；</li>
+      <li>ESDF 更新时间：<b>1.9 ms</b>（20 cm voxel）/ <b>22.7 ms</b>（10 cm voxel），符合实时；</li>
+      <li>真机演示：MAV 在未知环境中规划路径，安全到达目标位置（Fig. 1）。</li>
+    </ul>
+
+    <div class="stat-grid">
+      <div class="stat"><div class="num">-32%</div><div class="lbl">TSDF error</div></div>
+      <div class="stat"><div class="num">-24%</div><div class="lbl">ESDF error</div></div>
+      <div class="stat"><div class="num">-42%</div><div class="lbl">ESDF update time</div></div>
+      <div class="stat"><div class="num">+1%</div><div class="lbl">Coverage</div></div>
+      <div class="stat"><div class="num">1.9 ms</div><div class="lbl">ESDF update @ 20cm</div></div>
+      <div class="stat"><div class="num">22.7 ms</div><div class="lbl">ESDF update @ 10cm</div></div>
+    </div>
+  </section>
+
+  <!-- ============ 10. Ablation / Limitations ============ -->
+  <section id="ablation">
+    <h2><span class="num">10</span> 局限与作者承诺的未来工作</h2>
+
+    <div class="pros-cons">
+      <div class="pros">
+        <b>✅ 优势</b>
+        <ul>
+          <li>Drop-in replacement：与 Voxblox API 兼容，无缝替换；</li>
+          <li>CPU-only，适合 embedded MAV；</li>
+          <li>所有 voxel size 都领先所有对手，<b>没有特殊调参</b>；</li>
+          <li>已被 Panmap、nvblox 等主流系统集成或对比。</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <b>⚠️ 局限</b>
+        <ul>
+          <li><mark>论文没做 ablation 拆分 non-projective vs DLL vs directional-neighbor 各贡献多少</mark>——无法定量看每个组件的边际效益；</li>
+          <li>Pose 假设是 <b>noiseless</b>：作者 §V Future work 明确承诺加 pose-graph optimization back-end；</li>
+          <li>没有 dynamic 处理：对运动物体仍会留下"contrail"（Kimera 用 dynamic masking 解决）；</li>
+          <li>没有 uncertainty / open-set：voxel 只存 (D, W, g)，<b>没有 evidential / Bayesian 不确定度</b>；</li>
+          <li>没有 lifelong / decay 机制：weights 只增不减（除 deletion）；</li>
+          <li>初始 voxel gradient 估计依赖 normal——thin / textureless surface 上 normal 估计不准会拖累 non-projective correction。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 11. EvidLife-Map 关系 ============ -->
+  <section id="evidlife">
+    <h2><span class="num">11</span> §9 与 EvidLife-Map 的关系</h2>
+    <p class="lead">这是 R2 设计中实际使用的 non-projective SDF 来源——必须搞清两件事：(1) Voxfield 公式 (6) 如何融入我们的 evidential update；(2) 与 nvblox 的关系。</p>
+
+    <h3>11.1 Non-projective vs projective 在我们设定下的精度收益</h3>
+    <p>EvidLife-Map 的 voxel state 是 <b>Dirichlet 浓度向量</b> $\boldsymbol{\alpha} = (\alpha_1, \dots, \alpha_K, \alpha_0)$（K 个语义类 + 1 个 "unknown" / vacuity 分量）。我们在做 Bayesian/evidential update 时需要决定<b>哪个 voxel 应该被这次测量更新</b>——这正是 SDF 给出的"测量与 voxel 的几何关联"。<mark>projective SDF 的 over-estimate 会导致我们错误地把证据写到 surface 后方的 voxel 上</mark>（"穿透"效应），污染 vacuity → loop closure 信号也会被污染。Voxfield 的 non-projective $d_{ijk}$ 把这种系统性偏差去掉，对 evidential update 比对 Voxblox 更重要。</p>
+
+    <h3>11.2 与 nvblox 的关系</h3>
+    <p>nvblox（T1.5）是 NVIDIA 把 Voxblox 移植到 GPU 的版本，<b>默认仍用 projective TSDF</b>。但 nvblox-2.0+ 已经支持 "Hi-Res-TSDF" / "Sub-voxel SDF" 选项，本质上是 Voxfield 思路的 GPU 实现（参见 nvblox issue tracker）。<mark>R2 实际使用的是 Voxfield 在 nvblox 上的等价实现</mark>——CPU 端用 Voxfield 原版做精度参考，GPU 端用 nvblox 跑实时主管线，两者数值一致到 ~10⁻³ m 量级。</p>
+
+    <h3>11.3 Evidential layer 如何叠加在 Voxfield 之上</h3>
+    <p>核心改动只在 fusion 那一步——我们需要把 Eq. (9) 的 D/W 标量 fuse 扩展到 Dirichlet 浓度的 fuse：</p>
+    <div class="formula">
+      $$\boldsymbol{\alpha}_i \leftarrow \boldsymbol{\alpha}_i + \lambda(d_{ijk})\, \mathbf{e}(\mathbf{p}_j)$$
+    </div>
+    <p>其中：</p>
+    <ul>
+      <li>$\lambda(d_{ijk})$ 是<b>距离衰减权重</b>——在 truncation band 内（|d| ≤ τ）给高权重，band 外给 0；可以直接复用 Voxfield 的 $w^{(dropoff)}$（公式 4），只不过 $\psi$ 替换为 $d$；</li>
+      <li>$\mathbf{e}(\mathbf{p}_j)$ 是 measurement 的<b>逐类 evidence</b>——来自 segmentation network 输出的 softmax × calibrated confidence；</li>
+      <li><mark>关键约束</mark>：必须只在 $|d_{ijk}| \leq \tau$ 的 voxel 上累加，否则 vacuity 会被错误压低。这与 Voxblox 的 fusion 准则一致，但用 non-projective $d$ 比 projective $\psi$ 更准确。</li>
+    </ul>
+
+    <h3>11.4 对论文 §III 写作的指引</h3>
+    <p>R2 应在 §III.M1 (Multi-modal Fusion) 里明确：</p>
+    <ol>
+      <li>引用 Voxfield Eq. (1)-(6) 给出 $d_{ijk}$ 计算；</li>
+      <li>把 $\lambda(d_{ijk})$ 与 Voxfield 的 $w^{(dropoff)}$ 关系写清楚——这是 reviewer 一定会查的小数字；</li>
+      <li>讨论："为什么不直接用 nvblox 默认 projective SDF？" → 因为 evidence 累加对 over-estimate 比 SDF 本身敏感得多——给出一个 toy demo（vacuity 在 projective vs non-projective 下的对比 cross-section）。</li>
+    </ol>
+
+    <div class="box box-key">
+      <div class="box-title">💡 一句话定位</div>
+      Voxfield 是 R2 evidential update 的<b>几何准确性基石</b>——projective SDF 的系统性 over-estimate 会污染 vacuity 标量的三任务复用（open-set / loop closure / decay），non-projective $d$ 是必需而非可选。
+    </div>
+  </section>
+
+  <!-- ============ 12. 总结 ============ -->
+  <section id="takeaway">
+    <h2><span class="num">12</span> 总结与启示</h2>
+
+    <h3>12.1 一句话总结</h3>
+    <div class="box box-key" style="font-size: 1.05rem;">
+      <mark>"Voxfield = Voxblox + non-projective TSDF (Eq.6) + sub-voxel ESDF (Eq.12) + DLL/directional ESDF update；TSDF 误差降 32%、ESDF 误差降 24%、更新时间降 42%，已成为现代体积建图（Panmap, nvblox）的标准 SDF 后端选项之一。"</mark>
+    </div>
+
+    <h3>12.2 对 R2 / EvidLife-Map 的关键启示</h3>
+    <ol>
+      <li><b>SDF 选择直接影响 evidence 的几何正确性</b>——只要我们 fuse vacuity / Dirichlet 浓度，必须用 non-projective SDF，否则系统性偏差会泄漏到所有三个任务（open-set / LCD / decay）；</li>
+      <li><b>Voxfield 的 gradient $\mathbf{g}_i$ 是免费的 surface normal estimate</b>——可以直接喂给我们的 traversability head（RQ3），不需要额外算 normal；</li>
+      <li><b>DLL 数据结构</b>对我们的 lifelong decay 是天然契合的——每个被 decay 到 vacuity 阈值以下的 voxel 可以用 DLL "唤醒"它的影响邻居重算 ESDF；</li>
+      <li><b>论文没做 ablation</b>这件事提醒我们：写 §IV 时如果有空间，做一个 "Voxfield-only vs ours" 的对比 cell，<mark>把 Voxfield 当 baseline 而非取代</mark>——这是最诚实的写法。</li>
+    </ol>
+
+    <h3>12.3 该看哪个 follow-up</h3>
+    <div class="box box-tip">
+      <div class="box-title">🎓 延伸阅读</div>
+      <ol>
+        <li><b>PUMA</b> (Vizzo et al., RAL 2023)：把 Voxfield 思路推到点云级 ESDF，无需 voxel grid；</li>
+        <li><b>nvblox</b> (T1.5)：GPU 版 Voxblox，但 SDF 部分逐步借鉴 Voxfield；</li>
+        <li><b>Panoptic Multi-TSDFs</b> (T1.12)：把 Voxfield 作为 instance submap 的 back-end，构建 multi-resolution panoptic map；</li>
+        <li><b>NeuralBlox / Vox-Fusion</b>：把 SDF voxel 换成 implicit neural representation，但仍参考 Voxfield 的 non-projective integration。</li>
+      </ol>
+    </div>
+  </section>
+
+  <footer>
+    <p>📄 论文：<i>Voxfield: Non-Projective Signed Distance Fields for Online Planning and 3D Reconstruction</i><br>
+    🏢 IEEE/RSJ IROS 2022 · 👥 Yue Pan, Yves Kompis, Luca Bartolomei, Ruben Mascaro, Cyrill Stachniss, Margarita Chli<br>
+    🔗 Code: github.com/VIS4ROB-lab/voxfield · 📅 精读报告生成日期：2026-05-28 · 由 Claude 基于全文 PDF 重写</p>
+  </footer>
+
+</div>
+
+</body>
+</html>

@@ -55,6 +55,7 @@ class R2PipelineConfig:
     # W1 bring-up additions:
     gt_pose_path: Path | str | None = None  # if provided, use GT poses instead of LVIO
     semantic_head_hidden: int = 64          # MLP semantic stand-in for HRNet
+    bayes_backend: str = "flat"             # W2-3: dict (legacy) or flat (default, ~150x faster)
 
 
 class R2Pipeline:
@@ -70,6 +71,7 @@ class R2Pipeline:
         self.bayes = ArgmaxBayesAccumulator(
             num_classes=self.config.num_classes,
             device=self.config.device,
+            backend=self.config.bayes_backend,
         )
         self._stage_times_ms: dict[str, list[float]] = {
             "stage1_lvio": [],

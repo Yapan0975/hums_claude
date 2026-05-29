@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>精读 T1.10：OpenVox — Real-time Instance-level Open-vocabulary Probabilistic Voxel Representation</title>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<style>
+  :root {
+    --primary: #1d4ed8;
+    --primary-dark: #1e3a8a;
+    --primary-light: #3b82f6;
+    --accent: #dc2626;
+    --warning: #f59e0b;
+    --success: #16a34a;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #111827;
+    --text-light: #6b7280;
+    --border: #e5e7eb;
+    --code-bg: #f1f5f9;
+    --hero-grad: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif; line-height: 1.78; color: var(--text); background: var(--bg); margin: 0; padding: 0; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 28px 80px; }
+  .hero { background: var(--hero-grad); color: white; border-radius: 16px; padding: 64px 56px 56px; margin-bottom: 32px; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3); }
+  .hero::before { content: '🧊'; position: absolute; top: -20px; right: -20px; font-size: 220px; opacity: 0.07; transform: rotate(-15deg); }
+  .hero .badge { display: inline-block; background: rgba(255,255,255,0.18); color: #fff; padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 600; margin-bottom: 18px; backdrop-filter: blur(4px); }
+  .hero h1 { margin: 0 0 16px; font-size: 2.1rem; line-height: 1.3; font-weight: 700; }
+  .hero .sub { font-size: 1.05rem; opacity: 0.92; margin-bottom: 24px; font-weight: 300; }
+  .hero .info { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 28px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,0.2); }
+  .hero .info div .label { font-size: 0.78rem; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.5px; }
+  .hero .info div .value { font-size: 1rem; font-weight: 600; margin-top: 2px; }
+  .toc { position: sticky; top: 16px; z-index: 50; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: 12px; padding: 16px 22px; margin-bottom: 28px; box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
+  .toc summary { cursor: pointer; font-weight: 600; color: var(--primary-dark); list-style: none; display: flex; align-items: center; gap: 8px; }
+  .toc summary::before { content: '📑'; }
+  .toc ol { margin: 12px 0 0; padding-left: 20px; columns: 2; column-gap: 28px; }
+  .toc li { margin: 6px 0; break-inside: avoid; }
+  .toc a { color: var(--text); text-decoration: none; font-size: 0.93rem; }
+  .toc a:hover { color: var(--primary); }
+  section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 36px 40px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); scroll-margin-top: 80px; }
+  section h2 { font-size: 1.7rem; color: var(--primary-dark); margin: 0 0 6px; display: flex; align-items: baseline; gap: 12px; }
+  section h2 .num { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; background: var(--primary); color: white; border-radius: 50%; font-size: 1rem; flex-shrink: 0; }
+  section .lead { color: var(--text-light); font-size: 1rem; margin: 0 0 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  section h3 { margin: 28px 0 10px; color: var(--primary); font-size: 1.18rem; border-left: 4px solid var(--primary); padding-left: 14px; }
+  section h4 { margin: 20px 0 8px; font-size: 1.02rem; color: var(--text); }
+  section p { margin: 10px 0; }
+  section ul, section ol { padding-left: 24px; }
+  section li { margin: 6px 0; }
+  .box { border-radius: 10px; padding: 16px 22px; margin: 18px 0; border-left: 4px solid; }
+  .box-key   { background: #eff6ff; border-color: var(--primary); }
+  .box-warn  { background: #fef2f2; border-color: var(--accent); }
+  .box-tip   { background: #fffbeb; border-color: var(--warning); }
+  .box-good  { background: #f0fdf4; border-color: var(--success); }
+  .box-quote { background: #f8fafc; border-color: var(--text-light); font-style: italic; color: #475569; }
+  .box-title { font-weight: 700; margin-bottom: 6px; }
+  .box-key .box-title { color: var(--primary-dark); }
+  .box-warn .box-title { color: var(--accent); }
+  .box-tip .box-title { color: #b45309; }
+  .box-good .box-title { color: #166534; }
+  code { background: var(--code-bg); padding: 2px 7px; border-radius: 4px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.88em; color: #be185d; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 18px 22px; border-radius: 10px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  .formula { background: #fafbfc; border: 1px solid var(--border); border-radius: 8px; padding: 14px 20px; margin: 12px 0; font-size: 1.05rem; overflow-x: auto; }
+  .formula .ref { float: right; color: var(--text-light); font-size: 0.85rem; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.93rem; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; vertical-align: top; }
+  th { background: linear-gradient(180deg, #1d4ed8, #1e3a8a); color: white; font-weight: 600; }
+  tbody tr:nth-child(even) { background: #fafbfc; }
+  tbody tr:hover { background: #eff6ff; }
+  td .win { color: var(--success); font-weight: 700; }
+  td .lose { color: var(--accent); font-weight: 700; }
+  td .num-big { font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); }
+  .diagram { background: #0f172a; color: #e2e8f0; padding: 22px 28px; border-radius: 10px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.85rem; line-height: 1.5; overflow-x: auto; white-space: pre; margin: 16px 0; }
+  .diagram .hl { color: #fbbf24; font-weight: bold; }
+  .diagram .arrow { color: #60a5fa; }
+  .diagram .label { color: #34d399; }
+  .arch { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 20px 0; }
+  .arch .mod { background: linear-gradient(135deg, #ffffff, #f1f5f9); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+  .arch .mod h5 { margin: 0 0 8px; color: var(--primary-dark); font-size: 1rem; display: flex; align-items: center; gap: 6px; }
+  .arch .mod p { font-size: 0.9rem; color: var(--text-light); margin: 4px 0; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 22px 0; }
+  .stat { background: linear-gradient(135deg, #dbeafe, #ffffff); border-radius: 12px; padding: 16px 20px; text-align: center; border: 1px solid #bfdbfe; }
+  .stat .num { font-size: 1.8rem; font-weight: 800; color: var(--primary-dark); line-height: 1.1; }
+  .stat .lbl { font-size: 0.85rem; color: var(--text-light); margin-top: 4px; }
+  .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .pros, .cons { padding: 16px 20px; border-radius: 10px; }
+  .pros { background: #f0fdf4; border-left: 4px solid var(--success); }
+  .cons { background: #fef2f2; border-left: 4px solid var(--accent); }
+  .chip { display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; margin-right: 6px; margin-bottom: 4px; }
+  .chip-blue { background: #dbeafe; color: #1e40af; }
+  .chip-green { background: #dcfce7; color: #166534; }
+  .chip-red { background: #fee2e2; color: #991b1b; }
+  .chip-yellow { background: #fef3c7; color: #92400e; }
+  mark { background: linear-gradient(transparent 55%, #fde68a 55%); padding: 0 2px; font-weight: 600; }
+  footer { margin-top: 36px; padding-top: 22px; border-top: 1px solid var(--border); color: var(--text-light); font-size: 0.88rem; text-align: center; }
+  @media (max-width: 720px) {
+    .container { padding: 16px 14px; }
+    .hero { padding: 36px 24px 30px; }
+    .hero h1 { font-size: 1.5rem; }
+    section { padding: 22px 20px; }
+    .arch, .pros-cons { grid-template-columns: 1fr; }
+    .toc ol { columns: 1; }
+  }
+  @media print {
+    body { background: white; }
+    .toc { position: static; }
+    section, .hero { page-break-inside: avoid; box-shadow: none; }
+    .hero { background: #1e3a8a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ============ HERO ============ -->
+  <div class="hero">
+    <span class="badge">🧊 Tier 1 直接对手 · T1.10 · 精读</span>
+    <h1>OpenVox：Real-time Instance-level Open-vocabulary<br>Probabilistic Voxel Representation</h1>
+    <div class="sub">实时增量 · 实例级 · 开放词汇 · 概率体素 —— 把 instance association 与 live map evolution 显式建模为 MLE + MAP</div>
+    <div class="info">
+      <div><div class="label">📚 venue</div><div class="value">arXiv 2502.16528 (RA-L under review)</div></div>
+      <div><div class="label">📅 提交日期</div><div class="value">2025-02-23</div></div>
+      <div><div class="label">📄 页数</div><div class="value">8 页</div></div>
+      <div><div class="label">🏢 单位</div><div class="value">Beijing Institute of Technology (北理工)</div></div>
+      <div><div class="label">👥 通讯</div><div class="value">Yufeng Yue · Yinan Deng (一作)</div></div>
+      <div><div class="label">🎯 任务</div><div class="value">open-vocabulary instance mapping</div></div>
+      <div><div class="label">🧰 基线</div><div class="value">ConceptFusion / ConceptGraphs / Open-Fusion</div></div>
+      <div><div class="label">🏆 主结果</div><div class="value">Replica 上 AP25 ≈ 38.46（基线 24.71）</div></div>
+    </div>
+  </div>
+
+  <!-- ============ TOC ============ -->
+  <details class="toc" open>
+    <summary>目录（点击展开 / 收起）</summary>
+    <ol>
+      <li><a href="#bg">1. 背景与动机：为什么 instance-level open-vocab voxel 是个硬问题</a></li>
+      <li><a href="#contrib">2. 论文的四大贡献</a></li>
+      <li><a href="#prelim">3. 预备：开放词汇地图 vs 闭集语义地图</a></li>
+      <li><a href="#overview">4. OpenVox 总览：前端流水线 + 后端概率体素</a></li>
+      <li><a href="#frontend">5. 前端：实例分割 + LLM caption encoding</a></li>
+      <li><a href="#backend-1">6. 后端 ① 问题定义与分解（MLE + MAP）</a></li>
+      <li><a href="#backend-2">7. 后端 ② Instance Association（MLE）</a></li>
+      <li><a href="#backend-3">8. 后端 ③ Live Map Evolution（Dirichlet-Categorical MAP）</a></li>
+      <li><a href="#backend-4">9. 后端 ④ Codebook 加权融合</a></li>
+      <li><a href="#exp-setup">10. 实验设置：Replica + ScanNet</a></li>
+      <li><a href="#exp-instance">11. 主结果 A：3D zero-shot instance segmentation</a></li>
+      <li><a href="#exp-seg">12. 主结果 B：3D zero-shot semantic segmentation</a></li>
+      <li><a href="#exp-retrieval">13. 主结果 C：open-vocabulary instance retrieval</a></li>
+      <li><a href="#exp-robot">14. 真机：Autolabor M1 + RTX 3060</a></li>
+      <li><a href="#strength">15. 方法优势与未明确说出的代价</a></li>
+      <li><a href="#limit">16. 局限与作者承认的未来工作</a></li>
+      <li><a href="#evidlife">17. ★ 与 EvidLife-Map 的关系（差异化定位）</a></li>
+      <li><a href="#takeaway">18. 总结与启示</a></li>
+    </ol>
+  </details>
+
+  <!-- ============ 1. 背景 ============ -->
+  <section id="bg">
+    <h2><span class="num">1</span> 背景与动机：为什么 instance-level open-vocab voxel 是个硬问题</h2>
+    <p class="lead">从 ConceptFusion (RSS 2023)、ConceptGraphs (ICRA 2024) 到 Open-Fusion (ICRA 2024)，open-vocabulary mapping 已经成为主流。OpenVox 想同时拿下三个看似矛盾的目标：<b>(i) 增量实时</b>、<b>(ii) 实例级</b>、<b>(iii) 对前端噪声鲁棒</b>。</p>
+
+    <h3>1.1 已有路线的两条死胡同</h3>
+    <ul>
+      <li><b>point-wise feature 路线</b>（LERF [11]、OpenScene [27]、ConceptFusion [10]）：把 VLM 特征点级投影/蒸馏到 3D 空间——简单高效，但<b>对象边界模糊</b>，无法支持下游"对象级"任务；</li>
+      <li><b>mask-level + 离线 graph clustering 路线</b>（OpenMask3D [14]、MaskClustering [13]）：用 SAM/instance 模型抽 mask 特征，再跨帧聚类——质量好，但<b>必须离线 batch 处理</b>，不能 online。</li>
+    </ul>
+
+    <h3>1.2 现有 incremental 工作还有两个痛点</h3>
+    <ol>
+      <li><b>缺 language reasoning</b>：ConceptGraphs [16] / Open-Fusion [18] 都直接用 VLM 特征，对"找一种可以画画的材料"这类<b>常识推理</b>无能为力（VLM 特征本身不具备"推理"能力）；</li>
+      <li><b>IoU 关联脆弱</b>：用 3D bbox IoU 或 2D mask IoU 做 cross-frame association，<b>抗不了 missing / under / over segmentation</b>——一旦关联失败，错误会在 incremental 过程里复利累积。</li>
+    </ol>
+
+    <div class="box box-quote">
+      "These methods... exhibit limited robustness to front-end noise, often resulting in association and fusion failures. The core difficulty lies in achieving accurate cross-frame instance association while maintaining the map's ability to recover from noise, under the condition that only the current frame is available." —— §I
+    </div>
+
+    <div class="box box-key">
+      <div class="box-title">🎯 一句话定位</div>
+      OpenVox = 把"前端：YOLO-World + TAP + SBERT"和"后端：probabilistic instance voxel（Dirichlet-Categorical）+ codebook"组装起来，<mark>把跨帧融合显式拆成 MLE（association）+ MAP（map evolution）两个子问题</mark>，从而在<b>实时、增量、对前端噪声鲁棒</b>三者间取得平衡。
+    </div>
+  </section>
+
+  <!-- ============ 2. 贡献 ============ -->
+  <section id="contrib">
+    <h2><span class="num">2</span> 论文的四大贡献</h2>
+
+    <div class="arch">
+      <div class="mod">
+        <h5>🧊 ① OpenVox 框架</h5>
+        <p>提出 incremental instance-level open-vocabulary mapping 框架，支持 fast & precise 的场景重建与理解。</p>
+      </div>
+      <div class="mod">
+        <h5>📝 ② Caption-Powered Instance Understanding</h5>
+        <p>用 LLM（SBERT，384 维）编码 instance captions 而非直接用 CLIP/VLM 特征，<b>增强语言推理能力</b>。</p>
+      </div>
+      <div class="mod">
+        <h5>🎲 ③ Probabilistic Instance Voxels</h5>
+        <p>每个 voxel 存一个<b>概率 instance ID 向量 $\theta^j$</b>；把跨帧融合数学地建模为 MLE + MAP 两阶段，<b>adaptation + recovery from noise</b>。</p>
+      </div>
+      <div class="mod">
+        <h5>📊 ④ 多数据集 + 真机实验</h5>
+        <p>Replica（8 场景）+ ScanNet（6 场景）：zero-shot instance/semantic segmentation + open-vocab retrieval；Autolabor M1 + RTX 3060 真机部署。</p>
+      </div>
+    </div>
+
+    <div class="box box-good">
+      <div class="box-title">🏆 核心数字成果</div>
+      <ul>
+        <li>Replica 平均：AP <b>11.73</b>（ConceptGraphs 6.01）/ AP50 <b>27.29</b>（12.37）/ AP25 <b>38.46</b>（24.71）；</li>
+        <li>Replica 平均 mIoU <b>27.30</b>（ConceptFusion 4.68 / ConceptGraphs 16.49 / Open-Fusion 16.45）；mAcc <b>43.42</b>；</li>
+        <li>ScanNet 平均 mIoU <b>22.84</b>（vs Open-Fusion 20.91）；mAcc <b>54.23</b>（vs 49.04）；</li>
+        <li>Retrieval R@1：Ontology <b>0.905</b> / Relevance <b>0.762</b> / Functionality <b>0.714</b>（均超 ConceptGraphs 0.810/0.429/0.476）；</li>
+        <li>体素分辨率 <b>0.04 m</b>；测试 GPU：RTX 4090（onboard 实验为 RTX 3060）。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 3. 预备 ============ -->
+  <section id="prelim">
+    <h2><span class="num">3</span> 预备：开放词汇地图 vs 闭集语义地图</h2>
+
+    <h3>3.1 闭集语义地图（OpenVox §II.A）</h3>
+    <p>SemanticFusion [5]、Semantic-OcTree [25]、See-CSOM [6]、HD-CCSOM [7] 这类工作——CNN 给固定 K 类的 softmax，CRF/Bayesian update 维护体素级语义。<mark>瓶颈：训练时定下的 label set 决定能识别什么，无法泛化到 open-world</mark>。</p>
+
+    <h3>3.2 开放词汇地图（OpenVox §II.B）</h3>
+    <ul>
+      <li><b>point-wise</b>：ConceptFusion [10]、OpenScene [27]、LERF [11]；</li>
+      <li><b>mask-level offline</b>：OpenMask3D [14]、MaskClustering [13]；</li>
+      <li><b>incremental instance/region</b>：ConceptGraphs [16]、Open-Fusion [18]、OpenGraph [17]、OpenObj [12]；</li>
+      <li>共同问题：<b>无 language reasoning、IoU 关联脆弱</b>。</li>
+    </ul>
+
+    <h3>3.3 符号约定</h3>
+    <table>
+      <thead><tr><th>符号</th><th>含义</th><th>维度</th></tr></thead>
+      <tbody>
+        <tr><td>$C_t, D_t, P_t$</td><td>RGB / 深度 / 位姿（时刻 $t$）</td><td>image · image · SE(3)</td></tr>
+        <tr><td>$m_t^i$</td><td>第 $i$ 个 2D mask</td><td>image patch</td></tr>
+        <tr><td>$f_t^i$</td><td>mask $i$ 的 caption 特征</td><td>$\mathbb{R}^{384}$（SBERT）</td></tr>
+        <tr><td>$V_t = \{v_t^j\}$</td><td>体素集合（$j$ 是 voxel index）</td><td>—</td></tr>
+        <tr><td>$\theta^j = \{\theta^{j,\gamma}\}$</td><td>voxel $j$ 的概率 instance ID 向量</td><td>$\sum_\gamma \theta^{j,\gamma}=1$</td></tr>
+        <tr><td>$B_t = \{f_t^\gamma\}$</td><td>codebook（实例 $\gamma$ → 融合后的 caption 特征）</td><td>—</td></tr>
+        <tr><td>$I_t^i$</td><td>mask $i$ 关联到的 map instance ID</td><td>$\in \Gamma_{t-1} \cup \{\text{new}\}$</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 4. 总览 ============ -->
+  <section id="overview">
+    <h2><span class="num">4</span> OpenVox 总览：前端流水线 + 后端概率体素</h2>
+
+    <div class="diagram">┌────────────────────────────────────────────────────────────┐
+│  <span class="hl">输入</span>: RGB C_t, Depth D_t, Pose P_t（实时流）              │
+└────────────────────────────────────────────────────────────┘
+                       │
+                       <span class="arrow">▼</span>
+   ┌──────────────────────────────────────────────────────┐
+   │ <span class="hl">前端：Instance Segmentation & Understanding</span>            │
+   │                                                      │
+   │  YOLO-World (Det)   ──>   TAP (SegCap)               │
+   │       │                       │                      │
+   │       │                       <span class="arrow">▼</span>                      │
+   │       │           2D mask m_t^i + caption "..."     │
+   │       │                       │                      │
+   │       │                       <span class="arrow">▼</span>                      │
+   │       │                  SBERT (Enc) → f_t^i ∈ R^384 │
+   └──────────────────────────────────────────────────────┘
+                       │
+                       <span class="arrow">▼</span>  {m_t^i, f_t^i}, D_t, P_t
+   ┌──────────────────────────────────────────────────────┐
+   │ <span class="hl">后端：Probabilistic Voxel Reconstruction</span>              │
+   │                                                      │
+   │  Step ①: Mask → Voxel projection                     │
+   │     V_{m_t^i} = Vox(D_t[u,v]·P_t·K^-1·[u,v])         │
+   │                                                      │
+   │  Step ②: <span class="label">Instance Association (MLE)</span>                  │
+   │     A = w_geo·S_geo + w_fea·S_fea  (公式 8 + 9)      │
+   │     → I_t^i = argmax_γ A_{I_t^i=γ}                   │
+   │                                                      │
+   │  Step ③: <span class="label">Live Map Evolution (MAP, Dirichlet)</span>         │
+   │     α_t^{j,γ} = α_{t-1}^{j,γ} + y_t^{j,γ}  (公式 14) │
+   │     θ_t^{j,γ} = α_t^{j,γ} / Σ_γ α_t^{j,γ} (公式 15)  │
+   │                                                      │
+   │  Step ④: <span class="label">Codebook Updating</span>                          │
+   │     w_t^i = A_{I_t^i} · R_t^i           (公式 16-17) │
+   │     f_t^{I_t^i} = (W·f_{t-1} + w·f_t)/W' (公式 18)   │
+   └──────────────────────────────────────────────────────┘
+                       │
+                       <span class="arrow">▼</span>
+        全局地图 M_t = {V_t, B_t}：实例级、open-vocab、概率
+                       │
+                       <span class="arrow">▼</span>
+        推理（render mask / open-vocab query）</div>
+
+    <h3>4.1 关键模块对应到的方程</h3>
+    <ul>
+      <li>前端整体：式 <b>(1)</b> $\{m_t^i, f_t^i\} = \text{Enc}(\text{SegCap}(\text{Det}(C_t)))$；</li>
+      <li>问题定义：式 <b>(2)</b> $P(I_t, M_t | M_{t-1}, Q_t)$；</li>
+      <li>chain-rule 分解：式 <b>(3)</b>（MLE × MAP）；</li>
+      <li>关联：式 <b>(4)–(9)</b>；</li>
+      <li>map evolution（Dirichlet）：式 <b>(10)–(15)</b>；</li>
+      <li>codebook update：式 <b>(16)–(19)</b>。</li>
+    </ul>
+  </section>
+
+  <!-- ============ 5. 前端 ============ -->
+  <section id="frontend">
+    <h2><span class="num">5</span> 前端：实例分割 + LLM caption encoding</h2>
+    <p class="lead">OpenVox 的前端做了一个三阶段流水线 <b>Det → SegCap → Enc</b>。亮点在于<b>不用 CLIP 特征</b>，而是先让 TAP 模型把每个 mask 自动写一句 caption（"a wooden cabinet" / "a beige stool"），再用 SBERT 编码成 384 维向量。</p>
+
+    <h3>5.1 三个组件</h3>
+    <table>
+      <thead><tr><th>组件</th><th>模型</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td>Det(·)</td><td>YOLO-World [28]</td><td>real-time open-vocabulary detection（出 bbox）</td></tr>
+        <tr><td>SegCap(·)</td><td>TAP [29] (Tokenize Anything via Prompting)</td><td>用 bbox 作 prompt，出 mask + 描述性 caption</td></tr>
+        <tr><td>Enc(·)</td><td>SBERT [8]</td><td>把 caption 编码为 384 维特征</td></tr>
+      </tbody>
+    </table>
+
+    <div class="formula">
+      $$\{m_t^i, f_t^i\} = \mathrm{Enc}\!\left(\mathrm{SegCap}\!\left(\mathrm{Det}(C_t)\right)\right) \tag{1}$$
+    </div>
+
+    <h3>5.2 为什么不用 CLIP 而用 caption？</h3>
+    <div class="box box-key">
+      <div class="box-title">🎯 设计动机</div>
+      "find a material to use for painting" 这类查询需要<b>常识推理</b>，纯 CLIP 特征做不到（CLIP 是 image-text 对齐，没有逻辑推理）。SBERT 编码的 caption 自带<b>语言层面的语义结构</b>，再叠加 LLM 推理通路（论文未明确，但可由下游 LLM 接 codebook 完成）就能实现 ontology / relevance / functionality 三种检索（§13）。
+    </div>
+
+    <p>这正是消融数据里 <b>functionality retrieval R@1 = 0.714（vs ConceptGraphs 0.476）</b>的来源——CLIP 特征做不到"花是给恋人的好礼物"这种推理。</p>
+  </section>
+
+  <!-- ============ 6. 后端 1 ============ -->
+  <section id="backend-1">
+    <h2><span class="num">6</span> 后端 ① 问题定义与分解（MLE + MAP）</h2>
+    <p class="lead">这是 OpenVox 的<b>数学核心</b>——把"既要关联又要更新地图"的联合问题，用 chain rule 拆成两个可单独求解的子任务。</p>
+
+    <h3>6.1 联合后验</h3>
+    <p>给定当前观测 $Q_t = \{\{m_t^i, f_t^i\}, D_t, P_t\}$ 和上一步地图 $M_{t-1} = \{V_{t-1}, B_{t-1}\}$：</p>
+    <div class="formula">
+      $$P(I_t, M_t \mid M_{t-1}, Q_t) \tag{2}$$
+    </div>
+
+    <h3>6.2 chain-rule 分解</h3>
+    <div class="formula">
+      $$P(I_t, M_t \mid M_{t-1}, Q_t) \;=\; \underbrace{P(I_t \mid M_{t-1}, Q_t)}_{\text{instance association}} \cdot \underbrace{P(M_t \mid M_{t-1}, Q_t, I_t)}_{\text{live map evolution}} \tag{3}$$
+    </div>
+
+    <div class="box box-good">
+      <div class="box-title">💡 为什么这个分解很关键</div>
+      <ul>
+        <li><b>关联 → MLE</b>：先给 mask 分配 ID（不影响地图状态），数据似然最大化；</li>
+        <li><b>更新 → MAP</b>：已知 ID 后，单独更新每个 voxel 的概率向量 + codebook；</li>
+        <li>两步都有<b>闭式或快速近似解</b>（Dirichlet conjugate prior），适合实时；</li>
+        <li>错误的关联可以在<b>之后被概率更新自动 dilute</b>——这就是论文反复强调的 "recover from noise"。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 7. 后端 2 ============ -->
+  <section id="backend-2">
+    <h2><span class="num">7</span> 后端 ② Instance Association（MLE）</h2>
+
+    <h3>7.1 mask 间条件独立</h3>
+    <div class="formula">
+      $$P(I_t \mid M_{t-1}, Q_t) = \prod_i P(I_t^i \mid V_{t-1}, B_{t-1}, m_t^i, f_t^i, D_t, P_t) \tag{5}$$
+    </div>
+
+    <h3>7.2 投影：mask → voxel region</h3>
+    <div class="formula">
+      $$V_{m_t^i} = \mathrm{Vox}\!\left(D_t[u,v]\,P_t\,K^{-1}\cdot[u,v] \mid [u,v]\in m_t^i\right) \tag{6}$$
+    </div>
+
+    <h3>7.3 MLE 公式（uniform prior）</h3>
+    <div class="formula">
+      $$P(I_t^i \mid V_{m_t^i}) \propto P(I_t^i)\,P(V_{m_t^i} \mid I_t^i) \tag{7}$$
+    </div>
+
+    <p>uniform $P(I_t^i)$ 下化为最大化似然。直接乘 voxel 概率会数值下溢——论文用<b>"累积证据 + 大数定律"</b>，用<b>均值代替乘积</b>：</p>
+
+    <h3>7.4 几何相似度</h3>
+    <div class="formula">
+      $$S_{\,I_t^i = \gamma}^{\text{geo}} = \mathbb{E}_j\!\left(\{\theta_{m_t^i}^{j}[\gamma]\}\right) \tag{8}$$
+    </div>
+
+    <h3>7.5 特征相似度</h3>
+    <div class="formula">
+      $$S_{\,I_t^i = \gamma}^{\text{fea}} = \mathrm{CosSim}\!\left(f_{t-1}^\gamma,\, f_t^i\right) \tag{9}$$
+    </div>
+
+    <h3>7.6 决策</h3>
+    <p>加权融合 $A_{I_t^i=\gamma} = w_{\text{geo}}S^{\text{geo}} + w_{\text{fea}}S^{\text{fea}}$（论文未明确给出 $w$ 数值——这是论文一个小遗憾，§17 我们会回到）。当 $\max_\gamma A_{I_t^i=\gamma}$ 超过相似度阈值就关联，否则新建实例。</p>
+
+    <div class="box box-tip">
+      <div class="box-title">📌 几何 + 特征双通道的妙处</div>
+      纯几何（IoU）容易被 over/under segmentation 误导；纯特征（CLIP/caption）容易跨实例混淆（"两把外形相似的椅子"）。<mark>OpenVox 同时用 voxel-level 概率均值（geo）和 codebook 余弦（fea）做加权——任一通道失误，另一个可以补偿</mark>。这是它比 ConceptGraphs 鲁棒的核心原因。
+    </div>
+  </section>
+
+  <!-- ============ 8. 后端 3 ============ -->
+  <section id="backend-3">
+    <h2><span class="num">8</span> 后端 ③ Live Map Evolution（Dirichlet-Categorical MAP）</h2>
+    <p class="lead">已知 mask 关联到的 $I_t^i$，每个 voxel $v^j$ 的概率向量 $\theta^j$ 怎么更新？OpenVox 借鉴 S-BKI [30] 的 "semantic counting sensor model"，用<b>Dirichlet-Categorical 共轭对</b>给出闭式更新。</p>
+
+    <h3>8.1 MAP 形式</h3>
+    <div class="formula">
+      $$p(\theta_t^j \mid y_t^j) \propto p(y_t^j \mid \theta_t^j)\,p(\theta_t^j) \tag{10}$$
+    </div>
+
+    <h3>8.2 Categorical likelihood</h3>
+    <div class="formula">
+      $$p(y_t^j \mid \theta_t^j) = \prod_{\gamma \in \Gamma}\left(\theta_t^{j,\gamma}\right)^{\,y_t^{j,\gamma}} \tag{11}$$
+    </div>
+
+    <h3>8.3 Dirichlet conjugate prior（核心！）</h3>
+    <div class="formula">
+      $$p(\theta_{t-1}^j) \propto \prod_{\gamma \in \Gamma}\left(\theta_t^{j,\gamma}\right)^{\alpha_{t-1}^{j,\gamma}-1} \tag{12}$$
+      $$p(\theta_t^j \mid y_t^j) \propto \prod_{\gamma \in \Gamma}\left(\theta_t^{j,\gamma}\right)^{\alpha_t^{j,\gamma}-1} \tag{13}$$
+    </div>
+
+    <h3>8.4 更新公式（最干净的一步）</h3>
+    <div class="formula">
+      $$\boxed{\alpha_t^{j,\gamma} = \alpha_{t-1}^{j,\gamma} + y_t^{j,\gamma}} \tag{14}$$
+    </div>
+
+    <p>这就是 "instance counting sensor model" 的全部内容：<b>每次 voxel $v^j$ 被关联到实例 $\gamma$，对应 Dirichlet 参数 $\alpha^{j,\gamma}$ 加 1</b>。</p>
+
+    <h3>8.5 闭式期望</h3>
+    <div class="formula">
+      $$\theta_t^{j,\gamma} = \frac{\alpha_t^{j,\gamma}}{\sum_{\gamma \in \Gamma}\alpha_t^{j,\gamma}} \tag{15}$$
+    </div>
+
+    <div class="box box-key">
+      <div class="box-title">⚠️ 注意这里和 evidential 的微妙差异</div>
+      OpenVox 的 Dirichlet 参数 $\alpha_t^{j,\gamma}$ 是"<b>类别投票计数</b>"，它的<b>总和</b> $\sum_\gamma \alpha_t^{j,\gamma}$ 仅作为归一化项，<b>没有显式地承担"我对这个 voxel 有多不确定"的语义</b>。<br>
+      在 EvidLife-Map（我们的工作）里，同样的 Dirichlet $\alpha$ 总和 $S = \sum_\gamma \alpha_t^{j,\gamma}$ 直接给出 <b>vacuity $u = K/S$</b>，这是 epistemic uncertainty 的标量——我们会用这个标量同时驱动 open-set / loop-closure / map-decay。<br>
+      <mark>所以 OpenVox 已经用了 Dirichlet 的"似然/记数"层面，但放弃了 Dirichlet 的"不确定性"层面</mark>。这一点是我们 §17 差异化定位的关键支点。
+    </div>
+  </section>
+
+  <!-- ============ 9. 后端 4 ============ -->
+  <section id="backend-4">
+    <h2><span class="num">9</span> 后端 ④ Codebook 加权融合</h2>
+    <p class="lead">voxel 存的是"属于谁的概率"，codebook 存的是"实例 $\gamma$ 的语言特征"。codebook 的更新决定了 retrieval 质量。</p>
+
+    <h3>9.1 观测权重 $w_t^i$</h3>
+    <div class="formula">
+      $$w_t^i = A_{I_t^i} \cdot R_t^i \tag{16}$$
+    </div>
+
+    <h3>9.2 可见率 $R_t^i$</h3>
+    <div class="formula">
+      $$R_t^i = \frac{\left|V_{m_t^i}\,\big|\, \arg\max_\gamma \theta_{t-1}^j[\gamma] = I_t^i\right|}{\left|V_{m_t^i}\right|} \tag{17}$$
+    </div>
+
+    <p>$R_t^i$ 表示当前 mask 观测的部分占该实例总大小的比例——<b>只看到沙发一角时，权重低，防止用残缺视角污染 codebook</b>。</p>
+
+    <h3>9.3 加权融合（一阶 EMA）</h3>
+    <div class="formula">
+      $$f_t^{I_t^i} = \frac{W_{t-1}^{I_t^i}\, f_{t-1}^{I_t^i} + w_t^i\, f_t^i}{W_t^{I_t^i}} \tag{18}$$
+      $$W_t^{I_t^i} = W_{t-1}^{I_t^i} + w_t^i \tag{19}$$
+    </div>
+
+    <div class="box box-tip">
+      <div class="box-title">📌 这是个相当成熟的设计</div>
+      "关联概率 × 可见率"作为信任度，再做累加均值——比裸 EMA 多了对"局部观测"的鲁棒性。配合 caption 特征自身的稳定性（SBERT 对不同视角同一物体生成的 caption 高度相似），OpenVox 的 codebook 在 cluttered 真实场景里也能稳。
+    </div>
+  </section>
+
+  <!-- ============ 10. 实验设置 ============ -->
+  <section id="exp-setup">
+    <h2><span class="num">10</span> 实验设置：Replica + ScanNet</h2>
+
+    <h3>10.1 数据集</h3>
+    <table>
+      <thead><tr><th>数据集</th><th>场景数</th><th>类型</th><th>来源</th></tr></thead>
+      <tbody>
+        <tr><td><b>Replica [31]</b></td><td>8 个（room 0-2, office 0-4）</td><td>合成室内</td><td>arXiv 1906.05797</td></tr>
+        <tr><td><b>ScanNet [32]</b></td><td>6 个（scene0011_01 等）</td><td>真实室内</td><td>CVPR 2017</td></tr>
+      </tbody>
+    </table>
+
+    <h3>10.2 基线</h3>
+    <ul>
+      <li><b>ConceptFusion (C.F.) [10]</b>，RSS 2023——point-wise，无 instance；</li>
+      <li><b>ConceptGraphs (C.G.) [16]</b>，ICRA 2024——instance，IoU 关联，无概率；</li>
+      <li><b>Open-Fusion (O.F.) [18]</b>，ICRA 2024——region-level + TSDF，无 instance、无概率、无 language reasoning。</li>
+    </ul>
+
+    <div class="box box-quote">
+      "Through empirical evaluation, we find that region-level Open-Fusion cannot be regarded as a true instance-level mapping approach, primarily due to the highly cluttered nature of the segmented regions." —— footnote 1
+    </div>
+
+    <h3>10.3 指标</h3>
+    <ul>
+      <li>实例分割：<b>AP / AP50 / AP25</b>；</li>
+      <li>语义分割：<b>mIoU / mAcc</b>；</li>
+      <li>检索：<b>R@1 / R@2 / R@3</b>，三种类型：ontology / relevance / functionality；</li>
+      <li>各场景 21 个 query。</li>
+    </ul>
+
+    <div class="stat-grid">
+      <div class="stat"><div class="num">0.04 m</div><div class="lbl">体素分辨率</div></div>
+      <div class="stat"><div class="num">RTX 4090</div><div class="lbl">主机 GPU</div></div>
+      <div class="stat"><div class="num">RTX 3060</div><div class="lbl">onboard GPU</div></div>
+      <div class="stat"><div class="num">PyTorch</div><div class="lbl">实现框架</div></div>
+      <div class="stat"><div class="num">SBERT 384</div><div class="lbl">caption 特征维度</div></div>
+    </div>
+  </section>
+
+  <!-- ============ 11. 主结果 A ============ -->
+  <section id="exp-instance">
+    <h2><span class="num">11</span> 主结果 A：3D zero-shot instance segmentation（Tab. II）</h2>
+
+    <h3>11.1 Replica（8 场景）</h3>
+    <table>
+      <thead><tr><th>Scene</th><th>AP (C.G.)</th><th>AP (Ours)</th><th>AP50 (C.G.)</th><th>AP50 (Ours)</th><th>AP25 (C.G.)</th><th>AP25 (Ours)</th></tr></thead>
+      <tbody>
+        <tr><td>room 0</td><td>08.69</td><td class="num-big">17.55</td><td>16.09</td><td class="num-big">35.82</td><td>24.94</td><td class="num-big">52.53</td></tr>
+        <tr><td>room 1</td><td>05.35</td><td class="num-big">11.94</td><td>13.89</td><td class="num-big">36.01</td><td>32.14</td><td class="num-big">54.11</td></tr>
+        <tr><td>room 2</td><td>06.84</td><td class="num-big">16.37</td><td>15.25</td><td class="num-big">37.56</td><td>31.83</td><td class="num-big">52.36</td></tr>
+        <tr><td>office 0</td><td>06.00</td><td>06.36</td><td>12.05</td><td>12.40</td><td>21.86</td><td><span class="lose">20.01</span></td></tr>
+        <tr><td>office 1</td><td>03.88</td><td class="num-big">09.47</td><td>07.11</td><td class="num-big">22.38</td><td>24.00</td><td class="num-big">32.33</td></tr>
+        <tr><td>office 2</td><td>02.50</td><td class="num-big">10.43</td><td>05.86</td><td class="num-big">25.94</td><td>13.12</td><td class="num-big">32.44</td></tr>
+        <tr><td>office 3</td><td>02.44</td><td class="num-big">09.53</td><td>05.77</td><td class="num-big">22.72</td><td>14.53</td><td class="num-big">32.75</td></tr>
+        <tr><td>office 4</td><td>12.35</td><td><span class="lose">12.21</span></td><td>22.90</td><td class="num-big">25.46</td><td>35.26</td><td><span class="lose">31.13</span></td></tr>
+        <tr style="font-weight:700;"><td>Average</td><td>06.01</td><td class="win">11.73</td><td>12.37</td><td class="win">27.29</td><td>24.71</td><td class="win">38.46</td></tr>
+      </tbody>
+    </table>
+
+    <h3>11.2 ScanNet（6 场景）</h3>
+    <table>
+      <thead><tr><th>Scene</th><th>AP (C.G.)</th><th>AP (Ours)</th><th>AP50 (C.G.)</th><th>AP50 (Ours)</th><th>AP25 (C.G.)</th><th>AP25 (Ours)</th></tr></thead>
+      <tbody>
+        <tr><td>scene0011_01</td><td>01.25</td><td class="num-big">03.73</td><td>04.54</td><td class="num-big">11.80</td><td>26.72</td><td class="num-big">29.03</td></tr>
+        <tr><td>scene0030_02</td><td>03.77</td><td><span class="lose">02.02</span></td><td>11.64</td><td><span class="lose">08.14</span></td><td>26.51</td><td><span class="lose">21.94</span></td></tr>
+        <tr><td>scene0220_02</td><td>02.03</td><td>02.49</td><td>05.11</td><td class="num-big">07.64</td><td>18.11</td><td class="num-big">24.95</td></tr>
+        <tr><td>scene0592_01</td><td>04.29</td><td><span class="lose">03.70</span></td><td>13.22</td><td><span class="lose">12.33</span></td><td>31.71</td><td class="num-big">34.30</td></tr>
+        <tr><td>scene0673_04</td><td>05.88</td><td class="num-big">07.44</td><td>16.49</td><td class="num-big">22.61</td><td>34.92</td><td class="num-big">47.73</td></tr>
+        <tr><td>scene0696_02</td><td>02.36</td><td>02.81</td><td>07.63</td><td>08.86</td><td>29.37</td><td>29.26</td></tr>
+        <tr style="font-weight:700;"><td>Average</td><td>03.27</td><td class="win">03.70</td><td>09.77</td><td class="win">11.90</td><td>27.89</td><td class="win">31.20</td></tr>
+      </tbody>
+    </table>
+
+    <div class="box box-good">
+      <div class="box-title">📈 观察</div>
+      <ul>
+        <li>Replica 上 OpenVox <b>近乎碾压</b>——AP25 从 24.71 → 38.46（+13.75 个点）；</li>
+        <li>ScanNet 真实数据上优势缩小，<b>有 2 个场景反不如 ConceptGraphs</b>（scene0030_02 / scene0592_01），但平均仍领先；</li>
+        <li>合成 vs 真实的 gap 缩小 → 提示<b>真实噪声更复杂，probabilistic voxel 的优势被"传感器质量天花板"压制</b>。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 12. 主结果 B ============ -->
+  <section id="exp-seg">
+    <h2><span class="num">12</span> 主结果 B：3D zero-shot semantic segmentation（Tab. III）</h2>
+
+    <h3>12.1 Replica 平均</h3>
+    <table>
+      <thead><tr><th>方法</th><th>mIoU</th><th>mAcc</th></tr></thead>
+      <tbody>
+        <tr><td>ConceptFusion (C.F.)</td><td>04.68</td><td>19.30</td></tr>
+        <tr><td>ConceptGraphs (C.G.)</td><td>16.49</td><td>31.53</td></tr>
+        <tr><td>Open-Fusion (O.F.)</td><td>16.45</td><td>35.36</td></tr>
+        <tr style="font-weight:700;"><td>OpenVox (Ours)</td><td class="win">27.30</td><td class="win">43.42</td></tr>
+      </tbody>
+    </table>
+
+    <h3>12.2 ScanNet 平均</h3>
+    <table>
+      <thead><tr><th>方法</th><th>mIoU</th><th>mAcc</th></tr></thead>
+      <tbody>
+        <tr><td>ConceptFusion (C.F.)</td><td>09.90</td><td>37.32</td></tr>
+        <tr><td>ConceptGraphs (C.G.)</td><td>17.14</td><td>34.41</td></tr>
+        <tr><td>Open-Fusion (O.F.)</td><td>20.91</td><td>49.04</td></tr>
+        <tr style="font-weight:700;"><td>OpenVox (Ours)</td><td class="win">22.84</td><td class="win">54.23</td></tr>
+      </tbody>
+    </table>
+
+    <div class="box box-tip">
+      <div class="box-title">💡 OpenVox 在 zero-shot semantic segmentation 上几乎 dominate</div>
+      Replica 平均 mIoU 27.30 vs 第二名 Open-Fusion 16.45（差 <b>+10.85</b>）；ScanNet 上差距缩小（+1.93）但 mAcc 优势依旧（+5.19）。这意味着：<b>caption-based 特征 + Dirichlet 概率融合在合成场景里几乎"碾压"</b>，但在真实场景里被分割模型本身的质量限制。
+    </div>
+  </section>
+
+  <!-- ============ 13. 主结果 C ============ -->
+  <section id="exp-retrieval">
+    <h2><span class="num">13</span> 主结果 C：open-vocabulary instance retrieval（Tab. IV）</h2>
+
+    <table>
+      <thead><tr><th>Type</th><th>方法</th><th>R@1</th><th>R@2</th><th>R@3</th><th>#Num</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="2">Ontology</td><td>ConceptGraphs</td><td>0.810</td><td>0.810</td><td>0.810</td><td>21</td></tr>
+        <tr><td>OpenVox</td><td class="win">0.905</td><td class="win">0.952</td><td class="win">1.000</td><td>21</td></tr>
+        <tr><td rowspan="2">Relevance</td><td>ConceptGraphs</td><td>0.429</td><td>0.524</td><td>0.619</td><td>21</td></tr>
+        <tr><td>OpenVox</td><td class="win">0.762</td><td class="win">0.905</td><td class="win">0.905</td><td>21</td></tr>
+        <tr><td rowspan="2">Functionality</td><td>ConceptGraphs</td><td>0.476</td><td>0.714</td><td>0.762</td><td>21</td></tr>
+        <tr><td>OpenVox</td><td class="win">0.714</td><td class="win">0.857</td><td class="win">0.952</td><td>21</td></tr>
+      </tbody>
+    </table>
+
+    <div class="box box-good">
+      <div class="box-title">🏆 Caption + LLM 推理的胜利</div>
+      <ul>
+        <li>Ontology（识别物体本身）R@1 从 0.810 → 0.905；</li>
+        <li><b>Relevance（"a microwave 找 timer"）R@1 从 0.429 → 0.762（+0.333）</b>——这是论文的"杀手锏"；</li>
+        <li><b>Functionality（"warm the body 找 ..."）R@1 从 0.476 → 0.714（+0.238）</b>——CLIP 完全做不到的语言推理任务。</li>
+      </ul>
+    </div>
+
+    <p>论文还展示了 Fig. 6 的定性图：query "gift for lovers" → 检索到花；query "warm the body" → 检索到合理对象。<b>这种 reasoning 能力是 ConceptGraphs 等 CLIP-based 方法天花板</b>。</p>
+  </section>
+
+  <!-- ============ 14. 真机 ============ -->
+  <section id="exp-robot">
+    <h2><span class="num">14</span> 真机：Autolabor M1 + RTX 3060</h2>
+
+    <div class="arch">
+      <div class="mod">
+        <h5>🤖 机器人平台</h5>
+        <p>Autolabor M1 移动机器人 + Azure Kinect (RGB-D) + Livox MID-360 LiDAR SLAM 提供 pose。</p>
+      </div>
+      <div class="mod">
+        <h5>💻 算力</h5>
+        <p>onboard：<b>RTX 3060 GPU</b>（消费级！不是 4090）。这是论文很强的卖点——<mark>消费级 GPU 也能跑 real-time</mark>。</p>
+      </div>
+      <div class="mod">
+        <h5>🌐 环境</h5>
+        <p>含地面反光、玻璃、杂物的真实室内 cluttered 环境——传感器噪声、分割不稳定。</p>
+      </div>
+      <div class="mod">
+        <h5>🔍 验证 query</h5>
+        <p>"place garbage"、"black water bottle" → 渲染正确高亮。</p>
+      </div>
+    </div>
+
+    <div class="box box-key">
+      <div class="box-title">🎯 真机为什么是论文最大说服力</div>
+      ConceptGraphs / MaskClustering 都需要 offline batch 处理（论文 §I 反复强调）；<mark>OpenVox 是少数能在消费级 GPU + 真实噪声下 online 跑的 open-vocab instance mapping</mark>。这是它"卖点"的核心。
+    </div>
+  </section>
+
+  <!-- ============ 15. 优势 ============ -->
+  <section id="strength">
+    <h2><span class="num">15</span> 方法优势与未明确说出的代价</h2>
+
+    <div class="pros-cons">
+      <div class="pros">
+        <b>✅ 论文显式声明的优势</b>
+        <ul>
+          <li><b>real-time</b>：相比 ConceptGraphs / OpenMask3D / MaskClustering 的 offline；</li>
+          <li><b>instance-level</b>：相比 ConceptFusion / Open-Fusion 的 point-/region-level；</li>
+          <li><b>probabilistic</b>：能 recover from 前端噪声；</li>
+          <li><b>language reasoning</b>：caption + LLM encoding，支持 relevance / functionality 查询；</li>
+          <li><b>消费级 GPU 部署</b>：RTX 3060 onboard。</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <b>⚠️ 论文没说但能看到的代价</b>
+        <ul>
+          <li><b>前端依赖太多模型</b>：YOLO-World + TAP + SBERT 三个，failure mode 复杂；</li>
+          <li><b>固定 voxel 分辨率</b> 0.04 m，没有 multi-resolution（与 Schmid 的 panoptic multi-TSDFs 形成对比）；</li>
+          <li><b>关联权重 $w_{geo}, w_{fea}$ 论文没给出具体值</b>，相似度阈值也未明确；</li>
+          <li><b>Dirichlet 总和 $S$ 仅作归一化</b>，<mark>放弃了 epistemic uncertainty 信号</mark>；</li>
+          <li><b>静态场景假设</b>——文末承认 "extend OpenVox to real-time dynamic environments" 是未来工作；</li>
+          <li><b>codebook 无遗忘机制</b>——长期 lifelong 时旧实例 caption 会污染查询。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 16. 局限 ============ -->
+  <section id="limit">
+    <h2><span class="num">16</span> 局限与作者承认的未来工作</h2>
+
+    <h3>16.1 论文 §V 自述</h3>
+    <div class="box box-quote">
+      "In the future, we plan to extend OpenVox to real-time dynamic environments, further exploiting probabilistic voxels to drive performance improvements." —— §V
+    </div>
+
+    <h3>16.2 我们读出来的关键缺口</h3>
+    <ol>
+      <li><b>无 lifelong 机制</b>：incremental ≠ lifelong。OpenVox 演示的是单次会话内的实时增量，没有讨论"几个月后回到同一场景"如何处理旧地图（panoptic multi-TSDFs T1.12 才有 absent/persistent change detection）；</li>
+      <li><b>无 epistemic uncertainty 输出</b>：Dirichlet 用了，但只用了"加 1 计数"，<mark>$u = K/S$ 没出现</mark>；</li>
+      <li><b>open-vocab 但需要前端 query word 由 YOLO-World 检测</b>：即 OpenVox 的"开放性"受限于 YOLO-World 的训练词汇；</li>
+      <li><b>没有 loop closure</b>：依赖外部 SLAM 出 pose，地图本身无 global 一致性优化；</li>
+      <li><b>没有 dynamic object 处理</b>：移动物体会污染 Dirichlet 计数。</li>
+    </ol>
+  </section>
+
+  <!-- ============ 17. 与 EvidLife-Map 的关系 ============ -->
+  <section id="evidlife">
+    <h2><span class="num">17</span> ★ 与 EvidLife-Map 的关系（差异化定位）</h2>
+    <p class="lead">这是 OpenVox 三篇精读里<b>最重要的一节</b>——它就是我们论文的<b>最直接对手</b>，必须诚实给出"为什么不被它碾压"的理由。</p>
+
+    <h3>17.1 方法学差异表</h3>
+    <table>
+      <thead><tr><th>维度</th><th>OpenVox (T1.10)</th><th>EvidLife-Map (我们)</th></tr></thead>
+      <tbody>
+        <tr><td><b>语义粒度</b></td><td>instance-level（每个物体一个 ID）</td><td>class-level（K 类语义 + open-set "unknown"）</td></tr>
+        <tr><td><b>词汇假设</b></td><td>open-vocabulary（YOLO-World + caption）</td><td>closed-set + vacuity 触发的 open-set 拒识</td></tr>
+        <tr><td><b>概率模型</b></td><td>Bayesian update（Dirichlet-Categorical conjugate）</td><td>Evidential（Dirichlet 同款，但显式输出 vacuity $u = K/S$）</td></tr>
+        <tr><td><b>不确定性</b></td><td>$\theta^{j,\gamma}$ 概率向量（aleatoric）</td><td>$u$ 标量（epistemic）+ $\theta$（aleatoric）</td></tr>
+        <tr><td><b>Lifelong</b></td><td>未涉及，future work</td><td>vacuity-driven voxel decay 显式机制</td></tr>
+        <tr><td><b>Loop closure</b></td><td>无（依赖外部 SLAM）</td><td>vacuity 作 keyframe 选择 + 全局一致性</td></tr>
+        <tr><td><b>语言推理</b></td><td>caption + SBERT，可做 relevance/functionality query</td><td>无（不卖 open-vocab 语言推理）</td></tr>
+        <tr><td><b>Inference 复杂度</b></td><td>O(N_voxels × |Γ| × 几何均值 + cosine)</td><td>O(N_voxels × K)，K 是 closed-set 类数（远小于 |Γ|）</td></tr>
+        <tr><td><b>真机 GPU</b></td><td>RTX 3060</td><td>目标也是消费级 GPU</td></tr>
+      </tbody>
+    </table>
+
+    <h3>17.2 §9 — 与 EvidLife-Map 的关系（技术诚实版，~350 字）</h3>
+    <div class="box box-key">
+      <p>OpenVox（Deng et al., arXiv 2025 / RA-L under review）是 EvidLife-Map 在 RQ2（open-set）方向上<b>最直接的对手</b>，且就方法成熟度而言它已经走得比我们远——instance-level + open-vocabulary + caption-based reasoning，真机部署在 RTX 3060。我们必须承认：<b>如果用户的需求是"在开放词汇 query 下查找语义物体"，OpenVox 几乎是最佳选择</b>。然而 EvidLife-Map 不与之直接竞争，而是在<b>正交方向</b>定位：</p>
+      <p>(i) <b>方法学差异</b>：OpenVox 用的是 Dirichlet-Categorical 的<b>Bayesian 计数</b>形式（式 14：$\alpha_t = \alpha_{t-1} + y_t$），其 $\alpha$ 总和 $S$ 仅做归一化、<mark>放弃了 vacuity $u = K/S$ 这一 epistemic 信号</mark>。EvidLife-Map 用的是同款 Dirichlet 但作为 <b>evidential head</b>，显式输出 $u$，并用同一个标量同时承担 open-set 拒识、loop-closure keyframe 选择和 voxel decay 三项任务——这是 OpenVox 框架内无法表达的。</p>
+      <p>(ii) <b>open-set vs open-vocabulary 的辩护</b>：OpenVox 的"开放"依赖 YOLO-World 检测词表 + TAP caption，本质上仍受前端模型词汇约束；EvidLife-Map 的"开放"是 closed-set 头 + vacuity 触发拒识，<b>对真正的 OOD 实例（前端模型从未见过）能直接输出 "unknown" 而不是错关联</b>。这是我们必须在 §I 和 §II 强调的不同——OpenVox 不会输出 "I don't know"，它会强行分配 ID。</p>
+      <p>(iii) <b>Inference 复杂度</b>：OpenVox 每次 association 要算 $|\Gamma| \times$ voxel 均值 + cosine，$|\Gamma|$ 随场景增长无界；EvidLife-Map 是 $K$ 类（如 20），<b>固定常数复杂度</b>。</p>
+      <p>(iv) <b>结论</b>：§II 必须给 OpenVox 单独一段 differentiation，明确"我们不卖 open-vocab reasoning，我们卖 evidential lifelong"；§I 的卖点应避开 "open-vocab" 直接对决，转而强调 "vacuity 一标量三用 + lifelong" 这一 OpenVox 无法覆盖的空白。</p>
+    </div>
+
+    <h3>17.3 OpenVox 的 limitation 我们能否针对性补</h3>
+    <table>
+      <thead><tr><th>OpenVox 缺口</th><th>EvidLife-Map 能否补</th><th>RQ 对应</th></tr></thead>
+      <tbody>
+        <tr><td>无 lifelong / decay</td><td>✅ §III.M3 voxel decay 直接覆盖</td><td>RQ4</td></tr>
+        <tr><td>无 epistemic uncertainty</td><td>✅ vacuity $u = K/S$</td><td>RQ2 + RQ3</td></tr>
+        <tr><td>无 loop closure</td><td>✅ vacuity-driven keyframe selection</td><td>RQ3</td></tr>
+        <tr><td>静态场景</td><td>✅ RQ5 Khronos dynamic</td><td>RQ5</td></tr>
+        <tr><td>open-vocab language reasoning</td><td>❌ 我们不卖这个</td><td>显式 deferred / future work</td></tr>
+        <tr><td>instance-level retrieval</td><td>❌ 我们是 class-level</td><td>显式 deferred</td></tr>
+      </tbody>
+    </table>
+
+    <div class="box box-warn">
+      <div class="box-title">⚠️ 战术建议（写论文时务必）</div>
+      <ol>
+        <li>§I 第一段：<b>不要</b>把 EvidLife-Map 包装为 "open-vocab mapping"——直接被 OpenVox 比下去。改为 "evidential lifelong mapping with vacuity-driven decay"；</li>
+        <li>§II.B Open-vocabulary mapping 小节：用<b>一整段</b>谈 OpenVox，承认它在 instance-level open-vocab 上的领先，明确说 "we tackle an orthogonal problem"；</li>
+        <li>§I.contribution list 里加一条 "<b>unlike OpenVox, EvidLife-Map produces explicit per-voxel epistemic uncertainty $u$ as a scalar driver for open-set rejection, loop-closure keyframe selection, and map decay</b>"；</li>
+        <li>§experiments：<b>不要</b>在 zero-shot open-vocab retrieval 上比——必输；要在 open-set OOD rejection、long-term reconstruction error、loop-closure recall 上对比；</li>
+        <li>future work 显式 deferred：<b>"integrating OpenVox-style caption codebook with our vacuity head"</b>——这把 OpenVox 从"对手"变成"我们的扩展空间"，是个漂亮的收尾。</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ 18. 总结 ============ -->
+  <section id="takeaway">
+    <h2><span class="num">18</span> 总结与启示</h2>
+
+    <h3>18.1 一句话总结</h3>
+    <div class="box box-key" style="font-size: 1.05rem;">
+      <mark>"OpenVox 把 YOLO-World + TAP + SBERT 的前端流水线与 Dirichlet-Categorical 概率体素的后端串成 real-time、instance-level、open-vocabulary 的增量地图框架，在 Replica/ScanNet 上 zero-shot instance segmentation 与 retrieval 全面碾压 ConceptFusion / ConceptGraphs / Open-Fusion，并在 RTX 3060 真机上验证。"</mark>
+    </div>
+
+    <h3>18.2 三个 takeaway</h3>
+    <ol>
+      <li><b>Dirichlet conjugate prior 是 incremental mapping 的"金属骨架"</b>——OpenVox 用了它的 likelihood-counting 层面，但放弃了 vacuity 层面，恰好给 EvidLife-Map 留出了独占空间；</li>
+      <li><b>Caption + SBERT 比 CLIP 更适合做 language reasoning</b>——relevance / functionality 检索 +0.33 / +0.24 R@1 是硬证据；如果未来要扩展 EvidLife-Map 的语言能力，可借鉴这一管线；</li>
+      <li><b>"MLE + MAP" 分解的优雅</b>：把 association 和 evolution 解耦，避免联合优化的复杂度——这种"chain rule + 子任务"的范式值得借鉴到 evidential lifelong 框架。</li>
+    </ol>
+
+    <h3>18.3 给我们论文的具体动作清单</h3>
+    <div class="box box-tip">
+      <div class="box-title">🎯 必做项</div>
+      <ol>
+        <li>§I 标题/abstract 避开 "open-vocabulary" 关键词；</li>
+        <li>§II 新增 "Open-vocabulary Mapping" 子节，用一整段 differentiation OpenVox；</li>
+        <li>§III 新增方程对比表：OpenVox 的 Dirichlet 用法 vs 我们的 evidential head；</li>
+        <li>§experiments 选 open-set OOD（如 ScanNet++ 未知类）作为关键 metric，而非 open-vocab retrieval；</li>
+        <li>future work：caption codebook hybrid，是漂亮的扩展叙事。</li>
+      </ol>
+    </div>
+  </section>
+
+  <footer>
+    <p>📄 论文：<i>OpenVox: Real-time Instance-level Open-vocabulary Probabilistic Voxel Representation</i><br>
+    🏢 arXiv:2502.16528v1 [cs.RO] 23 Feb 2025（RA-L under review）<br>
+    👥 Yinan Deng, Bicheng Yao, Yihang Tang, Yi Yang, Yufeng Yue (Beijing Institute of Technology)<br>
+    🔗 项目主页：https://open-vox.github.io/<br>
+    📅 精读报告生成日期：2026-05-28 · 由 paper_reader_agent 基于 PDF 原文逐节重写</p>
+  </footer>
+
+</div>
+
+</body>
+</html>

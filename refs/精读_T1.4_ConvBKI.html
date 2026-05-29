@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>精读 T1.4：ConvBKI - 实时概率语义建图网络（T-RO 2024）</title>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<style>
+  :root {
+    --primary: #1d4ed8;
+    --primary-dark: #1e3a8a;
+    --primary-light: #3b82f6;
+    --accent: #dc2626;
+    --warning: #f59e0b;
+    --success: #16a34a;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #111827;
+    --text-light: #6b7280;
+    --border: #e5e7eb;
+    --code-bg: #f1f5f9;
+    --hero-grad: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.78; color: var(--text); background: var(--bg); margin: 0; padding: 0; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 28px 80px; }
+  .hero { background: var(--hero-grad); color: white; border-radius: 16px; padding: 64px 56px 56px; margin-bottom: 32px; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3); }
+  .hero::before { content: '🧠'; position: absolute; top: -20px; right: -20px; font-size: 220px; opacity: 0.07; transform: rotate(-15deg); }
+  .hero .badge { display: inline-block; background: rgba(255,255,255,0.18); color: #fff; padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 600; margin-bottom: 18px; backdrop-filter: blur(4px); }
+  .hero h1 { margin: 0 0 16px; font-size: 2.1rem; line-height: 1.3; font-weight: 700; }
+  .hero .sub { font-size: 1.05rem; opacity: 0.92; margin-bottom: 24px; font-weight: 300; }
+  .hero .info { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 28px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,0.2); }
+  .hero .info div .label { font-size: 0.78rem; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.5px; }
+  .hero .info div .value { font-size: 1rem; font-weight: 600; margin-top: 2px; }
+  .toc { position: sticky; top: 16px; z-index: 50; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: 12px; padding: 16px 22px; margin-bottom: 28px; box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
+  .toc summary { cursor: pointer; font-weight: 600; color: var(--primary-dark); list-style: none; display: flex; align-items: center; gap: 8px; }
+  .toc summary::before { content: '📑'; }
+  .toc ol { margin: 12px 0 0; padding-left: 20px; columns: 2; column-gap: 28px; }
+  .toc li { margin: 6px 0; break-inside: avoid; }
+  .toc a { color: var(--text); text-decoration: none; font-size: 0.93rem; }
+  .toc a:hover { color: var(--primary); }
+  section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 36px 40px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); scroll-margin-top: 80px; }
+  section h2 { font-size: 1.7rem; color: var(--primary-dark); margin: 0 0 6px; display: flex; align-items: baseline; gap: 12px; }
+  section h2 .num { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; background: var(--primary); color: white; border-radius: 50%; font-size: 1rem; flex-shrink: 0; }
+  section .lead { color: var(--text-light); font-size: 1rem; margin: 0 0 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  section h3 { margin: 28px 0 10px; color: var(--primary); font-size: 1.18rem; border-left: 4px solid var(--primary); padding-left: 14px; }
+  section h4 { margin: 20px 0 8px; font-size: 1.02rem; color: var(--text); }
+  section p { margin: 10px 0; }
+  section ul, section ol { padding-left: 24px; }
+  section li { margin: 6px 0; }
+  .box { border-radius: 10px; padding: 16px 22px; margin: 18px 0; border-left: 4px solid; }
+  .box-key   { background: #eff6ff; border-color: var(--primary); }
+  .box-warn  { background: #fef2f2; border-color: var(--accent); }
+  .box-tip   { background: #fffbeb; border-color: var(--warning); }
+  .box-good  { background: #f0fdf4; border-color: var(--success); }
+  .box-quote { background: #f8fafc; border-color: var(--text-light); font-style: italic; color: #475569; }
+  .box-title { font-weight: 700; margin-bottom: 6px; }
+  .box-key .box-title { color: var(--primary-dark); }
+  .box-warn .box-title { color: var(--accent); }
+  .box-tip .box-title { color: #b45309; }
+  .box-good .box-title { color: #166534; }
+  code { background: var(--code-bg); padding: 2px 7px; border-radius: 4px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.88em; color: #be185d; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 18px 22px; border-radius: 10px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  .formula { background: #fafbfc; border: 1px solid var(--border); border-radius: 8px; padding: 14px 20px; margin: 12px 0; font-size: 1.05rem; overflow-x: auto; }
+  .formula .ref { float: right; color: var(--text-light); font-size: 0.85rem; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.93rem; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; vertical-align: top; }
+  th { background: linear-gradient(180deg, #1d4ed8, #1e3a8a); color: white; font-weight: 600; }
+  tbody tr:nth-child(even) { background: #fafbfc; }
+  tbody tr:hover { background: #eff6ff; }
+  td .win { color: var(--success); font-weight: 700; }
+  td .lose { color: var(--accent); font-weight: 700; }
+  td .num-big { font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); }
+  .diagram { background: #0f172a; color: #e2e8f0; padding: 22px 28px; border-radius: 10px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.85rem; line-height: 1.5; overflow-x: auto; white-space: pre; margin: 16px 0; }
+  .diagram .hl { color: #fbbf24; font-weight: bold; }
+  .diagram .arrow { color: #60a5fa; }
+  .diagram .label { color: #34d399; }
+  .arch { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 20px 0; }
+  .arch .mod { background: linear-gradient(135deg, #ffffff, #f1f5f9); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+  .arch .mod h5 { margin: 0 0 8px; color: var(--primary-dark); font-size: 1rem; display: flex; align-items: center; gap: 6px; }
+  .arch .mod p { font-size: 0.9rem; color: var(--text-light); margin: 4px 0; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 22px 0; }
+  .stat { background: linear-gradient(135deg, #dbeafe, #ffffff); border-radius: 12px; padding: 16px 20px; text-align: center; border: 1px solid #bfdbfe; }
+  .stat .num { font-size: 1.8rem; font-weight: 800; color: var(--primary-dark); line-height: 1.1; }
+  .stat .lbl { font-size: 0.85rem; color: var(--text-light); margin-top: 4px; }
+  .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .pros, .cons { padding: 16px 20px; border-radius: 10px; }
+  .pros { background: #f0fdf4; border-left: 4px solid var(--success); }
+  .cons { background: #fef2f2; border-left: 4px solid var(--accent); }
+  .chip { display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; margin-right: 6px; margin-bottom: 4px; }
+  .chip-blue { background: #dbeafe; color: #1e40af; }
+  .chip-green { background: #dcfce7; color: #166534; }
+  .chip-red { background: #fee2e2; color: #991b1b; }
+  .chip-yellow { background: #fef3c7; color: #92400e; }
+  mark { background: linear-gradient(transparent 55%, #fde68a 55%); padding: 0 2px; font-weight: 600; }
+  footer { margin-top: 36px; padding-top: 22px; border-top: 1px solid var(--border); color: var(--text-light); font-size: 0.88rem; text-align: center; }
+  @media (max-width: 720px) {
+    .container { padding: 16px 14px; }
+    .hero { padding: 36px 24px 30px; }
+    .hero h1 { font-size: 1.5rem; }
+    section { padding: 22px 20px; }
+    .arch, .pros-cons { grid-template-columns: 1fr; }
+    .toc ol { columns: 1; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ============ HERO ============ -->
+  <div class="hero">
+    <span class="badge">🧠 Tier 1 · RQ1 主 baseline · 精读 T1.4</span>
+    <h1>ConvBKI: Real-Time Probabilistic Semantic Mapping<br>Network with Quantifiable Uncertainty</h1>
+    <div class="sub">把经典 Bayesian Kernel Inference 重写成 depthwise 3D 卷积层<br>—— 44.3 Hz 实时，per-voxel Dirichlet 方差，22 个参数</div>
+    <div class="info">
+      <div><div class="label">📚 发表</div><div class="value">IEEE T-RO, 2024</div></div>
+      <div><div class="label">📅 在线</div><div class="value">2024-11-01 (arXiv v3)</div></div>
+      <div><div class="label">📄 页数</div><div class="value">20 页</div></div>
+      <div><div class="label">🆔 arXiv</div><div class="value">2310.16020v3</div></div>
+      <div><div class="label">🏢 单位</div><div class="value">U. Michigan · Neya Systems · US Army DEVCOM</div></div>
+      <div><div class="label">👥 通讯</div><div class="value">Joey Wilson · Maani Ghaffari</div></div>
+      <div><div class="label">💻 代码</div><div class="value">github.com/UMich-CURLY/BKI_ROS（开源 ROS 节点）</div></div>
+      <div><div class="label">🎯 任务</div><div class="value">3D 语义建图 + 可量化不确定性</div></div>
+    </div>
+  </div>
+
+  <!-- ============ TOC ============ -->
+  <details class="toc" open>
+    <summary>目录（点击展开 / 收起）</summary>
+    <ol>
+      <li><a href="#bg">§1 背景：probabilistic vs deep-learning mapping 的鸿沟</a></li>
+      <li><a href="#contrib">§2 贡献：3 条核心 + 1 条工程</a></li>
+      <li><a href="#overview">§3 方法总览（ASCII 架构图）</a></li>
+      <li><a href="#modules">§4 关键模块：BKI → ConvBKI 推导</a></li>
+      <li><a href="#exp-setup">§5 实验设置：3 数据集 × 4 baseline</a></li>
+      <li><a href="#exp-main">§6 主要结果（数字表）</a></li>
+      <li><a href="#ablation">§7 Ablation：分辨率 / 滤波器 / 噪声鲁棒</a></li>
+      <li><a href="#limit">§8 局限性</a></li>
+      <li><a href="#evidlife">§9 与 EvidLife-Map 的关系（关键！）</a></li>
+      <li><a href="#summary">§10 总结</a></li>
+    </ol>
+  </details>
+
+  <!-- ============ 1. 背景 ============ -->
+  <section id="bg">
+    <h2><span class="num">1</span> 背景：probabilistic vs deep-learning mapping 的鸿沟</h2>
+    <p class="lead">机器人感知正处于"经典概率方法"与"现代隐式神经网络"的十字路口。前者可靠但慢、超参靠手调；后者高效但黑盒、跨数据集易崩。Wilson 等人提出 <b>ConvBKI</b> 来弥合这道鸿沟。</p>
+
+    <h3>1.1 三层困境</h3>
+    <ol>
+      <li><b>Gaussian Process Occupancy Map (GPOM)</b> 闭式推断但 $O(N^3)$，N 大时不可用；</li>
+      <li><b>Bayesian Generalized Kernel Inference (BGKI)</b> 把 GP 近似到 $O(\log N)$，但 kernel 手调，每类同核；</li>
+      <li><b>纯学习</b> 端到端 mapping（Semantic MapNet 等）虽然快，却"幻觉"场景—— sim-to-real 跨域时静默崩溃。</li>
+    </ol>
+
+    <div class="box box-quote">
+      "Classical probabilistic solutions offer reliable and trustworthy performance at the expense of longer run-times and un-optimized, hand-tuned parameters. In contrast, modern deep learning methods achieve higher performance and improved latency due to optimization in an implicit space but lose the ability to generalize to new data." —— §I
+    </div>
+
+    <h3>1.2 off-road perception 必须有不确定性</h3>
+    <p>越野场景下的"负障碍"（坑、悬崖）是没有数据点的——若模型没有方差度量，就会自信地说"前方有路"，造成事故。<mark>不确定性量化不是 nice-to-have，是 safety-critical 必备。</mark></p>
+
+    <div class="box box-key">
+      <div class="box-title">🎯 一句话定位</div>
+      ConvBKI = 把 Semantic-BKI 的"每核更新"重写成 <b>depthwise 3D 卷积</b>，每类学一个 ellipsoidal kernel（22 参数），<b>44.3 Hz 实时</b>，per-voxel Dirichlet variance 仍然 closed-form 可算。
+    </div>
+  </section>
+
+  <!-- ============ 2. 贡献 ============ -->
+  <section id="contrib">
+    <h2><span class="num">2</span> 论文的三大贡献 + 工程贡献</h2>
+
+    <div class="arch">
+      <div class="mod">
+        <h5>① 新 NN 层 ConvBKI</h5>
+        <p>把 Bayesian Kernel Inference 重写成可反向传播的 depthwise convolution layer，结合 probabilistic 推理与可微编程。</p>
+      </div>
+      <div class="mod">
+        <h5>② 实时 explicit 不确定性</h5>
+        <p>per-voxel 闭式 Dirichlet 方差 (式 10)，能在 &gt;10 Hz 速率下产出 explicit probabilistic semantic map。</p>
+      </div>
+      <div class="mod">
+        <h5>③ 大规模对比实验</h5>
+        <p>对 probabilistic baseline（S-BKI / S-CSM / BGKOctoMap-CRF）和 learning baseline（Semantic MapNet GRU/LSTM/Linear）都做了 head-to-head 对比。</p>
+      </div>
+      <div class="mod">
+        <h5>④ 开源 ROS 包 + 越野数据集</h5>
+        <p>github.com/UMich-CURLY/BKI_ROS。新越野数据集（保密未公开）展示 unseen-class 下 variance 升高的"诚实退化"行为。</p>
+      </div>
+    </div>
+
+    <div class="box box-good">
+      <div class="box-title">🏆 核心数字成果</div>
+      <ul>
+        <li>KITTI Odom 15: <b>77.7% mIoU</b>（ConvBKI Compound），比 S-BKI fine (77.2%) 高 0.5%，比 S-BKI (0.2m) baseline 76.5% 高 1.2%；</li>
+        <li>推理频率从 S-BKI 的 <b>0.6 Hz → ConvBKI 44.3 Hz</b>（~74× 加速）；</li>
+        <li>参数量：仅 <b>22 个</b>（Semantic MapNet 是 1.96M ~ 2.04M，差 ~100,000×）；</li>
+        <li>CarlaSC → SemanticKITTI sim-to-real：ConvBKI 26.7% → 24.2% （直接），SMNet 35.4% → 23.9%；</li>
+        <li>swap segmentation 网络后：<b>ConvBKI 46.6% vs SMNet 4.6%</b>（差 10×）；</li>
+        <li>Ablation：filter 5×5×5 @ 0.2 m → 216.8 Hz，mIoU 59.3%。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 3. 总览 ============ -->
+  <section id="overview">
+    <h2><span class="num">3</span> 方法总览（ASCII 架构图）</h2>
+    <p class="lead">ConvBKI 是一个 <b>recurrent neural layer</b>，输入是带语义概率的点云，输出是 per-voxel Dirichlet concentration parameters $\alpha^c_*$。</p>
+
+    <div class="diagram">┌─────────────────────────────────────────────────────────────────────┐
+│  <span class="hl">INPUT</span>                                                              │
+│    点云 P_t = {(x_i, y_i)}    y_i ∈ Δ^C  (softmax 语义概率 C 类)        │
+└─────────────────────────────────────────────────────────────────────┘
+                            │
+                            <span class="arrow">▼</span>
+       <span class="hl">① 语义分割网络</span>  (SPVCNN / DilatedCNN — off-the-shelf)
+                            │
+                            <span class="arrow">▼</span>
+       <span class="hl">② Voxel Discretization</span>   Eq. (13)
+                F^c_* = Σ_i 𝕀(* , i) · y_i^c    (sum semantic mass)
+                            │
+                            <span class="arrow">▼</span>
+       <span class="hl">③ Depthwise 3D Conv</span>   Eq. (14)
+              α^c_{*,t} = α^c_{*,t-1} + Σ_{n,o,p} K^c_{n,o,p} F^c_{h+n,i+o,j+p}
+              (per-class kernel K^c — sparse kernel function, 2 params: l_h, l_v)
+                            │
+                            <span class="arrow">▼</span>
+       <span class="hl">④ Local Map Shift</span>   §V  (only integer-voxel translation, R + s_t)
+                            │
+                            <span class="arrow">▼</span>
+       <span class="hl">⑤ Dirichlet Statistics</span>   Eq. (10)
+              η_* = Σ α^j_*
+              E[θ^c_*] = α^c_* / η_*           ← maximum-likelihood class
+              V[θ^c_*] = α^c_*/η_* · (1 - α^c_*/η_*) / (1 + η_*)   ← <span class="label">variance</span>
+                            │
+                            <span class="arrow">▼</span>
+       OUTPUT: per-voxel  (semantic mean,  variance) — both closed-form
+                            │
+                            <span class="arrow">▼</span>
+       Trained <b>end-to-end via gradient descent</b> on NLL loss</div>
+
+    <h3>3.1 与 S-BKI 的形式对应关系</h3>
+    <p>核心观察：S-BKI 的更新式 (式 9)</p>
+    <div class="formula">
+      $$\alpha^c_{*,t} = \alpha^c_{*,t-1} + \sum_{i=1}^{N_t} k(x_*, x_i) y^c_i \tag{9}$$
+    </div>
+    <p>可以 rewrite 为 <b>depthwise convolution</b>（式 14）：</p>
+    <div class="formula">
+      $$\alpha^c_{*,t} = \alpha^c_{*,t-1} + \sum_{n,o,p} K^c_{n,o,p}\, F^c_{h+n, i+o, j+p} \tag{14}$$
+    </div>
+    <p>其中 $F$ 是 voxelized semantic volume，$K^c$ 是 per-class filter，将 kernel function $k^c$ 在 filter 网格上离散化得到（式 15）。这样 GPU 可并行处理，且 kernel 参数可学习。</p>
+
+    <div class="box box-key">
+      <div class="box-title">💡 三处关键创新</div>
+      <ol>
+        <li><b>每类独立 kernel $k^c$</b>：不再像 S-BKI 全部类共用一个 spherical kernel；</li>
+        <li><b>Compound kernel</b>（水平 × 垂直）：用 $k^c = \kappa^c_h(\Delta_{xy}) \cdot \kappa^c_v(\Delta_z)$ 建模 ellipsoidal 几何，例如 pole 类竖直长水平短；</li>
+        <li><b>Continuous Categorical likelihood</b>（式 12）：likelihood 接受 softmax 输入而非 one-hot，避免信息损失。</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ 4. 模块细节 ============ -->
+  <section id="modules">
+    <h2><span class="num">4</span> 关键模块拆解</h2>
+
+    <h3>4.1 Bayesian Kernel Inference 复习</h3>
+    <p>Vega-Brown et al. (2014) 提出，BKI 通过 <b>positional kernel</b> $k(x_i, x_*)$ 把"近邻观测"耦合到 query voxel：</p>
+    <div class="formula">
+      $$p(y_i | x_i, \theta_*, x_*) \propto p(y_i | \theta_*)^{k(x_i, x_*)} \tag{2}$$
+    </div>
+    <p>Kernel 必须满足：$k(x,x) = 1\ \forall x$ 且 $k(x, x_*) \in [0, 1]\ \forall x, x_*$ （式 3）。</p>
+
+    <h3>4.2 Categorical likelihood + Dirichlet conjugate prior</h3>
+    <p>语义类标号 $c \in \{1, \dots, C\}$，one-hot 观测 $y_i$：</p>
+    <div class="formula">
+      $$p(y_i | \theta_i) = \prod_{c=1}^C (\theta^c_i)^{y^c_i} \tag{1}$$
+    </div>
+    <p>取 Dirichlet 先验 $\mathrm{Dir}(C, \alpha_0)$ 与上式共轭，由 Bayes 法则推出闭式：</p>
+    <div class="formula">
+      $$p(\theta_* | x_*, D) \propto \prod_c (\theta^c_*)^{\alpha^c_* + \sum_i y^c_i k(x_i, x_*) - 1} \tag{8}$$
+    </div>
+    <p>即式 (9) 的 weighted-count update。</p>
+
+    <h3>4.3 Sparse Kernel</h3>
+    <p>ConvBKI 沿用 Melkumyan & Ramos 的 sparse kernel（同 S-BKI）：</p>
+    <div class="formula">
+      $$\kappa(d) = \begin{cases} \sigma_0\left[\frac{1}{3}\left(2 + \cos(2\pi \frac{d}{l})(1 - \frac{d}{l}) + \frac{1}{2\pi}\sin(2\pi \frac{d}{l})\right)\right], & d < l \\ 0, & d \geq l \end{cases} \tag{11}$$
+    </div>
+    <p>其中 $d = \|x_i - x_*\|_2$，$l$ 为 length-scale。$\sigma_0 = 1$（必须，以满足式 3）。<b>kernel 在 $d=0$ 处为 1，$d = l$ 处衰减到 0</b>。</p>
+
+    <h3>4.4 Compound kernel（核心创新）</h3>
+    <p>真实物体几何形状有方向性。ConvBKI 用 <b>水平 × 垂直</b> 拆分：</p>
+    <div class="formula">
+      $$k^c\left(\begin{bmatrix}x_i^1\\x_i^2\\x_i^3\end{bmatrix}, \begin{bmatrix}x_*^1\\x_*^2\\x_*^3\end{bmatrix}\right) = \kappa^c_h\left(\left\|\begin{matrix}x_i^1 - x_*^1\\x_i^2 - x_*^2\end{matrix}\right\|_2\right) \cdot \kappa^c_v\left(\|x_i^3 - x_*^3\|_2\right) \tag{16}$$
+    </div>
+    <p>每类 2 个 length-scale 参数 ($l_h^c, l_v^c$)，共 $2C$ 个参数。对 SemanticKITTI 11 类共 22 参数。</p>
+
+    <h3>4.5 Dirichlet 统计输出</h3>
+    <div class="formula">
+      $$\eta_* = \sum_{j=1}^C \alpha^j_*,\quad \mathbb{E}[\theta^c_*] = \frac{\alpha^c_*}{\eta_*},\quad \mathbb{V}[\theta^c_*] = \frac{\alpha^c_*/\eta_*\,(1 - \alpha^c_*/\eta_*)}{1 + \eta_*} \tag{10}$$
+    </div>
+    <p>variance 的物理含义：<mark>观测越多（$\eta_*$ 越大），variance 越小</mark>；当某 voxel 完全未观测时（$\eta_* \approx C\epsilon$），variance 自然最大（uniform prior）。</p>
+
+    <h3>4.6 Local mapping (§V)</h3>
+    <p>问题：global map 查询是瓶颈，O(occupied voxels) 线性增长。解决方案：</p>
+    <ol>
+      <li>维护固定大小的 dense local map $L_t \in \mathbb{R}^{D_C \times D_X \times D_Y \times D_Z}$；</li>
+      <li>ego-vehicle 每移动整数个 voxel ($\nu_{t,t-1}$，式 18) 时整体 shift map；</li>
+      <li>余下的连续偏移 $s_t = \psi_t - \Delta r \lfloor \psi_t / \Delta r \rceil$（式 19）记录在 pose 中，对 input point cloud 做旋转 + 平移；</li>
+      <li><b>lossless propagation</b>：避免累积近似误差导致 voxel blur。</li>
+    </ol>
+
+    <div class="box box-tip">
+      <div class="box-title">⚠️ 设计权衡</div>
+      Local mapping <b>不做 loop closure</b>——voxel 离开局部窗口就被 discard，重新进入时重设为 prior。这对仅做 short-horizon planning 的应用是可接受的，但对 lifelong mapping 是缺陷。
+    </div>
+
+    <h3>4.7 训练</h3>
+    <ul>
+      <li><b>Loss</b>：weighted Negative Log-Likelihood，而非常见的 cross-entropy（论文 §IV.B）；</li>
+      <li><b>Optimizer</b>：Adam, lr = 0.007, 1 epoch；</li>
+      <li><b>Input</b>：$\tau = 10$ 帧；</li>
+      <li><b>Filter</b>：$f = 5$，分辨率 0.2 m；</li>
+      <li><b>训练数据</b>：仅需 <b>semantic segmentation GT</b>，不需要 3D map GT（这是相对 Semantic MapNet 的大优势）。</li>
+    </ul>
+  </section>
+
+  <!-- ============ 5. 实验设置 ============ -->
+  <section id="exp-setup">
+    <h2><span class="num">5</span> 实验设置</h2>
+
+    <h3>5.1 三个评估场景</h3>
+    <table>
+      <thead><tr><th>场景</th><th>数据集</th><th>对比对象</th><th>目的</th></tr></thead>
+      <tbody>
+        <tr><td><span class="chip chip-blue">A</span> probabilistic</td><td>KITTI Odom seq 15（stereo + ELAS depth + ORB-SLAM）</td><td>S-BKI / S-CSM / BGKOctoMap-CRF / Yang et al.</td><td>验证 ConvBKI 比 S-BKI 在 mIoU 和速度上的提升</td></tr>
+        <tr><td><span class="chip chip-blue">B</span> learning</td><td>CarlaSC (sim)</td><td>Semantic MapNet (GRU/LSTM/Linear)</td><td>反映 ConvBKI vs 隐式 memory model</td></tr>
+        <tr><td><span class="chip chip-blue">C</span> sim-to-real</td><td>CarlaSC → SemanticKITTI</td><td>同上</td><td>跨数据集 reliability</td></tr>
+        <tr><td><span class="chip chip-yellow">D</span> 越野</td><td>RELLIS-3D + Neya 自采</td><td>—（仅定性 + variance）</td><td>未见类 + perceptually challenging</td></tr>
+      </tbody>
+    </table>
+
+    <h3>5.2 训练 / 硬件配置</h3>
+    <div class="stat-grid">
+      <div class="stat"><div class="num">0.2 m</div><div class="lbl">默认 voxel 分辨率</div></div>
+      <div class="stat"><div class="num">f=5</div><div class="lbl">默认 filter 大小</div></div>
+      <div class="stat"><div class="num">τ=10</div><div class="lbl">输入帧</div></div>
+      <div class="stat"><div class="num">RTX 3090</div><div class="lbl">推理 GPU</div></div>
+      <div class="stat"><div class="num">l=0.5 m</div><div class="lbl">kernel 初值</div></div>
+      <div class="stat"><div class="num">1 epoch</div><div class="lbl">训练量</div></div>
+    </div>
+  </section>
+
+  <!-- ============ 6. 主要结果 ============ -->
+  <section id="exp-main">
+    <h2><span class="num">6</span> 主要结果（数字表）</h2>
+
+    <h3>6.1 Probabilistic comparison: KITTI Odom seq 15（Table I）</h3>
+    <table>
+      <thead><tr><th>方法</th><th>Building</th><th>Road</th><th>Vege.</th><th>Sidewalk</th><th>Car</th><th>Sign</th><th>Fence</th><th>Pole</th><th>mIoU (%)</th><th>Freq (Hz)</th></tr></thead>
+      <tbody>
+        <tr><td>Segmentation [60]</td><td>92.1</td><td>93.9</td><td>90.7</td><td>81.9</td><td>94.6</td><td>19.8</td><td>78.9</td><td>49.3</td><td>75.1</td><td>—</td></tr>
+        <tr><td>Yang et al. [61]</td><td>95.6</td><td>90.4</td><td>92.8</td><td>70.0</td><td>94.4</td><td>0.1</td><td>84.5</td><td>49.5</td><td>72.2</td><td>—</td></tr>
+        <tr><td>BGKOctoMap-CRF [12]</td><td>94.7</td><td>93.8</td><td>90.2</td><td>81.1</td><td>92.9</td><td>0.0</td><td>78.0</td><td>49.7</td><td>72.5</td><td>—</td></tr>
+        <tr><td>S-CSM [5]</td><td>94.4</td><td>95.4</td><td>90.7</td><td>84.5</td><td>95.0</td><td>22.2</td><td>79.3</td><td>51.6</td><td>76.6</td><td>—</td></tr>
+        <tr><td>S-BKI (fine, 0.1m)</td><td>94.6</td><td>95.4</td><td>90.4</td><td>84.2</td><td>95.1</td><td>27.1</td><td>79.3</td><td>51.3</td><td>77.2</td><td>0.6</td></tr>
+        <tr><td>S-BKI (0.2m)</td><td>92.6</td><td>94.7</td><td>90.9</td><td>84.5</td><td>95.1</td><td>21.9</td><td>80.0</td><td>52.0</td><td>76.5</td><td>—</td></tr>
+        <tr><td>ConvBKI Single</td><td>92.7</td><td>94.8</td><td>90.9</td><td>84.7</td><td>95.1</td><td>22.1</td><td>80.2</td><td>52.1</td><td>76.6</td><td>—</td></tr>
+        <tr><td>ConvBKI Per Class</td><td>94.0</td><td>95.5</td><td>91.0</td><td>87.0</td><td>95.1</td><td>22.8</td><td>81.8</td><td>52.9</td><td>77.5</td><td>—</td></tr>
+        <tr><td><b>ConvBKI Compound</b></td><td><b>94.0</b></td><td><b>95.6</b></td><td><b>91.0</b></td><td><b>87.2</b></td><td><b>95.1</b></td><td><b>22.8</b></td><td><b>81.9</b></td><td><b>54.3</b></td><td><b>77.7</b></td><td><b>44.3</b></td></tr>
+      </tbody>
+    </table>
+    <p>三处关键观察：(1) 即使无 optimization，BKI 框架仍能比 segmentation input (75.1%) 改善 1.4%；(2) per-class kernel 比 single kernel 升 0.9%；(3) compound kernel 在 pole 类涨 1.4%（从 52.9 → 54.3），证实"竖直物体竖直传播"的几何直觉。</p>
+
+    <h3>6.2 Learning comparison: CarlaSC（Table II）</h3>
+    <table>
+      <thead><tr><th>Method</th><th>GRU</th><th>LSTM</th><th>Linear</th><th>ConvBKI</th></tr></thead>
+      <tbody>
+        <tr><td>Map Dimension</td><td>2</td><td>2</td><td>2</td><td>3</td></tr>
+        <tr><td>Memory (MB)</td><td>2765</td><td>2917</td><td>2707</td><td><b>2497</b></td></tr>
+        <tr><td>Parameters</td><td>1.96 M</td><td>2.04 M</td><td>1.74 M</td><td><b>22</b></td></tr>
+        <tr><td>mIoU (1 epoch)</td><td>24.0</td><td>25.3</td><td>24.7</td><td><b>26.7</b></td></tr>
+        <tr><td>mIoU (15 epoch)</td><td><b>35.4</b></td><td>30.9</td><td>32.6</td><td>N/A</td></tr>
+        <tr><td>Freq. (Hz)</td><td>111.0</td><td>107.4</td><td>116.8</td><td><b>176.6</b></td></tr>
+        <tr><td>Data</td><td>BEV</td><td>BEV</td><td>BEV</td><td>Segmentation</td></tr>
+      </tbody>
+    </table>
+    <p>ConvBKI 在 1 epoch 训练即达到 26.7% mIoU 击败所有 baseline；15 epoch 后 GRU 涨到 35.4% 反超 ConvBKI——但 ConvBKI 无 epoch 收益空间，因为参数只有 22 个。</p>
+
+    <h3>6.3 Sim-to-real (Table IV)</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Building</th><th>Pedestrian</th><th>Pole</th><th>Road</th><th>Ground</th><th>Sidewalk</th><th>Vege.</th><th>Vehicle</th><th>mIoU (%)</th></tr></thead>
+      <tbody>
+        <tr><td>ConvBKI (direct)</td><td>21.1</td><td>17.4</td><td>2.8</td><td>41.8</td><td>19.4</td><td>11.4</td><td>49.3</td><td>30.1</td><td>24.2</td></tr>
+        <tr><td>SMNet (direct)</td><td>22.2</td><td>3.7</td><td>7.0</td><td>40.3</td><td>22.2</td><td>18.4</td><td>49.7</td><td>27.8</td><td>23.9</td></tr>
+        <tr><td><b>ConvBKI (tran.)</b></td><td><b>58.5</b></td><td><b>23.6</b></td><td><b>12.3</b></td><td><b>66.7</b></td><td><b>64.7</b></td><td><b>40.5</b></td><td><b>61.6</b></td><td><b>45.1</b></td><td><b>46.6</b></td></tr>
+        <tr><td>SMNet (tran.)</td><td>0.0</td><td>0.0</td><td>0.0</td><td>18.5</td><td>13.7</td><td>1.3</td><td>3.2</td><td>0.3</td><td>4.6</td></tr>
+      </tbody>
+    </table>
+    <div class="box box-good">
+      <div class="box-title">🏆 这是 ConvBKI 最有说服力的结果</div>
+      Swap 语义分割网络后：ConvBKI 涨 22.4% (24.2 → 46.6%)，Semantic MapNet 反而崩到 4.6%。原因：ConvBKI 在 <b>explicit 语义类别</b>上学 kernel，可直接换 segmentation network；而 SMNet 在 <b>latent feature space</b> 学，特征空间没有保证对应关系。
+    </div>
+  </section>
+
+  <!-- ============ 7. Ablation ============ -->
+  <section id="ablation">
+    <h2><span class="num">7</span> Ablation Study</h2>
+
+    <h3>7.1 Voxel resolution (Table V，SemanticKITTI seq 8)</h3>
+    <table>
+      <thead><tr><th>Resolution</th><th>mIoU (%)</th><th>Frequency (Hz)</th><th>Mem (GB)</th></tr></thead>
+      <tbody>
+        <tr><td>N/A (Input)</td><td>54.6</td><td>—</td><td>—</td></tr>
+        <tr><td>0.4 m</td><td>58.2</td><td>301.4</td><td>2.4</td></tr>
+        <tr><td><b>0.2 m</b></td><td><b>59.3</b></td><td><b>216.8</b></td><td>2.7</td></tr>
+        <tr><td>0.1 m</td><td>59.0</td><td>65.3</td><td>5.0</td></tr>
+      </tbody>
+    </table>
+    <p>0.2 m 是 sweet spot——比 0.1 m mIoU 还略高（可能是因为 0.1 m 下 voxel 太空），且速度快 3×。</p>
+
+    <h3>7.2 Filter size (Table VI)</h3>
+    <table>
+      <thead><tr><th>Filter Size</th><th>mIoU (%)</th><th>Frequency (Hz)</th></tr></thead>
+      <tbody>
+        <tr><td>N/A (Input)</td><td>54.6</td><td>—</td></tr>
+        <tr><td>f = 3</td><td>59.0</td><td>260.2</td></tr>
+        <tr><td><b>f = 5</b></td><td><b>59.3</b></td><td><b>216.8</b></td></tr>
+        <tr><td>f = 7</td><td>59.5</td><td>161.5</td></tr>
+        <tr><td>f = 9</td><td>59.6</td><td>117.0</td></tr>
+      </tbody>
+    </table>
+    <p>$f^3$ 增长，f=9 仅多 0.3% mIoU 但速度减半。论文推荐 f = 5 或 7。</p>
+
+    <h3>7.3 Robustness to label noise (Fig. 10)</h3>
+    <p>把语义 GT 替换为随机噪声不同比例（0% ~ 100%）：</p>
+    <ul>
+      <li><b>低噪声 (&lt;30%)</b>：ConvBKI 的 spatial smoothing 显著抑制噪声，Map GT 准确度远高于 Input GT；</li>
+      <li><b>高噪声 (&gt;50%)</b>：update 被噪声主导，准确度急剧下降；</li>
+      <li>variance 同时升高，提供"何时不要信任 map"的诊断信号。</li>
+    </ul>
+
+    <h3>7.4 Free space sampling (Fig. 11)</h3>
+    <p>免费空间采样频率 vs resolution：0.1 m 分辨率 free space sampling 仍可保持 >10 Hz。Voxel grid insertion 在 10M 点时仍 >10 Hz。<b>ConvBKI 自身的 update 复杂度只与 filter size 和 map size 相关，与 input 点数无关</b>。</p>
+
+    <h3>7.5 Local vs global mapping (Fig. 12)</h3>
+    <p>Global map propagation 时间随 occupied voxels 线性增长，local map 是常数。是论文实现 sustained real-time 的关键工程优化。</p>
+  </section>
+
+  <!-- ============ 8. 局限 ============ -->
+  <section id="limit">
+    <h2><span class="num">8</span> 局限性</h2>
+
+    <div class="pros-cons">
+      <div class="pros">
+        <b>✅ 论文承认的优势</b>
+        <ul>
+          <li>22 参数（极轻）+ 44.3 Hz 实时；</li>
+          <li>per-voxel 闭式 variance，可量化不确定性；</li>
+          <li>对 segmentation noise 鲁棒（spatial smoothing）；</li>
+          <li>仅需 segmentation GT（不需 3D map GT）；</li>
+          <li>swap segmentation network 不影响 kernel（46.6% mIoU vs SMNet 4.6%）；</li>
+          <li>越野 unseen class 时 variance 自动升高。</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <b>⚠️ 论文承认的局限</b>
+        <ul>
+          <li><b>不建模 dynamic objects</b>：行人 / 车辆移动会留 trace；BEV 精度受损（pedestrian precision 10.5%）；</li>
+          <li><b>不建模旋转</b>：depthwise conv kernel 在所有方向相同，对斜坡 / 非结构化环境不友好；</li>
+          <li><b>无 loop closure</b>：local map 出窗即丢；</li>
+          <li><b>kernel 训练有偏</b>：在 over-fit 的 segmentation 上训出的 kernel 平滑能力弱；</li>
+          <li><b>对 systematic error 无能为力</b>：若 segmentation 一直把 sidewalk 误标 road，ConvBKI 无法纠正。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 9. EvidLife-Map 关系（核心） ============ -->
+  <section id="evidlife">
+    <h2><span class="num">9</span> 与 EvidLife-Map 的关系（关键技术拆解）</h2>
+    <p class="lead">ConvBKI 是 <b>EvidLife-Map 的 RQ1 第一 baseline</b>。这一节是本精读最关键的部分——必须搞清楚 Dirichlet posterior vs Dirichlet evidential 的数学区别，以及在哪些 metric 上我们能赢、可能输。</p>
+
+    <h3>9.1 数学对比：ConvBKI vs EvidLife-Map evidential head</h3>
+    <table>
+      <thead><tr><th>维度</th><th>ConvBKI (Wilson 2024)</th><th>EvidLife-Map (ours)</th></tr></thead>
+      <tbody>
+        <tr><td><b>分布形式</b></td><td>Dirichlet posterior $\mathrm{Dir}(\alpha)$，$\alpha = \alpha_0 + \sum_i k(x_*, x_i) y_i$（共轭 Bayes 更新）</td><td>Dirichlet evidential output：网络直接预测 $\alpha = \mathrm{ReLU}(f(\cdot)) + 1$（Sensoy 2018），训练时用 EDL loss</td></tr>
+        <tr><td><b>不确定性定义</b></td><td>分类方差 $\mathbb{V}[\theta^c] = \frac{\alpha^c/\eta\,(1-\alpha^c/\eta)}{1+\eta}$（式 10）</td><td>Dirichlet vacuity $u = C / \sum_c \alpha^c$（即 $C/S$），可加 dissonance 度量分歧</td></tr>
+        <tr><td><b>不确定性 semantics</b></td><td>"对类别预测的方差"——观测多则降，但未必 disentangle OOD vs in-distribution 噪声</td><td>"belief mass deficit"——OOD 时 $\alpha \to 1$ 即 $u \to 1$，与 in-distribution noise 有<b>结构性区分</b></td></tr>
+        <tr><td><b>训练</b></td><td>NLL on $\mathbb{E}[\theta^c_*]$（隐式）</td><td>EDL loss = expected MSE + KL regularizer，<b>显式惩罚不确定时的 false confidence</b></td></tr>
+        <tr><td><b>kernel</b></td><td>per-class sparse kernel + compound (2 params/class)</td><td>原生 NN feature，可与 ConvBKI 的 spatial smoothing 互补（plug-in）</td></tr>
+        <tr><td><b>open-set / OOD</b></td><td>variance 在 unseen class 时升高（定性），但<b>无 AUROC 量化</b></td><td>$u$ 直接作为 OOD score，目标 AUROC ≥ 0.85</td></tr>
+        <tr><td><b>decay</b></td><td>不显式建模时间衰减（local map 出窗即弃）</td><td>$\alpha^c \leftarrow \lambda \alpha^c + \mathrm{new}$（vacuity 自然回升）</td></tr>
+      </tbody>
+    </table>
+
+    <h3>9.2 "quantifiable uncertainty" 的具体定义</h3>
+    <p>ConvBKI 论文中的 "quantifiable uncertainty" 仅指式 (10) 的 <b>per-voxel Dirichlet 方差</b>。这是一个 in-distribution 不确定性度量，<mark>不是 epistemic / aleatoric / OOD 的标准 disentangle</mark>。论文也承认（§VI.B "Reliability"）：<i>"Robustness to epistemic or systemic uncertainty is more difficult for ConvBKI to capture"</i>。EvidLife-Map 的 Dirichlet vacuity 在数学上是 <b>$C/S$</b>，这两个量在大 $S$（多观测）极限下趋势一致，但小 $S$ 时 vacuity 偏向 OOD detection，variance 偏向 frequentist 置信。</p>
+
+    <h3>9.3 哪些 metric 我们可能赢 / 可能输</h3>
+    <div class="pros-cons">
+      <div class="pros">
+        <b>✅ 我们可能赢的</b>
+        <ul>
+          <li><b>RQ2 open-set AUROC</b>：ConvBKI 的 variance 没在 OOD task 上 train，AUROC 估计 ~0.5-0.6（接近随机）；evidential 经 KL 正则压抑 false confidence，目标 ≥ 0.85；</li>
+          <li><b>ECE (RQ1)</b>：ConvBKI NLL 训练对 calibration 不直接优化；EDL loss 含 KL 正则强制 align expected probability 与 frequency；</li>
+          <li><b>RQ4 lifelong</b>：ConvBKI local map 出窗即丢，无 forgetting 概念；evidential vacuity decay 是天然的 forgetting 信号；</li>
+          <li><b>RQ3 traversability</b>：vacuity 在路面噪声下持续低，ConvBKI variance 易受 noise 干扰飙高。</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <b>⚠️ 我们可能输的</b>
+        <ul>
+          <li><b>mIoU (RQ1)</b>：ConvBKI Compound 在 KITTI Odom 15 已经达 77.7%（vs S-BKI 77.2%），属于 SOTA 水平，evidential head 若仅替换 last layer 不易显著提升；</li>
+          <li><b>推理速度</b>：22 参数 + depthwise conv = 44.3 Hz（dense map 时），evidential head 增加全连接层，可能慢 1.5-2×；</li>
+          <li><b>训练稳定性</b>：EDL loss 比 NLL 难训，需要 KL warm-up。</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>9.4 实现：是否开源？自跑 / published numbers？</h3>
+    <ul>
+      <li><b>开源</b>：✅ ROS package at <code>github.com/UMich-CURLY/BKI_ROS</code>（包含 SemanticKITTI / RELLIS-3D 例程）；</li>
+      <li><b>训练代码 ConvBKI（非 ROS）</b>：需要确认，看 paper 第一作者 Joey Wilson 的 GitHub；</li>
+      <li><b>推荐</b>：<mark>自跑（self-reproduced）</mark> KITTI Odom 15 和 SemanticKITTI seq 8 上 ConvBKI Compound 0.2 m / f=5 的 mIoU + ECE + 我们补的 AUROC。Published numbers 不含 ECE 和 AUROC（论文未报告），所以为了公平比较必须自跑；</li>
+      <li><b>越野数据集（Neya）</b>：不公开，所以 §VII 的结果无法重复——这是 ConvBKI 论文的一个 weakness，我们 RQ3 可用 RELLIS-3D + RUGD 替代；</li>
+      <li><b>注意</b>：ConvBKI 训练 lr=0.007 / 1 epoch / kernel init l=0.5 m 是 Wilson 的设置；EvidLife-Map 报告时必须 reproduce 同 hyperparameter 否则不公平。</li>
+    </ul>
+
+    <h3>9.5 EvidLife-Map 借鉴 ConvBKI 的设计</h3>
+    <p>三处可直接借鉴：(1) <b>depthwise conv 实现 BKI</b>——可保留作为 spatial smoothing 模块，evidential head 接在其上；(2) <b>compound kernel</b>——pole/road 几何先验对所有 BKI 系都有效；(3) <b>local map shift</b>——lossless integer-voxel shift 避免 propagation blur，对我们的 voxel decay 长期记忆同样重要。</p>
+
+    <div class="box box-warn">
+      <div class="box-title">⚠️ 技术诚实</div>
+      ConvBKI 是 RQ1 上最 fair 的 baseline——同 BKI 谱系、同输入（点云 + 语义概率）、同输出（per-voxel 概率 + variance），唯一差别就是后端 head（Dirichlet posterior vs Dirichlet evidential）。<mark>如果我们在 mIoU 上不能击败 ConvBKI，就只能靠 ECE / AUROC / decay 的"任务集合"打赢</mark>——这是 EvidLife-Map 的真正卖点（一个 vacuity 标量同时承担 3 项任务），而不是单一 mIoU。
+    </div>
+  </section>
+
+  <!-- ============ 10. 总结 ============ -->
+  <section id="summary">
+    <h2><span class="num">10</span> 总结</h2>
+
+    <h3>10.1 一句话总结</h3>
+    <div class="box box-key" style="font-size: 1.05rem;">
+      <mark>ConvBKI 把 S-BKI 的 weighted-count Bayesian update 重写为可微分的 depthwise 3D convolution，每类一组 ellipsoidal kernel 参数（共 22 个），在 SemanticKITTI 上以 44.3 Hz 实时输出 per-voxel Dirichlet 类概率与方差，比 S-BKI 在 mIoU 上略胜（77.7% vs 77.2%）但速度快 ~74×；最大亮点是 swap segmentation network 后仍能保持性能（46.6% vs SMNet 4.6%）。</mark>
+    </div>
+
+    <h3>10.2 对 EvidLife-Map 的三个核心 takeaway</h3>
+    <ol>
+      <li><b>ConvBKI 的 variance ≠ vacuity</b>——这是论文"quantifiable uncertainty"宣称的 limit，我们的 EDL 框架在 OOD AUROC 上有结构性优势；</li>
+      <li><b>per-class compound kernel</b> 是 strong design——值得在 EvidLife-Map 的 spatial smoothing 模块沿用；</li>
+      <li><b>22 参数</b>是个 reality check——若我们的 evidential head 增到 1M 参数还输给 22 参数的 ConvBKI，那就是设计失败。</li>
+    </ol>
+
+    <h3>10.3 实现注意（写进 RQ1 protocol）</h3>
+    <ul>
+      <li>使用 ConvBKI Compound 0.2 m + f=5 作为默认配置；</li>
+      <li>SemanticKITTI seq 8 (valid) 报告 mIoU + ECE + AUROC（后两者论文未报）；</li>
+      <li>同 segmentation 输入 SPVCNN，hyperparameters: lr=0.007, 1 epoch, $\tau=10$, $l_{init}=0.5$；</li>
+      <li>local map size 与 EvidLife-Map 对齐 ([-25.6, -25.6, -2.0] → [25.6, 25.6, 1.0] m)；</li>
+      <li>ROS 节点路径：<code>github.com/UMich-CURLY/BKI_ROS</code>。</li>
+    </ul>
+  </section>
+
+  <footer>
+    <p>📄 论文：<i>ConvBKI: Real-Time Probabilistic Semantic Mapping Network with Quantifiable Uncertainty</i><br>
+    🏢 IEEE Transactions on Robotics, 2024 · arXiv:2310.16020v3<br>
+    👥 J. Wilson, Y. Fu, J. Friesen, P. Ewen, A. Capodieci, P. Jayakumar, K. Barton, M. Ghaffari<br>
+    📅 精读报告生成日期：2026-05-28 · 由 paper_reader_agent 基于原文逐节重写 · 为 EvidLife-Map RQ1 baseline 准备</p>
+  </footer>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>论文精读 T1.1：Khronos - 动态环境下的时空度量-语义 SLAM（RSS 2024）</title>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<style>
+  :root {
+    --primary: #1d4ed8;
+    --primary-dark: #1e3a8a;
+    --primary-light: #3b82f6;
+    --accent: #dc2626;
+    --warning: #f59e0b;
+    --success: #16a34a;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #111827;
+    --text-light: #6b7280;
+    --border: #e5e7eb;
+    --code-bg: #f1f5f9;
+    --hero-grad: linear-gradient(135deg, #0f172a 0%, #581c87 50%, #be185d 100%);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif; line-height: 1.78; color: var(--text); background: var(--bg); margin: 0; padding: 0; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 28px 80px; }
+  .hero { background: var(--hero-grad); color: white; border-radius: 16px; padding: 64px 56px 56px; margin-bottom: 32px; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3); }
+  .hero::before { content: '⏱'; position: absolute; top: -20px; right: -20px; font-size: 220px; opacity: 0.07; transform: rotate(-15deg); }
+  .hero .badge { display: inline-block; background: rgba(255,255,255,0.18); color: #fff; padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 600; margin-bottom: 18px; backdrop-filter: blur(4px); }
+  .hero h1 { margin: 0 0 16px; font-size: 2.1rem; line-height: 1.3; font-weight: 700; }
+  .hero .sub { font-size: 1.05rem; opacity: 0.92; margin-bottom: 24px; font-weight: 300; }
+  .hero .info { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 28px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,0.2); }
+  .hero .info div .label { font-size: 0.78rem; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.5px; }
+  .hero .info div .value { font-size: 1rem; font-weight: 600; margin-top: 2px; }
+  .toc { position: sticky; top: 16px; z-index: 50; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: 12px; padding: 16px 22px; margin-bottom: 28px; box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
+  .toc summary { cursor: pointer; font-weight: 600; color: var(--primary-dark); list-style: none; display: flex; align-items: center; gap: 8px; }
+  .toc summary::before { content: '📑'; }
+  .toc ol { margin: 12px 0 0; padding-left: 20px; columns: 2; column-gap: 28px; }
+  .toc li { margin: 6px 0; break-inside: avoid; }
+  .toc a { color: var(--text); text-decoration: none; font-size: 0.93rem; }
+  .toc a:hover { color: var(--primary); }
+  section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 36px 40px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); scroll-margin-top: 80px; }
+  section h2 { font-size: 1.7rem; color: var(--primary-dark); margin: 0 0 6px; display: flex; align-items: baseline; gap: 12px; }
+  section h2 .num { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; background: var(--primary); color: white; border-radius: 50%; font-size: 1rem; flex-shrink: 0; }
+  section .lead { color: var(--text-light); font-size: 1rem; margin: 0 0 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  section h3 { margin: 28px 0 10px; color: var(--primary); font-size: 1.18rem; border-left: 4px solid var(--primary); padding-left: 14px; }
+  section h4 { margin: 20px 0 8px; font-size: 1.02rem; color: var(--text); }
+  section p { margin: 10px 0; }
+  section ul, section ol { padding-left: 24px; }
+  section li { margin: 6px 0; }
+  .box { border-radius: 10px; padding: 16px 22px; margin: 18px 0; border-left: 4px solid; }
+  .box-key   { background: #eff6ff; border-color: var(--primary); }
+  .box-warn  { background: #fef2f2; border-color: var(--accent); }
+  .box-tip   { background: #fffbeb; border-color: var(--warning); }
+  .box-good  { background: #f0fdf4; border-color: var(--success); }
+  .box-quote { background: #f8fafc; border-color: var(--text-light); font-style: italic; color: #475569; }
+  .box-rival { background: linear-gradient(135deg, #fef2f2, #fff7ed); border-color: var(--accent); }
+  .box-title { font-weight: 700; margin-bottom: 6px; }
+  .box-key .box-title { color: var(--primary-dark); }
+  .box-warn .box-title { color: var(--accent); }
+  .box-tip .box-title { color: #b45309; }
+  .box-good .box-title { color: #166534; }
+  .box-rival .box-title { color: var(--accent); }
+  code { background: var(--code-bg); padding: 2px 7px; border-radius: 4px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.88em; color: #be185d; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 18px 22px; border-radius: 10px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  .formula { background: #fafbfc; border: 1px solid var(--border); border-radius: 8px; padding: 14px 20px; margin: 12px 0; font-size: 1.05rem; overflow-x: auto; }
+  .formula .ref { float: right; color: var(--text-light); font-size: 0.85rem; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.93rem; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; vertical-align: top; }
+  th { background: linear-gradient(180deg, #1d4ed8, #1e3a8a); color: white; font-weight: 600; }
+  tbody tr:nth-child(even) { background: #fafbfc; }
+  tbody tr:hover { background: #eff6ff; }
+  td .win { color: var(--success); font-weight: 700; }
+  td .lose { color: var(--accent); font-weight: 700; }
+  td .num-big { font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); }
+  .diagram { background: #0f172a; color: #e2e8f0; padding: 22px 28px; border-radius: 10px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.85rem; line-height: 1.5; overflow-x: auto; white-space: pre; margin: 16px 0; }
+  .diagram .hl { color: #fbbf24; font-weight: bold; }
+  .diagram .arrow { color: #60a5fa; }
+  .diagram .label { color: #34d399; }
+  .arch { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 20px 0; }
+  .arch .mod { background: linear-gradient(135deg, #ffffff, #f1f5f9); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+  .arch .mod h5 { margin: 0 0 8px; color: var(--primary-dark); font-size: 1rem; display: flex; align-items: center; gap: 6px; }
+  .arch .mod p { font-size: 0.9rem; color: var(--text-light); margin: 4px 0; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 22px 0; }
+  .stat { background: linear-gradient(135deg, #dbeafe, #ffffff); border-radius: 12px; padding: 16px 20px; text-align: center; border: 1px solid #bfdbfe; }
+  .stat .num { font-size: 1.8rem; font-weight: 800; color: var(--primary-dark); line-height: 1.1; }
+  .stat .lbl { font-size: 0.85rem; color: var(--text-light); margin-top: 4px; }
+  .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .pros, .cons { padding: 16px 20px; border-radius: 10px; }
+  .pros { background: #f0fdf4; border-left: 4px solid var(--success); }
+  .cons { background: #fef2f2; border-left: 4px solid var(--accent); }
+  .chip { display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; margin-right: 6px; margin-bottom: 4px; }
+  .chip-blue { background: #dbeafe; color: #1e40af; }
+  .chip-green { background: #dcfce7; color: #166534; }
+  .chip-red { background: #fee2e2; color: #991b1b; }
+  .chip-yellow { background: #fef3c7; color: #92400e; }
+  .chip-purple { background: #f3e8ff; color: #6b21a8; }
+  mark { background: linear-gradient(transparent 55%, #fde68a 55%); padding: 0 2px; font-weight: 600; }
+  footer { margin-top: 36px; padding-top: 22px; border-top: 1px solid var(--border); color: var(--text-light); font-size: 0.88rem; text-align: center; }
+  .rival-section { background: linear-gradient(135deg, #1e1b4b 0%, #7f1d1d 100%); color: white; }
+  .rival-section h2, .rival-section h3 { color: #fde68a !important; }
+  .rival-section .lead { color: #fef3c7 !important; border-color: rgba(255,255,255,0.2); }
+  .rival-section p, .rival-section li { color: #f1f5f9; }
+  .rival-section code { background: rgba(255,255,255,0.15); color: #fbbf24; }
+  .rival-section .box-key { background: rgba(255,255,255,0.08); border-color: #fbbf24; }
+  .rival-section .box-key .box-title { color: #fde68a; }
+  @media (max-width: 720px) {
+    .container { padding: 16px 14px; }
+    .hero { padding: 36px 24px 30px; }
+    .hero h1 { font-size: 1.5rem; }
+    section { padding: 22px 20px; }
+    .arch, .pros-cons { grid-template-columns: 1fr; }
+    .toc ol { columns: 1; }
+  }
+  @media print {
+    body { background: white; }
+    .toc { position: static; }
+    section, .hero { page-break-inside: avoid; box-shadow: none; }
+    .hero { background: #1e3a8a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ============ HERO ============ -->
+  <div class="hero">
+    <span class="badge">⏱ Tier 1 文献精读 · T1.1 · RQ5 头对头实验对手</span>
+    <h1>Khronos：动态环境下时空度量-语义 SLAM 的统一框架<br><span style="font-size:1.1rem;opacity:.85;font-weight:400">A Unified Approach for Spatio-Temporal Metric-Semantic SLAM in Dynamic Environments</span></h1>
+    <div class="sub">把"短期动态"和"长期变化"统一进同一个因子图——MIT SPARK Lab 的 4D 时空地图首次能在 CPU 上实时跑<br>—— Active Window 22.2 FPS · 异构机器人验证 · 开源</div>
+    <div class="info">
+      <div><div class="label">📚 发表</div><div class="value">Robotics: Science and Systems (RSS) 2024</div></div>
+      <div><div class="label">📅 arXiv</div><div class="value">2402.13817v2 · 2024-05-20</div></div>
+      <div><div class="label">🏢 单位</div><div class="value">MIT SPARK Lab</div></div>
+      <div><div class="label">👥 通讯作者</div><div class="value">Lukas Schmid · Luca Carlone</div></div>
+      <div><div class="label">🎯 任务</div><div class="value">Spatio-temporal Metric-semantic SLAM (SMS)</div></div>
+      <div><div class="label">⚙️ 输入</div><div class="value">RGBD + 里程计 + 语义分割</div></div>
+      <div><div class="label">🖥 硬件</div><div class="value">Intel i7-12700H 笔记本 CPU · 32 GB RAM</div></div>
+      <div><div class="label">🏆 关键数字</div><div class="value">Active Window 45.5±9.2 ms · 22.2 FPS</div></div>
+    </div>
+  </div>
+
+  <!-- ============ TOC ============ -->
+  <details class="toc" open>
+    <summary>目录（点击展开 / 收起）</summary>
+    <ol>
+      <li><a href="#bg">背景与问题定位：为什么"时空 SLAM"是块硬骨头</a></li>
+      <li><a href="#contrib">三大贡献</a></li>
+      <li><a href="#problem">问题形式化：SMS 的 MAP 公式</a></li>
+      <li><a href="#factor">核心理论：基于"片段（fragments）"的分解</a></li>
+      <li><a href="#overview">系统总览：Active Window / Global Optimization / Reconciliation</a></li>
+      <li><a href="#active">模块 1：Active Window（局部估计）</a></li>
+      <li><a href="#global">模块 2：Global Optimization（变形图 + GNC-TLS）</a></li>
+      <li><a href="#reconcile">模块 3：Reconciliation（可变形变化检测）</a></li>
+      <li><a href="#openset">开放集语义接口</a></li>
+      <li><a href="#exp-setup">实验设置：两个 TESSE 仿真 + 两个真实机器人</a></li>
+      <li><a href="#exp-main">主结果：4D 重建 / 动态 / 变化检测表</a></li>
+      <li><a href="#exp-timing">实时性分析</a></li>
+      <li><a href="#limit">作者声明的局限</a></li>
+      <li><a href="#evidlife">⭐ 与我们 EvidLife-Map 的关系（RQ5 主战场）⭐</a></li>
+      <li><a href="#takeaway">总结与启示</a></li>
+    </ol>
+  </details>
+
+  <!-- ============ 1. 背景 ============ -->
+  <section id="bg">
+    <h2><span class="num">1</span> 背景与问题定位</h2>
+    <p class="lead">机器人长期自主需要的不只是"某一帧的世界"，而是"世界在所有时刻的样子"。Khronos 把短期动态（人在走）与长期变化（椅子被挪走）<b>第一次</b>放在同一个数学框架里，并能在笔记本 CPU 上实时跑。</p>
+
+    <h3>1.1 三派工作各自不够</h3>
+    <ul>
+      <li><b>度量-语义 SLAM（Hydra/Kimera/Voxblox）</b>：假设世界静态，对移动 entity 无能为力；</li>
+      <li><b>动态 SLAM（DynaSLAM, Dynablox）</b>：擅长把动点剔除以保护定位，但<mark>不重建动态实体也不维护时间线</mark>；</li>
+      <li><b>变化检测（Panoptic Mapping, POCD, POV-SLAM）</b>：处理长期变化，但默认"机器人不在场时"做对比，缺少在线统一表示。</li>
+    </ul>
+    <p>论文一句话总结现状：<i>"the literature currently lacks a unifying approach that can reason over both [short-term and long-term]"</i>（§I）。</p>
+
+    <h3>1.2 Khronos 想解决的问题</h3>
+    <div class="box box-key">
+      <div class="box-title">🎯 一句话定位</div>
+      Khronos 提出 <b>Spatio-temporal Metric-semantic SLAM（SMS）</b> 问题：增量地构建一个稠密的、可被任意时刻查询的 4D（XYZ+时间）度量-语义地图，且要在<b>有限算力下实时运行</b>。
+    </div>
+  </section>
+
+  <!-- ============ 2. 贡献 ============ -->
+  <section id="contrib">
+    <h2><span class="num">2</span> 三大贡献</h2>
+    <div class="arch">
+      <div class="mod">
+        <h5>📐 ① 形式化 SMS 问题</h5>
+        <p>把"4D 度量-语义 SLAM"写成 MAP：$\arg\max_{O, X} P(O, X | Z, \Phi)$，其中 $O = \{O_i^t\}$ 是所有物体在所有时刻的状态。</p>
+      </div>
+      <div class="mod">
+        <h5>🧩 ② 基于片段（fragment）的新分解</h5>
+        <p>提出 latent 变量 $Y_k$（object fragment）— 短时窗内 locally-consistent 的观测集合。把 SMS 分解为 <b>Local + SLAM + Fragment Reconciliation</b> 三部分。</p>
+      </div>
+      <div class="mod">
+        <h5>⚙️ ③ Khronos 实时系统</h5>
+        <p>Active Window（异步局部建图）+ Global Optimization（变形图 GNC-TLS）+ Reconciliation（光线哈希做"消失证据"推断）。<b>CPU-only</b>，开源。</p>
+      </div>
+      <div class="mod">
+        <h5>📊 ④ 仿真 + 真机评测</h5>
+        <p>TESSE 仿真自建 Apartment / Office 两套数据集（含 SMS 标注）+ Jackal 地面机器人 + Boston Dynamics Spot 四足。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3. 问题形式化 ============ -->
+  <section id="problem">
+    <h2><span class="num">3</span> 问题形式化：SMS 的 MAP 公式</h2>
+
+    <h3>3.1 状态定义</h3>
+    <p>场景由若干物体 $O_i \in O$ 组成（背景 $O_{BG}$ 也算一个静态"物体"）。物体在时刻 $t$ 的状态：</p>
+    <div class="formula">
+      $$O_i^t = \{\Omega_i^t,\ T^t_{WO_i},\ L_i\} \tag{1}$$
+    </div>
+    <p>其中 $\Omega_i^t$ 是表面，$T^t_{WO_i}$ 是其在世界坐标系下的位姿，$L_i$ 是语义标签。机器人位姿：$X^t = T^t_{WR}$。</p>
+
+    <h3>3.2 观测模型</h3>
+    <p>机器人在 $t$ 时刻观测视体 $V^t$ 内的物体表面，得到测量 $Z_j^t = \{\Omega_j^t, T^t_{RZ_j}, L_j^t\}$，含噪声 $\eta_O$：</p>
+    <div class="formula">
+      $$Z_j^t \sim O_i^t \oplus \eta_O \quad \text{if } O_i^t \in V^t \tag{4-5}$$
+    </div>
+    <p>同时还有 SE(3) 上的里程计 $\Phi^t \sim \left(X^{t-1}\right)^{-1} X^t \boxplus \eta_\Phi$ （公式 6）。</p>
+
+    <h3>3.3 MAP 目标</h3>
+    <div class="formula">
+      $$O^\star, X^\star = \arg\max_{O, X} P(O, X | Z, \Phi) \tag{7}$$
+    </div>
+    <p>问题在于：物体数随时间变化、动态与漂移耦合，<mark>朴素地求解需要保留全部历史观测，规模随时间线性爆炸</mark>。这就是 Khronos 接下来要分解的对象。</p>
+  </section>
+
+  <!-- ============ 4. 因子分解 ============ -->
+  <section id="factor">
+    <h2><span class="num">4</span> 核心理论：基于"片段（fragment）"的分解</h2>
+    <p class="lead">Khronos 的整个数学骨架都建立在一个直觉上：在短时间窗 $\delta$ 内，状态估计误差与场景变化都很小。基于这一"时空局部一致性"假设，引入 latent 变量 $Y_k$ 来解耦全局复杂依赖。</p>
+
+    <h3>4.1 时空局部一致性假设</h3>
+    <div class="formula">
+      $$\left|\left(\prod_{t'=t-\tau}^{t}\Phi^{t'}\right)\boxminus\left(T^{t-\tau}_{WR}\right)^{-1}T^t_{WR}\right| < \epsilon_s \quad \forall t,\ \forall \tau<\delta \tag{8}$$
+    </div>
+    <div class="formula">
+      $$\left|O_i^t \ominus O_i^{t-\tau}\right| < \epsilon_t \quad \forall t,\ \forall \tau<\delta \tag{9}$$
+    </div>
+    <p>即：<b>(8) 漂移在短时窗内可忽略；(9) 物体在短时窗内基本不变</b>。这是"局部内一切都干净"的形式化表达。</p>
+
+    <h3>4.2 引入片段 $Y_k$</h3>
+    <p>定义 $Y_k = \{\Omega_k, T_{RY_k}, L_k\}$ —— 一段时间窗内一组 locally-consistent 的观测合成的"物体快照"。每个真实物体 $O_i$ 是若干 $Y_k$ 的集合。一旦下一帧违反 (8)(9)，就开新片段 $Y_{k+1}$。</p>
+
+    <h3>4.3 三段式分解</h3>
+    <p>关键推导（论文公式 11→13→15→16）：</p>
+    <div class="formula">
+      $$P(O, X, Y, A | Z, \Phi) = \underbrace{\prod_i P(O_i | \bar Y_i, X)}_{\text{Fragment reconciliation}} \cdot \underbrace{P(X, A | Y, \Phi)}_{\text{SLAM}} \cdot \underbrace{\prod_k P(Y_k | \bar Z_k, \bar \Phi_k)}_{\text{Local estimation}} \tag{16}$$
+    </div>
+
+    <div class="box box-key">
+      <div class="box-title">💡 为什么这个分解是"金句"</div>
+      <ul>
+        <li><b>Local Estimation</b> 只看 $\delta$ 窗口内的观测，独立计算，可异步并行；</li>
+        <li><b>SLAM</b> 退化成 landmark-based pose graph（fragment 充当 landmark）；</li>
+        <li><b>Reconciliation</b> 推断"一个物体在两个 fragment 间的真实历史"——本质是"absence-of-evidence vs evidence-of-absence" 问题；</li>
+        <li>三派之前的工作（dynamic SLAM / change detection / panoptic mapping）<mark>都是这个分解的特例</mark>。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 5. 系统总览 ============ -->
+  <section id="overview">
+    <h2><span class="num">5</span> 系统总览</h2>
+
+    <div class="diagram">┌──────────────────────────────────────────────────────────────┐
+│           <span class="hl">输入</span>: Odometry Φ + RGBD + Semantics Z          │
+└──────────────────────────────────────────────────────────────┘
+                              │
+                              <span class="arrow">▼</span>
+       ┌──────────────────────────────────────────┐
+       │  <span class="hl">A. Active Window</span> (§V-A) — 局部估计            │
+       │   - 背景 TSDF 融合 → mesh Ω_BG            │
+       │   - Dynablox-lite 几何动态检测            │
+       │   - 候选片段池 Ŷ，按 vol-IoU 贪心关联    │
+       │   - 出窗时输出 fragment Y_k 与对应 ¯Z_k   │
+       └──────────────────────────────────────────┘
+                              │  Y_k
+                              <span class="arrow">▼</span>
+       ┌──────────────────────────────────────────┐
+       │  <span class="hl">B. Global Optimization</span> (§V-B)                  │
+       │   - 变形图 E = X ∪ P_M ∪ T_{WY_k}        │
+       │   - 候选边 E_YY (fragment 关联) + E_LC   │
+       │   - GNC-TLS 求解 robust pose graph (式17) │
+       │   - 输出 X*, T*_{WY_k}, 候选边权 ω_ij    │
+       └──────────────────────────────────────────┘
+                              │
+                              <span class="arrow">▼</span>
+       ┌──────────────────────────────────────────┐
+       │  <span class="hl">C. Reconciliation</span> (§V-C) — 时间归一            │
+       │   - "光线库" hash: (背景 vertex, 观测位姿)│
+       │   - 对 query 点 p_q 算 d_r, d_d (式18-19)│
+       │   - 综合 evidence-of-absence & presence  │
+       │   - 输出每个对象的 [appear, disappear] 区间│
+       └──────────────────────────────────────────┘
+                              │
+                              <span class="arrow">▼</span>
+              <span class="label">4D Spatio-Temporal Metric-Semantic Map</span>
+            （可对任意 t ≤ T 查询场景信念 M^T(t)）</div>
+  </section>
+
+  <!-- ============ 6. Active Window ============ -->
+  <section id="active">
+    <h2><span class="num">6</span> 模块 1：Active Window（局部估计）</h2>
+    <p class="lead">每个 RGBD 帧到达后，Active Window 在 $\delta$ 时窗内做三件事：背景 TSDF 融合、动态点检测、对 mask 进行片段关联与更新。完成后，将"过窗"的片段送到 Global Optimization。</p>
+
+    <h3>6.1 背景重建</h3>
+    <p>静态背景 $\Omega_{BG}$ 用<b>多分辨率 TSDF + mesh</b> 表示，projective TSDF fusion 增量构建。设计上"任何 surface 表示都能塞进 $\Omega$"——意味着可以替换为 Gaussian Splatting、surfel 等。</p>
+
+    <h3>6.2 候选观测的获取</h3>
+    <p>每帧的观测 $Z_j^t = \{\Omega_j^t, T^t_{RZ_j}, L_j^t\}$ 来自两个 cue：</p>
+    <ol>
+      <li><b>语义/实例分割掩码</b>（默认用 OneFormer，闭集；可换 SAM+CLIP 做开集，§VI-C）；</li>
+      <li><b>几何运动检测</b>：基于 Dynablox [43] 的"落入先前自由空间的点必动"逻辑，<mark>但因为 $\delta$ 短，丢掉 Dynablox 的 Occupancy / Sensor Sparsity / State Estimation 三项</mark>。</li>
+    </ol>
+
+    <h3>6.3 多假设跟踪与片段抽取</h3>
+    <p>核心数据结构是"候选片段池 $\hat Y$"。算法贪心地把 $Z_j^t$ 关联到 $\hat Y_k$：</p>
+    <ul>
+      <li><b>关联打分</b>：用 grid-aligned voxel filter 算 $Z_j^t$ 与 $\hat Y_k$ 的 volumetric IoU；</li>
+      <li><b>语义</b> $Z_j^t$ 关联到同 label 的 $\hat Y_k$；<b>动态</b> $Z_j^t$ 关联到最近的动态 $\hat Y_k$；允许语义-动态交叉关联；</li>
+      <li>未关联 → 新增 $\hat Y_k$；过窗 → 从池里移除；</li>
+      <li><b>有效性过滤</b>：丢弃观测 $< \tau_Z = 15$ 次的、动态位移 $< \tau_D = 1\ \text{m}$ 的候选；</li>
+      <li>合格者 marginalize 对应观测 $\bar Z_k$，输出片段 $Y_k$ 到全局优化。</li>
+    </ul>
+
+    <div class="box box-tip">
+      <div class="box-title">💡 表示自由度</div>
+      <i>"this gives an enormous freedom in choosing suitable representations depending on the task and computation power at hand"</i> ——
+      静态物体表面用<b>自适应分辨率 TSDF → mesh</b>，动态/可变形物体用<b>点云序列</b>。Khronos 的因子化设计本身不绑表示。
+    </div>
+  </section>
+
+  <!-- ============ 7. Global Optimization ============ -->
+  <section id="global">
+    <h2><span class="num">7</span> 模块 2：Global Optimization（变形图 + GNC-TLS）</h2>
+
+    <h3>7.1 变形图构造</h3>
+    <p>沿用 Hughes et al. [16] 的 deformation graph，但增广上 fragment 位姿节点 $T_{WY_k}$：</p>
+    <ul>
+      <li><b>观测边 $E_{obs}$</b> = $E_{XX} \cup E_{P_M P_M} \cup E_{XP_M} \cup E_{XY}$ —— 机器人位姿、mesh 控制点、机器人–控制点、机器人–片段；</li>
+      <li><b>候选边 $E_{can}$</b> = $E_{YY} \cup E_{LC}$ —— fragment 关联 + loop closures；</li>
+      <li>$E_{YY}$ 候选：同 label（开集时取 cos sim）+ bounding box 有交叠的 fragment 对；当前仅建模为<b>纯平移约束</b>（centroid 对齐），6DoF 配准留作未来。</li>
+    </ul>
+
+    <h3>7.2 鲁棒位姿图优化</h3>
+    <div class="formula">
+      $$\begin{aligned}T^\star = \arg\min_{T_1,\dots,T_n \in T,\ \omega_{ij}\in\{0,1\}}\ &\sum_{(i,j)\in E_{obs}}\|T_i^{-1}T_j \boxminus \bar T_{ij}\|^2_{\Lambda_{ij}}\\&+ \sum_{(i,j)\in E_{can}}\left(\omega_{ij}\|T_i^{-1}T_j \boxminus \bar T_{ij}\|^2_{\Lambda_{ij}} + (1-\omega_{ij})\bar c^2\right)\end{aligned} \tag{17}$$
+    </div>
+    <p>用 <b>Truncated Least Squares (TLS)</b> 把每条候选边的 inlier/outlier 用二元变量 $\omega_{ij}$ 显式建模，求解器是 <b>GNC [54] + GTSAM [9]</b>。$E_{YY}$ 边的协方差仅保留平移项（旋转方向取零，$\lambda = 1$ permissive）。</p>
+
+    <h3>7.3 输出</h3>
+    <ul>
+      <li>机器人位姿 $X^\star$ 全部更新；</li>
+      <li>片段位姿 $T^\star_{WY_k}$ 全部更新；</li>
+      <li>$\omega_{ij}$ 标识 fragment 关联与 loop closure 是否被采纳；</li>
+      <li>背景 mesh 通过 mesh 控制点 $P_M^\star$ 做 as-rigid-as-possible deformation。</li>
+    </ul>
+  </section>
+
+  <!-- ============ 8. Reconciliation ============ -->
+  <section id="reconcile">
+    <h2><span class="num">8</span> 模块 3：Reconciliation（可变形变化检测）</h2>
+    <p class="lead">Fragment 只编码"我看到 X 在这里"（positive evidence），不直接告诉我们"X 在 $t$ 时刻不在了"。Reconciliation 用<b>光线几何</b>来推断 absence。</p>
+
+    <h3>8.1 核心想法：光线哈希库</h3>
+    <p>每当一个背景 vertex $p_v$ 在 Active Window 中固化下来，记录一条"代表光线"：$(p_v, p_r)$，其中 $p_r$ 是观测窗中点的机器人位置。把这条光线塞进一个粗分辨率全局哈希表（key 是 vertex / view 的格子索引）。机器人和背景在格子内可自由变动，超大变动（如 loop closure）时整表重算。</p>
+
+    <h3>8.2 几何判据</h3>
+    <p>对一个 fragment 表面上的查询点 $p_q$，遍历哈希返回的候选光线 $(p_v, p_r)$：</p>
+    <div class="formula">
+      $$d_r = \frac{\|(p_q - p_r) \times (p_r - p_v)\|}{\|p_q - p_r\|},\quad d_d = \frac{(p_q - p_r) \cdot (p_v - p_r)}{\|p_q - p_r\|} \tag{18-19}$$
+    </div>
+    <ul>
+      <li>$d_d \gg \|p_v - p_r\|$：$p_q$ 被遮挡（occlusion）；</li>
+      <li>$|d_d - \|p_v - p_r\|| < d_{ray} = 30\ \text{cm}$：geometric consistency（"东西还在"）；</li>
+      <li>$d_d < \|p_v - p_r\|$：evidence of absence（"光线本该穿过它"）。</li>
+    </ul>
+    <p>稳定阈值：<b>$\tau_{ray} = 5$ s 时窗内 $c_{ray} = 60\%$ 的光线报告 absence</b> 才采纳。</p>
+
+    <h3>8.3 时间区间推断</h3>
+    <p>对每个 fragment $Y_k$，计算"首次观测前最近的 absence"和"出窗后最早的 absence"，配合 evidence-of-presence 的边界，假设 object 在窗内"以均匀概率出现/消失"，<mark>最小期望误差估计就是窗中点</mark>。这给出每个物体的 $[\text{appear}, \text{disappear}]$ 区间。</p>
+
+    <div class="box box-good">
+      <div class="box-title">🔑 设计精妙之处</div>
+      Khronos 没有显式维护"自由空间体素图"——那会随时间线性增长且变形成本高。它用<b>稀疏的光线库 + 全局哈希</b>近似全局自由空间信息，并自然地"跟着机器人位姿一起变形"。
+    </div>
+  </section>
+
+  <!-- ============ 9. 开放集语义 ============ -->
+  <section id="openset">
+    <h2><span class="num">9</span> 开放集语义接口</h2>
+    <p>Khronos 的语义 frontend 是模块化的。论文 Table II 在 Apartment 上对比了 GT 语义 vs 开放集（SAM [20] + CLIP [36]，逻辑近似于 ConceptGraphs [12]）。</p>
+
+    <table>
+      <thead>
+        <tr><th>Poses</th><th>Semantics</th><th>Pre</th><th>Rec</th><th>F1 (Change Detection)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td rowspan="2"><b>GT</b></td><td>Ground Truth</td><td>31.3</td><td>69.1</td><td><b>64.6</b></td></tr>
+        <tr><td>OpenSet [12]</td><td><b>44.3</b></td><td>67.2</td><td>64.4</td></tr>
+        <tr><td rowspan="2"><b>Kimera VIO</b></td><td>Ground Truth</td><td>21.3</td><td>62.9</td><td><b>45.6</b></td></tr>
+        <tr><td>OpenSet [12]</td><td>14.6</td><td>50.1</td><td>40.4</td></tr>
+      </tbody>
+    </table>
+
+    <div class="box box-tip">
+      <div class="box-title">📌 关键观察</div>
+      在 GT 位姿下，<b>开放集语义的 F1 与 GT 几乎打平（64.4 vs 64.6）</b>——说明 Khronos 因子化设计对前端语义鲁棒。但 Kimera VIO（带漂移）+ OpenSet 会掉到 40.4，因为开放集 object-ness 不稳，召回率下滑放大了状态估计噪声。
+    </div>
+  </section>
+
+  <!-- ============ 10. 实验设置 ============ -->
+  <section id="exp-setup">
+    <h2><span class="num">10</span> 实验设置</h2>
+
+    <h3>10.1 数据集</h3>
+    <p>由于<b>不存在同时含短期 + 长期 + 详细 4D 标注的公开数据集</b>，作者用 TESSE [39] 仿真器自建了两套：</p>
+    <table>
+      <thead><tr><th>数据集</th><th>时长</th><th>轨迹</th><th>静态物体</th><th>动态物体</th><th>长期变化</th></tr></thead>
+      <tbody>
+        <tr><td><b>Apartment</b></td><td>87 s</td><td>39 m</td><td>64</td><td>10</td><td>6</td></tr>
+        <tr><td><b>Office</b></td><td>217 s</td><td>181 m</td><td>196</td><td>6</td><td>8</td></tr>
+      </tbody>
+    </table>
+    <p>真机：<b>Clearpath Jackal + Intel RealSense D455</b>（mezzanine 场景）+ <b>Boston Dynamics Spot</b>（大学一整层）。语义前端用 <b>OneFormer [17]</b>。</p>
+
+    <h3>10.2 评测指标</h3>
+    <p>对 4 类实体（background / static object / dynamic object / change）各算 Precision / Recall / F1。背景按"20 cm 内有 GT vertex 算正样本"；物体按"有对应 GT object 算正样本"；变化按"label 一致（appeared/disappeared）"。</p>
+    <p><b>4D-metric</b>：对所有机器人时刻 $T$ 与信念时刻 $t \leq T$ 求二重积分：</p>
+    <div class="formula">
+      $$L_{4D} = \frac{1}{2T^2}\int_0^T \int_0^T L\left(M^T(t)\right)\,dt\,dT \tag{20}$$
+    </div>
+
+    <h3>10.3 基线</h3>
+    <p>"目前没有 real-time dense metric-semantic spatio-temporal SLAM"，所以分别对比子任务专长方法：</p>
+    <ul>
+      <li><b>Hydra [16]</b>：全局一致的 metric-semantic perception；</li>
+      <li><b>Dynablox [43]</b>：稠密建图 + 动态物体检测；</li>
+      <li><b>Panoptic Mapping [42]</b>：在线长期一致 volumetric mapping。</li>
+    </ul>
+    <p>硬件：<b>Intel i7-12700H 笔记本 + 32 GB RAM（CPU-only）</b>，TSDF 分辨率 $\nu = 8\ \text{cm}$，传感范围 $r = 5\ \text{m}$。</p>
+  </section>
+
+  <!-- ============ 11. 主结果 ============ -->
+  <section id="exp-main">
+    <h2><span class="num">11</span> 主结果：4D 重建 / 动态 / 变化检测</h2>
+    <p class="lead">Table I 的核心数字（精度 / 召回 / F1，单位 %，越高越好；GT pose vs Kimera VIO 两组）。<mark>下面所有数字 1:1 照抄论文</mark>。</p>
+
+    <h3>11.1 Apartment 场景</h3>
+    <table>
+      <thead>
+        <tr><th>Poses</th><th>Method</th><th colspan="3" style="text-align:center">Background</th><th colspan="3" style="text-align:center">Objects</th><th colspan="3" style="text-align:center">Dynamics</th><th colspan="3" style="text-align:center">Changes</th></tr>
+        <tr><th></th><th></th><th>Pre</th><th>Rec</th><th>F1</th><th>Pre</th><th>Rec</th><th>F1</th><th>Pre</th><th>Rec</th><th>F1</th><th>Pre</th><th>Rec</th><th>F1</th></tr>
+      </thead>
+      <tbody>
+        <tr><td rowspan="4"><b>GT</b></td><td>Hydra [16]</td><td>94.9</td><td>83.1</td><td>87.7</td><td>91.0</td><td>28.0</td><td>42.3</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Dynablox [43]</td><td>84.6</td><td>89.1</td><td>86.2</td><td>—</td><td>—</td><td>—</td><td>48.9</td><td>95.0</td><td>61.3</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Panoptic Mapping [42]</td><td>95.9</td><td>56.1</td><td>70.3</td><td>94.6</td><td>49.7</td><td>64.3</td><td>—</td><td>—</td><td>—</td><td>38.2</td><td>56.1</td><td>56.1</td></tr>
+        <tr><td><b>Khronos (ours)</b></td><td><b>96.8</b></td><td><b>87.6</b></td><td><b>91.2</b></td><td><b>91.4</b></td><td><b>83.9</b></td><td><b>75.3</b></td><td><b>90.4</b></td><td>78.6</td><td><b>84.1</b></td><td>31.3</td><td><b>69.1</b></td><td><b>64.6</b></td></tr>
+        <tr><td rowspan="4"><b>Kimera VIO [39]</b></td><td>Hydra [16]</td><td>94.3</td><td>81.5</td><td>86.5</td><td>93.7</td><td>32.3</td><td>47.0</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Dynablox [43]</td><td>83.5</td><td>88.3</td><td>85.2</td><td>—</td><td>—</td><td>—</td><td>44.4</td><td><b>95.1</b></td><td>56.2</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Panoptic Mapping [42]</td><td>95.2</td><td>52.2</td><td>67.1</td><td><b>95.6</b></td><td>46.3</td><td>61.8</td><td>—</td><td>—</td><td>—</td><td>23.4</td><td><b>65.0</b></td><td>47.4</td></tr>
+        <tr><td><b>Khronos (ours)</b></td><td><b>95.4</b></td><td>86.7</td><td><b>90.1</b></td><td>90.7</td><td><b>57.1</b></td><td><b>69.2</b></td><td><b>96.4</b></td><td>78.5</td><td><b>86.3</b></td><td>21.3</td><td>62.9</td><td>45.6</td></tr>
+      </tbody>
+    </table>
+
+    <h3>11.2 Office 场景</h3>
+    <table>
+      <thead>
+        <tr><th>Poses</th><th>Method</th><th colspan="3" style="text-align:center">Background</th><th colspan="3" style="text-align:center">Objects</th><th colspan="3" style="text-align:center">Dynamics</th><th colspan="3" style="text-align:center">Changes</th></tr>
+        <tr><th></th><th></th><th>Pre</th><th>Rec</th><th>F1</th><th>Pre</th><th>Rec</th><th>F1</th><th>Pre</th><th>Rec</th><th>F1</th><th>Pre</th><th>Rec</th><th>F1</th></tr>
+      </thead>
+      <tbody>
+        <tr><td rowspan="4"><b>GT</b></td><td>Hydra [16]</td><td><b>96.8</b></td><td>69.4</td><td>78.0</td><td>95.6</td><td>59.1</td><td>68.8</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Dynablox [43]</td><td>85.9</td><td>73.2</td><td>76.2</td><td>—</td><td>—</td><td>—</td><td>22.6</td><td>47.2</td><td>23.0</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Panoptic Mapping [42]</td><td><b>97.5</b></td><td>70.8</td><td>79.0</td><td>96.3</td><td>58.0</td><td>68.7</td><td>—</td><td>—</td><td>—</td><td><b>33.1</b></td><td>32.9</td><td>60.4</td></tr>
+        <tr><td><b>Khronos (ours)</b></td><td>96.3</td><td><b>73.7</b></td><td><b>80.6</b></td><td><b>98.7</b></td><td><b>63.9</b></td><td><b>74.2</b></td><td><b>96.0</b></td><td><b>59.7</b></td><td><b>73.2</b></td><td>24.5</td><td><b>54.2</b></td><td><b>66.2</b></td></tr>
+        <tr><td rowspan="4"><b>Kimera VIO</b></td><td>Hydra [16]</td><td>83.7</td><td>56.8</td><td>65.2</td><td>96.9</td><td>49.6</td><td>62.1</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Dynablox [43]</td><td>70.8</td><td>56.5</td><td>60.3</td><td>—</td><td>—</td><td>—</td><td>23.2</td><td>43.1</td><td>23.5</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Panoptic Mapping [42]</td><td>82.6</td><td>56.9</td><td>64.8</td><td>95.9</td><td>54.9</td><td>66.3</td><td>—</td><td>—</td><td>—</td><td>9.6</td><td>33.5</td><td>38.6</td></tr>
+        <tr><td><b>Khronos (ours)</b></td><td><b>83.9</b></td><td><b>60.3</b></td><td><b>67.6</b></td><td><b>98.3</b></td><td><b>62.4</b></td><td><b>73.1</b></td><td><b>59.3</b></td><td><b>54.7</b></td><td><b>53.9</b></td><td><b>25.8</b></td><td><b>52.2</b></td><td><b>62.0</b></td></tr>
+      </tbody>
+    </table>
+
+    <h3>11.3 Jackal 真机标注（Table III）</h3>
+    <table>
+      <thead><tr><th></th><th colspan="3" style="text-align:center">Objects</th><th colspan="3" style="text-align:center">Changes</th></tr>
+      <tr><th>Khronos</th><th>Pre</th><th>Rec</th><th>F1</th><th>Pre</th><th>Rec</th><th>F1</th></tr></thead>
+      <tbody><tr><td>(values)</td><td>86.9</td><td>97.7</td><td>90.2</td><td>87.0</td><td>66.7</td><td>93.9</td></tr></tbody>
+    </table>
+
+    <div class="box box-good">
+      <div class="box-title">📈 主结论</div>
+      <ul>
+        <li><b>Apartment 上 Khronos 在 4 类指标的 F1 都拿到最高或并列最高</b>，尤其 Object F1 (75.3) 比 Panoptic Mapping (64.3) 高 11 个点；</li>
+        <li>Office 大场景 + Kimera VIO 漂移下，<b>Change F1 (62.0) 远超 Panoptic Mapping (38.6)</b>——证明时空联合优化 + 可变形变化检测的价值；</li>
+        <li>Dynamic 召回不及 Dynablox，但<b>精度高出 ~2 倍</b>，因为 Khronos 用 persistent dynamic object 模型过滤了大量噪声。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 12. 时序分析 ============ -->
+  <section id="exp-timing">
+    <h2><span class="num">12</span> 实时性分析</h2>
+
+    <div class="stat-grid">
+      <div class="stat"><div class="num">22.2</div><div class="lbl">Active Window FPS</div></div>
+      <div class="stat"><div class="num">45.5±9.2</div><div class="lbl">每帧时长 (ms)</div></div>
+      <div class="stat"><div class="num">&lt; 1</div><div class="lbl">Fragment 重建/背景变形 (s)</div></div>
+      <div class="stat"><div class="num">&lt; 100</div><div class="lbl">Reconciliation 推断 (ms)</div></div>
+      <div class="stat"><div class="num">CPU-only</div><div class="lbl">i7-12700H 笔记本</div></div>
+    </div>
+
+    <p>Khronos 的关键时序数字（§VI-F）：</p>
+    <ul>
+      <li><b>Active Window</b>：常数复杂度，<code>45.5 ± 9.2 ms / 帧</code>，即<b>22.2 FPS</b>；</li>
+      <li><b>Fragment 重建（从 active window 出窗）</b>：偶有 spike，但通常 < 1 s；</li>
+      <li><b>背景 deformation</b>：随观测体积线性，通常 < 1 s；</li>
+      <li><b>位姿图优化（GNC-TLS）</b>：仅当 loop closure 时触发，最坏几秒；</li>
+      <li><b>Reconciliation</b>：ray hash 从头重算时是 worst case；inference + reconciliation < 100 ms。</li>
+    </ul>
+    <p>所有重计算都在<b>独立线程</b>跑，所以在线运行不会因偶发 spike 卡帧。</p>
+  </section>
+
+  <!-- ============ 13. 局限 ============ -->
+  <section id="limit">
+    <h2><span class="num">13</span> 作者声明的局限</h2>
+    <div class="pros-cons">
+      <div class="pros">
+        <b>✅ 强项</b>
+        <ul>
+          <li>第一个同时实时处理短期 + 长期的 metric-semantic SLAM；</li>
+          <li>CPU-only，机器人可部署；</li>
+          <li>开放集 / 闭集语义前端都能接；</li>
+          <li>提供新的 4D-metric 评估方法。</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <b>⚠️ 局限（§VII）</b>
+        <ul>
+          <li><b>Fragment 关联只用 bounding-box centroid</b>，对部分观测/遮挡敏感；缺 6DoF 配准；</li>
+          <li><b>Fragment 仅几何关联</b>，"被搬动的物体"无法关联到原 fragment——缺 fragment descriptor；</li>
+          <li>Reconciliation 假定有 reference surface，在<b>大开阔空间或稀疏表面下退化</b>；</li>
+          <li><mark><b>所有 fragment 都常驻内存，问题规模无限增长</b></mark>——理想做法是边缘化"过时或 confidently reconciled" 的 fragment 以支持 lifelong；</li>
+          <li>动态检测依赖 Dynablox-style 自由空间 cue，靠近相机沿相机方向运动的人检测不到。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 14. 与 EvidLife-Map 的关系 ============ -->
+  <section id="evidlife" class="rival-section">
+    <h2><span class="num">14</span> ⭐ 与我们 EvidLife-Map 的关系（RQ5 主战场）⭐</h2>
+    <p class="lead">Khronos 是 RQ5（"动态场景下的 lifelong 时空建图"）我们要在表里直接拉一行对比的对手。这里我们要诚实地拆解：哪些是 Khronos 已经赢的、哪些是 Khronos 没解决的、我们如何差异化定位。</p>
+
+    <h3>14.1 方法关系：互补 + 部分竞争</h3>
+    <div class="box box-key">
+      <div class="box-title">🎯 总判定</div>
+      <b>Khronos vs EvidLife-Map = "factor-graph 4D SMS" vs "Dirichlet evidential lifelong MSM"</b>。<br>
+      Khronos 是<u>显式因子化时空</u>的路线；EvidLife-Map 是<u>每体素带证据强度 + vacuity</u>的路线。两者的<b>建模哲学完全正交</b>——Khronos 把"时间维"显式做成 fragment + reconciliation 推断；EvidLife-Map 不显式建时间维，而是用<b>vacuity 衰减</b>隐式编码"这个体素的证据多久前来的"。
+    </div>
+
+    <h3>14.2 我们引用它的理由</h3>
+    <ul>
+      <li><b>§II Related Work</b>：作为"dynamic + long-term MSM"的代表，与 Panoptic Mapping、Dynablox 并列；</li>
+      <li><b>§III Problem Formulation</b>：Khronos 的 SMS 定义是我们 lifelong 部分的"完美参照系"——我们要明确我们的 problem 与 SMS 的<b>形式化差异</b>（见 14.5）；</li>
+      <li><b>§IV-D Voxel Decay</b>：Khronos 承认 fragment 内存无限增长是其局限，<mark>EvidLife-Map 的 vacuity-decay-driven marginalization 直接是这个限制的答案</mark>——这是我们 voxel decay 模块最核心的"卖点 vs Khronos"。</li>
+    </ul>
+
+    <h3>14.3 实验对手：如何在 RQ5 表里跑头对头</h3>
+    <ul>
+      <li><b>baseline 实现策略</b>：用作者开源 (https://github.com/MIT-SPARK/Khronos)，<b>不自己重写</b>。但论文 Tab. I 的数字是在 TESSE Apartment / Office 自建数据上跑的——我们不重跑 TESSE 数字，<b>而是在我们的 lifelong 数据集（自录或公开如 ScanNet++ / Replica-Khronos-style）上重跑双方</b>；</li>
+      <li><b>公平性</b>：给 Khronos 同样的 RGBD + 里程计 + 语义前端（OneFormer 或 我们的 evidential head 的 argmax）。语义前端在两个方法上保持一致；</li>
+      <li><b>RQ5 评测指标</b>：4D F1（沿用 Khronos 的 $L_{4D}$）+ 我们额外的"vacuity-aware change F1"（对带 vacuity 的预测做 calibration aware 评分）；</li>
+      <li><b>会出现的失败模式（要诚实写）</b>：在<b>"短窗内大量同类动态物体（多人乱走）"</b>场景，Khronos 的 multi-hypothesis tracker 会比我们 evidential aggregation 略强 —— 因为它显式做关联，而我们靠 vacuity；这点要诚实承认。</li>
+    </ul>
+
+    <h3>14.4 它的哪些设计可以借鉴</h3>
+    <ol>
+      <li><b>"时空局部一致性"的形式化（公式 8-9）</b>—— 我们 §III 也需要在 vacuity-decay 模块前面做一个"短窗内 evidence 可信"的假设陈述，可以直接 cite Khronos 公式 (8)(9) 作为先行工作；</li>
+      <li><b>GNC-TLS 鲁棒 PGO</b>—— 我们 loop closure 的 RQ4 用到，可以 cite 同样的 GNC + GTSAM 工具链；</li>
+      <li><b>$L_{4D}$ 评测协议</b>—— 我们的 RQ5 lifelong 实验直接复用，省去自创指标的争议；</li>
+      <li><b>分离 active window / global / reconciliation 的三层架构</b>—— 我们的 evidential aggregation / decay / OOD 三个 stream 在<b>时序上也是异构频率</b>，可以借鉴 Khronos 的"独立线程 + spike 不卡帧"工程实现。</li>
+    </ol>
+
+    <h3>14.5 我们 §III 需要明确 differentiate 的点</h3>
+    <div class="box box-key">
+      <div class="box-title">差异化定位（要写进 §III.B 与 §IV.D）</div>
+      <ol>
+        <li><b>时间的处理方式</b>：Khronos 显式存"片段时间戳 + 区间推断"；EvidLife-Map 用<b>Dirichlet vacuity 的单调衰减</b>隐式编码时间，<mark>体素老化 ≡ vacuity ↑ ≡ 边缘化触发器</mark>。我们不维护 fragment 数据结构，因此没有 Khronos 的内存爆炸问题（这是我们 RQ4 的优势）；</li>
+        <li><b>不确定性建模</b>：Khronos 用 truncated least squares + binary outlier weights 处理关联不确定；EvidLife-Map 用<b>evidential Dirichlet</b> 把所有不确定（OOD / 老化 / 类间冲突）<mark>统一到一个 vacuity 标量</mark>，进而 (i) 触发 RQ2 open-set；(ii) 通过熵通道用于 RQ3 loop closure 描述子；(iii) 触发 RQ4 衰减——<b>一标量三用途</b>；</li>
+        <li><b>语义后端</b>：Khronos 默认闭集 OneFormer，开放集是 SAM+CLIP 拼接；EvidLife-Map 用<b>原生 evidential head 输出 Dirichlet 浓度 $\alpha$</b>，open-set 检测是模型一阶能力而非外挂；</li>
+        <li><b>变化检测机制</b>：Khronos 用光线哈希做 evidence-of-absence（依赖 reference surface）；EvidLife-Map 用<b>vacuity 上升 + Dirichlet 浓度衰减</b>—— 在<mark>大开阔空间 / 稀疏表面</mark> 也能工作（这是 Khronos 自认的局限）；</li>
+        <li><b>Lifelong 性</b>：Khronos 自承"problem keeps growing indefinitely"；EvidLife-Map 的衰减机制天然 garbage-collect 老体素，<b>内存常数复杂度</b>。</li>
+      </ol>
+    </div>
+
+    <div class="box box-warn">
+      <div class="box-title">⚠️ 不要装腔作势</div>
+      <ul>
+        <li>Khronos 在<b>"短期动态物体的实例分割与跟踪"</b>上做得比我们扎实——它有显式的 multi-hypothesis tracker；我们的 evidential 聚合是被动的；</li>
+        <li>Khronos 的 $L_{4D}$ 指标是它定义的，我们沿用相当于站在它的评估框架内 — 必须坦诚承认这一"基础设施贡献"；</li>
+        <li>Khronos 已 open-source、有真机验证（Jackal + Spot），<b>系统成熟度是我们目前比不上的</b>——我们的优势必须建立在"理论统一 + lifelong 内存有界"两点上，而不是 "我们比 Khronos 更全"。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 15. 总结 ============ -->
+  <section id="takeaway">
+    <h2><span class="num">15</span> 总结与启示</h2>
+
+    <h3>15.1 一句话</h3>
+    <div class="box box-key" style="font-size:1.05rem">
+      <mark>Khronos 通过引入 "object fragment" 作为时空局部一致性的 latent 变量，把 4D 度量-语义 SLAM 因子化为 Local + SLAM + Reconciliation 三个解耦子问题，并在 CPU 上实时实现，是当前同类工作中<b>最接近一统短期/长期动态的统一框架</b>。</mark>
+    </div>
+
+    <h3>15.2 给 EvidLife-Map 的 5 个具体行动项</h3>
+    <ol>
+      <li><b>§II Related Work</b> 必须用一整段比较 Khronos —— 不能只在表里出现；</li>
+      <li><b>§III.A</b> 引用 Khronos 公式 (8)(9) 作为"短时一致性"假设的前置工作；</li>
+      <li><b>§IV.D Voxel Decay</b> 必须在写"为什么 vacuity-decay" 时明确反驳 Khronos 的"无限内存增长"局限；</li>
+      <li><b>§V RQ5</b> 用作者开源代码跑头对头，<b>不重跑 TESSE 数字</b>，在我们自己的 lifelong 数据集上 evaluate；</li>
+      <li><b>§V.E 评估指标</b>用 Khronos 的 $L_{4D}$（公式 20）作为主指标之一，加我们自定义的 vacuity-aware change F1。</li>
+    </ol>
+
+    <h3>15.3 学习路径建议</h3>
+    <div class="box box-tip">
+      <div class="box-title">🎓 关联文献</div>
+      <ul>
+        <li><b>前作 Hydra [16]</b> (IJRR 2024)：变形图、3D scene graph 基础，必读；</li>
+        <li><b>前作 Dynablox [43]</b>：自由空间动态检测，Khronos 借用其 cue；</li>
+        <li><b>对照 Panoptic Mapping [42]</b>：长期一致 volumetric mapping 的代表；</li>
+        <li><b>GNC [54]</b>：Yang & Carlone 的鲁棒优化论文；</li>
+        <li><b>同组后续 Clio [Maggio RA-L24]</b> (T1.2)：把 task-driven 加入 scene graph，但<b>没解决时空</b>——值得看其架构里如何处理 region 的；</li>
+        <li><b>Bore et al. [3]</b> (T-RO 2019)：long-term dynamic object tracking 的奠基。</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <p>📄 论文：<i>Khronos: A Unified Approach for Spatio-Temporal Metric-Semantic SLAM in Dynamic Environments</i><br>
+    🏢 Robotics: Science and Systems (RSS), 2024 · arXiv:2402.13817v2<br>
+    👥 Lukas Schmid · Marcus Abate · Yun Chang · Luca Carlone (MIT SPARK Lab)<br>
+    🔗 开源：https://github.com/MIT-SPARK/Khronos<br>
+    📅 精读报告生成日期：2026-05-28 · 由 paper_reader_agent 基于 PDF 原文逐节重写 · 为 EvidLife-Map (IROS 2027) RQ5 准备</p>
+  </footer>
+
+</div>
+
+</body>
+</html>

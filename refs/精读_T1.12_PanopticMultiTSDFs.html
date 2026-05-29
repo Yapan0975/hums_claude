@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>精读 T1.12：Panoptic Multi-TSDFs — Online Multi-resolution Volumetric Mapping with Long-term Scene Consistency</title>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<style>
+  :root {
+    --primary: #1d4ed8;
+    --primary-dark: #1e3a8a;
+    --primary-light: #3b82f6;
+    --accent: #dc2626;
+    --warning: #f59e0b;
+    --success: #16a34a;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #111827;
+    --text-light: #6b7280;
+    --border: #e5e7eb;
+    --code-bg: #f1f5f9;
+    --hero-grad: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif; line-height: 1.78; color: var(--text); background: var(--bg); margin: 0; padding: 0; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 28px 80px; }
+  .hero { background: var(--hero-grad); color: white; border-radius: 16px; padding: 64px 56px 56px; margin-bottom: 32px; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3); }
+  .hero::before { content: '🗺️'; position: absolute; top: -20px; right: -20px; font-size: 220px; opacity: 0.07; transform: rotate(-15deg); }
+  .hero .badge { display: inline-block; background: rgba(255,255,255,0.18); color: #fff; padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 600; margin-bottom: 18px; backdrop-filter: blur(4px); }
+  .hero h1 { margin: 0 0 16px; font-size: 2.1rem; line-height: 1.3; font-weight: 700; }
+  .hero .sub { font-size: 1.05rem; opacity: 0.92; margin-bottom: 24px; font-weight: 300; }
+  .hero .info { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 28px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,0.2); }
+  .hero .info div .label { font-size: 0.78rem; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.5px; }
+  .hero .info div .value { font-size: 1rem; font-weight: 600; margin-top: 2px; }
+  .toc { position: sticky; top: 16px; z-index: 50; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: 12px; padding: 16px 22px; margin-bottom: 28px; box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
+  .toc summary { cursor: pointer; font-weight: 600; color: var(--primary-dark); list-style: none; display: flex; align-items: center; gap: 8px; }
+  .toc summary::before { content: '📑'; }
+  .toc ol { margin: 12px 0 0; padding-left: 20px; columns: 2; column-gap: 28px; }
+  .toc li { margin: 6px 0; break-inside: avoid; }
+  .toc a { color: var(--text); text-decoration: none; font-size: 0.93rem; }
+  .toc a:hover { color: var(--primary); }
+  section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 36px 40px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); scroll-margin-top: 80px; }
+  section h2 { font-size: 1.7rem; color: var(--primary-dark); margin: 0 0 6px; display: flex; align-items: baseline; gap: 12px; }
+  section h2 .num { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; background: var(--primary); color: white; border-radius: 50%; font-size: 1rem; flex-shrink: 0; }
+  section .lead { color: var(--text-light); font-size: 1rem; margin: 0 0 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  section h3 { margin: 28px 0 10px; color: var(--primary); font-size: 1.18rem; border-left: 4px solid var(--primary); padding-left: 14px; }
+  section h4 { margin: 20px 0 8px; font-size: 1.02rem; color: var(--text); }
+  section p { margin: 10px 0; }
+  section ul, section ol { padding-left: 24px; }
+  section li { margin: 6px 0; }
+  .box { border-radius: 10px; padding: 16px 22px; margin: 18px 0; border-left: 4px solid; }
+  .box-key   { background: #eff6ff; border-color: var(--primary); }
+  .box-warn  { background: #fef2f2; border-color: var(--accent); }
+  .box-tip   { background: #fffbeb; border-color: var(--warning); }
+  .box-good  { background: #f0fdf4; border-color: var(--success); }
+  .box-quote { background: #f8fafc; border-color: var(--text-light); font-style: italic; color: #475569; }
+  .box-title { font-weight: 700; margin-bottom: 6px; }
+  .box-key .box-title { color: var(--primary-dark); }
+  .box-warn .box-title { color: var(--accent); }
+  .box-tip .box-title { color: #b45309; }
+  .box-good .box-title { color: #166534; }
+  code { background: var(--code-bg); padding: 2px 7px; border-radius: 4px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.88em; color: #be185d; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 18px 22px; border-radius: 10px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  .formula { background: #fafbfc; border: 1px solid var(--border); border-radius: 8px; padding: 14px 20px; margin: 12px 0; font-size: 1.05rem; overflow-x: auto; }
+  .formula .ref { float: right; color: var(--text-light); font-size: 0.85rem; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.93rem; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; vertical-align: top; }
+  th { background: linear-gradient(180deg, #1d4ed8, #1e3a8a); color: white; font-weight: 600; }
+  tbody tr:nth-child(even) { background: #fafbfc; }
+  tbody tr:hover { background: #eff6ff; }
+  td .win { color: var(--success); font-weight: 700; }
+  td .lose { color: var(--accent); font-weight: 700; }
+  td .num-big { font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); }
+  .diagram { background: #0f172a; color: #e2e8f0; padding: 22px 28px; border-radius: 10px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.85rem; line-height: 1.5; overflow-x: auto; white-space: pre; margin: 16px 0; }
+  .diagram .hl { color: #fbbf24; font-weight: bold; }
+  .diagram .arrow { color: #60a5fa; }
+  .diagram .label { color: #34d399; }
+  .arch { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 20px 0; }
+  .arch .mod { background: linear-gradient(135deg, #ffffff, #f1f5f9); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+  .arch .mod h5 { margin: 0 0 8px; color: var(--primary-dark); font-size: 1rem; display: flex; align-items: center; gap: 6px; }
+  .arch .mod p { font-size: 0.9rem; color: var(--text-light); margin: 4px 0; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 22px 0; }
+  .stat { background: linear-gradient(135deg, #dbeafe, #ffffff); border-radius: 12px; padding: 16px 20px; text-align: center; border: 1px solid #bfdbfe; }
+  .stat .num { font-size: 1.8rem; font-weight: 800; color: var(--primary-dark); line-height: 1.1; }
+  .stat .lbl { font-size: 0.85rem; color: var(--text-light); margin-top: 4px; }
+  .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .pros, .cons { padding: 16px 20px; border-radius: 10px; }
+  .pros { background: #f0fdf4; border-left: 4px solid var(--success); }
+  .cons { background: #fef2f2; border-left: 4px solid var(--accent); }
+  .chip { display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; margin-right: 6px; margin-bottom: 4px; }
+  .chip-blue { background: #dbeafe; color: #1e40af; }
+  .chip-green { background: #dcfce7; color: #166534; }
+  .chip-red { background: #fee2e2; color: #991b1b; }
+  .chip-yellow { background: #fef3c7; color: #92400e; }
+  mark { background: linear-gradient(transparent 55%, #fde68a 55%); padding: 0 2px; font-weight: 600; }
+  footer { margin-top: 36px; padding-top: 22px; border-top: 1px solid var(--border); color: var(--text-light); font-size: 0.88rem; text-align: center; }
+  @media (max-width: 720px) {
+    .container { padding: 16px 14px; }
+    .hero { padding: 36px 24px 30px; }
+    .hero h1 { font-size: 1.5rem; }
+    section { padding: 22px 20px; }
+    .arch, .pros-cons { grid-template-columns: 1fr; }
+    .toc ol { columns: 1; }
+  }
+  @media print {
+    body { background: white; }
+    .toc { position: static; }
+    section, .hero { page-break-inside: avoid; box-shadow: none; }
+    .hero { background: #1e3a8a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ============ HERO ============ -->
+  <div class="hero">
+    <span class="badge">🗺️ Tier 1 lifelong 前传 · T1.12 · 精读</span>
+    <h1>Panoptic Multi-TSDFs：Flexible Multi-resolution Volumetric<br>Mapping with Long-term Dynamic Scene Consistency</h1>
+    <div class="sub">Schmid 2022 早期 lifelong 工作 —— submap-based change detection (persistent / unobserved / absent) + 按类自适应 voxel size</div>
+    <div class="info">
+      <div><div class="label">📚 venue</div><div class="value">IEEE ICRA 2022</div></div>
+      <div><div class="label">📅 arXiv</div><div class="value">arXiv:2109.10165v2 (2022-02-22)</div></div>
+      <div><div class="label">📄 页数</div><div class="value">7 页</div></div>
+      <div><div class="label">🏢 单位</div><div class="value">ETH Zürich (ASL) + Microsoft MR&AI Lab</div></div>
+      <div><div class="label">👥 一作</div><div class="value">Lukas Schmid（即 Khronos T1.1 作者）</div></div>
+      <div><div class="label">🎯 任务</div><div class="value">multi-resolution + lifelong volumetric mapping</div></div>
+      <div><div class="label">🧰 基线</div><div class="value">Voxblox / Supereight / Long-term Fusion [26]</div></div>
+      <div><div class="label">🏆 主结果</div><div class="value">memory ↓23× vs Supereight; CPU 5-6 FPS（i7-8550U）</div></div>
+    </div>
+  </div>
+
+  <!-- ============ TOC ============ -->
+  <details class="toc" open>
+    <summary>目录（点击展开 / 收起）</summary>
+    <ol>
+      <li><a href="#bg">1. 背景：为什么"长时一致 + 多分辨率"是个硬问题</a></li>
+      <li><a href="#contrib">2. 论文的三大贡献</a></li>
+      <li><a href="#prelim">3. 预备：TSDF、submap、panoptic segmentation</a></li>
+      <li><a href="#overview">4. 系统总览：5 个模块</a></li>
+      <li><a href="#map-rep">5. Map Representation：submap 层级结构</a></li>
+      <li><a href="#tracking">6. Label Tracking：IoU 关联 + 时间窗滤波</a></li>
+      <li><a href="#integration">7. Integration：TSDF + belonging probability</a></li>
+      <li><a href="#management">8. Map Management：change detection 三态机</a></li>
+      <li><a href="#queries">9. Spatio-temporal Queries</a></li>
+      <li><a href="#exp-multires">10. 实验 A：multi-resolution（Fig. 5）</a></li>
+      <li><a href="#exp-longterm">11. 实验 B：long-term temporal consistency（Fig. 6）</a></li>
+      <li><a href="#exp-rio">12. 实验 C：RIO 真实数据</a></li>
+      <li><a href="#exp-comp">13. 计算性能（Tab. I）</a></li>
+      <li><a href="#strength">14. 方法优势与代价</a></li>
+      <li><a href="#limit">15. 局限与未来工作</a></li>
+      <li><a href="#evidlife">16. ★ 与 EvidLife-Map 的关系（差异化定位）</a></li>
+      <li><a href="#takeaway">17. 总结与启示</a></li>
+    </ol>
+  </details>
+
+  <!-- ============ 1. 背景 ============ -->
+  <section id="bg">
+    <h2><span class="num">1</span> 背景：为什么"长时一致 + 多分辨率"是个硬问题</h2>
+    <p class="lead">这是 Lukas Schmid（同时是 Khronos T1.1 一作、HKUST/MIT 教职）的早期重要工作（ICRA 2022），是<b>Khronos 之前的"lifelong + change detection"基础</b>。理解它，就理解了 Khronos 的来路。</p>
+
+    <h3>1.1 已有三类工作都不够</h3>
+    <ul>
+      <li><b>Dense Semantic Mapping</b>（SemanticFusion [4], Voxblox 系 [2][8][9]，PanopticFusion [3]）：把 CNN 语义融进 TSDF，<b>但假设静态环境</b>；</li>
+      <li><b>Object-centric Mapping</b>（SLAM++[17], Fusion++[18], MaskFusion[7], MID-Fusion[13]）：每个对象一个 TSDF，<b>但只重建选定对象，背景被忽略，不支持 planning</b>；</li>
+      <li><b>Change Detection</b>（Finman[21], Fehr[23], Langer[24]）：能找出变化，<b>但 post-hoc + 计算重</b>，不适合 online。</li>
+    </ul>
+
+    <h3>1.2 Online Long-term Mapping 也有缺陷</h3>
+    <ul>
+      <li>Krajník [25]、Lázaro [26]、Tang [27]、Macenski [28] 等：能 online 更新，但<b>缺 volumetric / semantic 表达</b>，且更新粒度是 voxel/grid level，导致<b>变化时留下"碎片"伪影</b>。</li>
+    </ul>
+
+    <div class="box box-quote">
+      "A limitation of these approaches is that they lack the expressiveness, i.e. volumetric and semantic information, needed for robot interaction and do not provide semantic consistency when accounting for changes, thus leaving undesirable artifacts in the map." —— §II.D
+    </div>
+
+    <h3>1.3 核心 insight</h3>
+    <div class="box box-key">
+      <div class="box-title">💡 论文 §III 开篇的世界观</div>
+      <mark>"The world typically does not change at random but in a semantically consistent way."</mark><br>
+      因此<b>变化的最小单位不应该是 voxel，而应该是 object</b>。Schmid 用 panoptic segmentation 把世界分成 (i) 物体实例 (ii) 背景类别 (iii) free space，每个都成为一个独立 submap。<b>"change" 发生在 submap 级别 → 整个物体一起被增/删，避免碎片</b>。
+    </div>
+  </section>
+
+  <!-- ============ 2. 贡献 ============ -->
+  <section id="contrib">
+    <h2><span class="num">2</span> 论文的三大贡献</h2>
+
+    <div class="arch">
+      <div class="mod">
+        <h5>🗺️ ① Panoptic Multi-TSDFs</h5>
+        <p>提出 novel flexible multi-resolution volumetric map representation，能<b>capture long-term object-level scene changes</b>。</p>
+      </div>
+      <div class="mod">
+        <h5>🔄 ② Integration & Management</h5>
+        <p>给出 panoptic multi-TSDF 的<b>online integration</b> + <b>map management</b> 算法，确保 temporally consistent mapping。</p>
+      </div>
+      <div class="mod">
+        <h5>🧪 ③ Sim + Real evaluation</h5>
+        <p>在 <b>flat dataset（自己造，开源）</b>+ <b>RIO 真实数据</b> 上充分评估。Source code + 数据集 open-source。</p>
+      </div>
+      <div class="mod">
+        <h5>🌐 Open source</h5>
+        <p>github.com/ethz-asl/panoptic_mapping —— 之后的 Khronos 等工作的代码基础。</p>
+      </div>
+    </div>
+
+    <div class="box box-good">
+      <div class="box-title">🏆 核心数字成果</div>
+      <ul>
+        <li><b>Multi-resolution</b>：与 [36] 同质量，memory ↓ <b>×23</b>（high resolution 区间）；</li>
+        <li><b>Long-term consistency</b>：第 2 次运行从前一次地图出发时，accuracy 稳定在 <b>~1.4 cm</b>（discretization level）；Long-term Fusion [26] 因缺语义一致性会留"碎片"；</li>
+        <li><b>真机帧率</b>：i7-8550U @1.80GHz（CPU only，无 GPU）—— flat 5-6 FPS（GT seg）/ 5-7 FPS（Detectron2）；RIO <b>21-32 FPS</b>；</li>
+        <li><b>分辨率范围</b>：$\nu_{small} \in \{2,...,4\}$ cm（小物体）；$\nu_{large} \in \{5,...,10\}$ cm（大物体）；$\nu_{freespace} = 30$ cm；</li>
+        <li><b>Map 查询时延</b>：130 submap collection 上 3 μs / query。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 3. 预备 ============ -->
+  <section id="prelim">
+    <h2><span class="num">3</span> 预备：TSDF、submap、panoptic segmentation</h2>
+
+    <h3>3.1 TSDF（Truncated Signed Distance Field）</h3>
+    <p>每 voxel 存到最近表面的 signed distance（正在表面外 / 负在表面内），并截断 $|s| < \delta$。优势：能融合多帧、能 represent free space、能用 Marching Cubes 出 mesh。<b>Voxblox [2]</b> 是经典实现。</p>
+
+    <h3>3.2 Submap</h3>
+    <p>把大地图切成若干小 TSDF block 集合 → 各自维护各自的 pose & geometry → 利于 SLAM 回环、并行处理、对象级管理。代表工作：Voxgraph [11]。</p>
+
+    <h3>3.3 Panoptic segmentation [10]</h3>
+    <p>融合 instance segmentation 和 semantic segmentation：每个像素既有 instance ID（thing 类）又有 semantic class（stuff 类）。是本工作的"输入"——论文用 <b>Detectron2 [33]</b> 直接出 panoptic，<b>不做模型优化</b>。</p>
+
+    <h3>3.4 三类 panoptic 标签</h3>
+    <table>
+      <thead><tr><th>类别</th><th>例子</th><th>体素分辨率</th><th>语义性</th></tr></thead>
+      <tbody>
+        <tr><td><b>Object instances</b>（things）</td><td>chair, sofa, table</td><td>2-10 cm（按类自适应）</td><td>实例级</td></tr>
+        <tr><td><b>Background classes</b>（stuff）</td><td>floor, wall, ceiling</td><td>5-10 cm（类级）</td><td>类别级</td></tr>
+        <tr><td><b>Free space</b></td><td>—</td><td>30 cm（固定）</td><td>无语义</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 4. 总览 ============ -->
+  <section id="overview">
+    <h2><span class="num">4</span> 系统总览：5 个模块</h2>
+
+    <div class="diagram">┌──────────────────────────────────────────────────────────┐
+│ <span class="hl">输入</span>: RGBD (depth + color) + 外部 pose estimator         │
+└──────────────────────────────────────────────────────────┘
+                       │
+                       <span class="arrow">▼</span>
+   ┌──────────────────────────────────────────────────────┐
+   │ Detectron2 [33] → panoptic segmentation              │
+   │ (论文 deliberately 不优化分割,用 raw 输出测鲁棒性)    │
+   └──────────────────────────────────────────────────────┘
+                       │
+                       <span class="arrow">▼</span>
+   ┌──────────────────────────────────────────────────────┐
+   │ <span class="hl">①</span> <span class="label">Label Tracking</span>                                  │
+   │   - active submap iso-surface rendering              │
+   │   - IoU(predicted, rendered) > ξ_IoU=0.1 → associate │
+   │   - 新 mask 生 new submap; 选 ν 按 class             │
+   │   - τ_new=3 帧成熟; τ_active=5 帧失踪后 deactivate    │
+   └──────────────────────────────────────────────────────┘
+                       │
+                       <span class="arrow">▼</span>
+   ┌──────────────────────────────────────────────────────┐
+   │ <span class="hl">②</span> <span class="label">Integration</span>                                     │
+   │   - 投影更新 TSDF (公式 1: w_in = f_x f_y ν^2 / z^4)  │
+   │   - 每 voxel 维护 belonging probability P_b(v):       │
+   │     P_b(v) = Σ p(|F|-f)·I{label match} / Σ p(...)    │
+   │     p(f) = 1/2^⌊f/128⌋ (公式 4, 16-bit 高效存储)      │
+   └──────────────────────────────────────────────────────┘
+                       │
+                       <span class="arrow">▼</span>
+   ┌──────────────────────────────────────────────────────┐
+   │ <span class="hl">③</span> <span class="label">Map Management (Change Detection)</span>                │
+   │   inactive submap 状态 ∈ {persistent, unobserved,     │
+   │                            absent}                    │
+   │   compare iso-surface points 与 active submap：        │
+   │     |sdf(p)| < ξ_sdf  → matching (persistent)        │
+   │     sdf(p) < -ξ_sdf   → 与物体冲突                    │
+   │     sdf(p) >  ξ_sdf   → 与 free space 冲突 (absent)   │
+   │   阈值: τ_abs=20 或 τ_rel=2% of |P|                   │
+   └──────────────────────────────────────────────────────┘
+                       │
+                       <span class="arrow">▼</span>
+   ┌──────────────────────────────────────────────────────┐
+   │ <span class="hl">④</span> <span class="label">Spatio-temporal Queries</span>                          │
+   │   active > persistent > free space > unobserved      │
+   │   仅 present submap 进入评估                          │
+   └──────────────────────────────────────────────────────┘</div>
+
+    <h3>4.1 关键超参一览</h3>
+    <table>
+      <thead><tr><th>符号</th><th>含义</th><th>取值</th></tr></thead>
+      <tbody>
+        <tr><td>$\xi_d$</td><td>depth tolerance for iso-surface render</td><td>$\nu$（voxel size）</td></tr>
+        <tr><td>$\xi_{IoU}$</td><td>最小 IoU 阈值</td><td>0.1</td></tr>
+        <tr><td>$\tau_{new}$</td><td>新 submap 成熟所需追踪帧数</td><td>3</td></tr>
+        <tr><td>$\tau_{active}$</td><td>失踪多少帧后 deactivate</td><td>5</td></tr>
+        <tr><td>$\delta$</td><td>TSDF truncation distance</td><td>$2\nu$</td></tr>
+        <tr><td>$\xi_{sdf}$</td><td>SDF error tolerance</td><td>$\nu$（RIO 用 $2\nu$）</td></tr>
+        <tr><td>$\xi_w$</td><td>TSDF weight cap</td><td>100</td></tr>
+        <tr><td>$\tau_{abs}, \tau_{rel}$</td><td>absent/persistent 阈值</td><td>20 / 2%</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 5. Map Rep ============ -->
+  <section id="map-rep">
+    <h2><span class="num">5</span> Map Representation：submap 层级结构</h2>
+
+    <p>Fig. 3 显示的层级（top → bottom）：</p>
+    <ol>
+      <li><b>Submap collection</b>：最高层，含 spatial index（用于大场景常数时间查询）；</li>
+      <li><b>Submap</b>：含 panoptic / instance / class label、变换矩阵、tracking data；</li>
+      <li><b>Bounding sphere</b>：submap 的包围球，用于快速遍历；</li>
+      <li><b>Blocks</b>：按 TSDF 标准切分，只为 surface voxel 所在 block 分配（free space submap 例外，需全分配）；</li>
+      <li><b>Voxels</b>：dense grid，存 TSDF 值 + belonging probability。</li>
+    </ol>
+
+    <h3>5.1 active vs inactive submap</h3>
+    <ul>
+      <li><b>active</b>：当前正在追踪 + 持续融合的；</li>
+      <li><b>inactive</b>：之前观测的，frozen，但可被 change detection 改变状态。</li>
+    </ul>
+
+    <h3>5.2 按类自适应 $\nu$</h3>
+    <div class="box box-key">
+      <div class="box-title">💡 multi-resolution 的核心做法</div>
+      不同于 [5][13][18] 用固定 grid size，Schmid 让 $\nu$ <mark>按 detection 的 class label 选择</mark>：
+      <ul>
+        <li>$\nu_{small} \in \{2, 3, 4\}$ cm：小/精细物体（杯子、手机）；</li>
+        <li>$\nu_{large} \in \{5, 6, ..., 10\}$ cm：大物体（沙发、墙壁）；</li>
+        <li>$\nu_{freespace} = 30$ cm（固定）；</li>
+      </ul>
+      <b>"高分辨率只放在需要的地方"</b>——这就是 multi-resolution 的语义化解。
+    </div>
+
+    <p>论文还强调："all submaps are fully data-parallel"——可分布到多核 CPU。Tab. I 的 5-6 FPS 就是 CPU only 跑出来的（i7-8550U，<b>没有 GPU</b>）。</p>
+  </section>
+
+  <!-- ============ 6. Tracking ============ -->
+  <section id="tracking">
+    <h2><span class="num">6</span> Label Tracking：IoU 关联 + 时间窗滤波</h2>
+
+    <h3>6.1 关联流程</h3>
+    <ol>
+      <li>对每个 active submap：用 Marching Cubes [34] 增量算 iso-surface；</li>
+      <li>所有 view frustum 内的 active submap iso-surface 投影到 image plane；</li>
+      <li>渲染深度 $z$ 与测量深度 $D$ 差距 $|z - D| < \xi_d = \nu$ 算 valid；</li>
+      <li>对每个 input segment：找 IoU 最大 + 同类别的 submap；</li>
+      <li>$\text{IoU} > \xi_{IoU} = 0.1$ → 关联；否则新建 submap。</li>
+    </ol>
+
+    <h3>6.2 时间窗</h3>
+    <ul>
+      <li><b>$\tau_{new} = 3$</b>：新 submap 需追踪 3 帧才"成熟"，否则丢弃 → 避免 false positive；</li>
+      <li><b>$\tau_{active} = 5$</b>：失踪 5 帧后 deactivate → 防止数据被污染。</li>
+    </ul>
+
+    <div class="box box-tip">
+      <div class="box-title">📌 与 OpenVox 的微妙差异</div>
+      OpenVox 用 voxel 概率均值 + cosine 做 association；<b>Schmid 用 iso-surface 渲染 + image IoU</b>——后者计算更重，但对 occlusion 更稳。这是 ICRA 2022 时代的"工程权衡"。
+    </div>
+  </section>
+
+  <!-- ============ 7. Integration ============ -->
+  <section id="integration">
+    <h2><span class="num">7</span> Integration：TSDF + belonging probability</h2>
+
+    <h3>7.1 TSDF 权重（公式 1）</h3>
+    <div class="formula">
+      $$w_{in}(v) = \frac{f_x f_y \nu^2}{z(v)^4} \tag{1}$$
+    </div>
+    <p>$f_x, f_y$ 是焦距，$z(v)$ 是 voxel 在 image 中的深度。注意 $\nu^2$ 在分子——<b>大 voxel 权重大</b>，与 voxblox [2] 形式一致。</p>
+
+    <h3>7.2 Belonging probability $P_b(v)$</h3>
+    <p>每个 voxel $v$ 还有一个"是否属于本 submap"的概率 $P_b(v)$。论文不直接用 CNN softmax（"network probabilities can be overconfident [5,18]"），而是数 "label 匹配的帧数 / 总观测帧数"：</p>
+
+    <div class="formula">
+      $$P_b^*(v) = \frac{1}{|F_t|}\sum_{f=1}^{|F_t|} \mathbb{I}\{\text{label}(u_f(v)) = \text{label}(S(v))\} \tag{2}$$
+    </div>
+
+    <h3>7.3 高效近似（核心工程巧思）</h3>
+    <div class="formula">
+      $$P_b(v) = \frac{\sum_{f=1}^{|F_t|} p(|F_t| - f)\, \mathbb{I}\{\text{label}(u_f(v)) = \text{label}(S(v))\}}{\sum_{f=1}^{|F_t|} p(|F_t| - f)} \tag{3}$$
+      $$p(f) = 1/2^{\lfloor f / 128 \rfloor} \tag{4}$$
+    </div>
+
+    <div class="box box-key">
+      <div class="box-title">💡 (公式 4) 的妙处</div>
+      $p(f) = 1/2^{\lfloor f/128 \rfloor}$ 是个<b>按 128 帧分段的衰减权</b>——<b>越近期权重越大</b>。配合分子分母都是几何级数，<mark>整个 $P_b(v)$ 可以用 16 bit 高效增量存储</mark>。这是论文一个非常工程性的设计。
+    </div>
+
+    <h3>7.4 Block pruning</h3>
+    <p>不含相关信息的 block 被剪枝：<b>$\nexists v$ 使得 $|sdf(v)| < \delta \wedge P_b(v) > 0.5$</b>。这保证内存只用在 surface 附近。</p>
+  </section>
+
+  <!-- ============ 8. Management ============ -->
+  <section id="management">
+    <h2><span class="num">8</span> Map Management：change detection 三态机</h2>
+
+    <h3>8.1 三种状态</h3>
+    <p>每个 inactive submap 有 change state $C(S) \in \{persistent, unobserved, absent\}$。</p>
+
+    <h3>8.2 比较两个 submap</h3>
+    <p>对参考 submap 的 iso-surface 点 $p \in P$，在另一个 submap 中插值得 $sdf(p)$ 和 weight $w(p)$。三种结果：</p>
+    <ul>
+      <li>$|sdf(p)| < \xi_{sdf}$：matching（同表面）；</li>
+      <li>$sdf(p) < -\xi_{sdf}$：与 object map 冲突；</li>
+      <li>$sdf(p) > \xi_{sdf}$：与 free space map 冲突（→ absent 候选）。</li>
+    </ul>
+
+    <h3>8.3 联合权重（公式 5）</h3>
+    <div class="formula">
+      $$\hat{w}(p) = \sqrt{\min\!\left(\frac{w(p)}{\xi_w},\, 1\right) \cdot \min\!\left(\frac{w_{ref}(p)}{\xi_w},\, 1\right)} \tag{5}$$
+    </div>
+    <p>$\xi_w = 100$。$\hat{w}$ 是两个 submap weight 的几何平均，capped 在 1。</p>
+
+    <h3>8.4 决策阈值</h3>
+    <p>weight-adjusted 同意/冲突点数超过 $\tau_{abs} = 20$ 或 $\tau_{rel} = 2\%|P|$ → submap 被标 matching 或 conflicting。</p>
+
+    <h3>8.5 状态转换</h3>
+    <table>
+      <thead><tr><th>触发</th><th>状态变化</th></tr></thead>
+      <tbody>
+        <tr><td>inactive submap 与任意 active submap 冲突</td><td>→ <b>absent</b></td></tr>
+        <tr><td>inactive 与任意 active 匹配</td><td>→ <b>persistent</b></td></tr>
+        <tr><td>far back in time, 无重叠观测</td><td>→ <b>unobserved</b></td></tr>
+        <tr><td>active deactivate 时与 inactive 同类 submap 匹配</td><td>→ <b>融合</b>（fuse together，重用旧数据）</td></tr>
+      </tbody>
+    </table>
+
+    <div class="box box-good">
+      <div class="box-title">🎯 关键设计：错误可以纠正</div>
+      "this way, erroneous matches or rejections, e.g. through sensing noise, are corrected for later on. Far back in time submaps are unknown, and can become absent or persistent again when observed." —— §III.D<br>
+      <mark>三态机不是 once-and-for-all 的——unknown → persistent / absent 可双向转换</mark>。
+    </div>
+  </section>
+
+  <!-- ============ 9. Queries ============ -->
+  <section id="queries">
+    <h2><span class="num">9</span> Spatio-temporal Queries</h2>
+
+    <p>Map 查询使用层级 + 时间优先级：</p>
+    <ol>
+      <li>找 query point $p$ 所在的 submap 和 block（spatial index）；</li>
+      <li>若 active submap 命中 → <b>用最高分辨率</b>；</li>
+      <li>否则取所有 persistent submap 的最小 sdf；</li>
+      <li>若都不命中 → 查 free space submap；</li>
+      <li>仍不命中 → 查 unobserved submap 作"预测"；</li>
+      <li>只有 <b>present</b>（active 或 persistent）submap 参与评估指标。</li>
+    </ol>
+
+    <p>Fig. 7 显示：在 130 个 submap 的 collection 上，查询平均仅 <b>3 μs</b>。是非常快的。</p>
+  </section>
+
+  <!-- ============ 10. Exp A ============ -->
+  <section id="exp-multires">
+    <h2><span class="num">10</span> 实验 A：multi-resolution（Fig. 5）</h2>
+
+    <h3>10.1 设置</h3>
+    <p>Flat dataset（论文自造、开源）：基于 [12] 的 high-fidelity 仿真，2 条轨迹，包含 8 个移动 + 5 个新增 + 4 个移除的物体。</p>
+
+    <h3>10.2 对比</h3>
+    <ul>
+      <li><b>Voxblox [2]</b>：经典 TSDF；</li>
+      <li><b>Supereight 2 [19]</b>：octree-based；</li>
+      <li><b>Vespa [36] (adaptive-res octree)</b>：sensor-based multi-res；</li>
+      <li><b>Ours (GT seg)</b>：用 ground-truth 分割（capability 上限）；</li>
+      <li><b>Ours (Detectron2)</b>：用 raw Detectron2（实际 robust 测试）。</li>
+    </ul>
+
+    <h3>10.3 关键结果</h3>
+    <div class="box box-good">
+      <div class="box-title">📊 数字</div>
+      <ul>
+        <li><b>GT seg vs Supereight 低分辨率</b>：相似 memory，<b>error 几乎减半</b>；</li>
+        <li><b>GT seg vs [36] 高分辨率</b>：同质量，<b>memory ↓ ×23</b>；</li>
+        <li><b>Detectron2 (naive)</b>：即使分割有误（少检测 + 假阳性增 memory），仍<b>比 baseline 节省 memory</b>；</li>
+        <li>整体趋势：<b>"semantically informed multi-resolution > purely geometric multi-resolution"</b>。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 11. Exp B ============ -->
+  <section id="exp-longterm">
+    <h2><span class="num">11</span> 实验 B：long-term temporal consistency（Fig. 6）</h2>
+
+    <h3>11.1 设置</h3>
+    <p>Flat dataset 第 2 次运行，从第 1 次的 prior map 出发。对比：</p>
+    <ul>
+      <li><b>Monolithic (continue)</b>：基于 [3][8][9] 风格，直接在原图上继续融合；</li>
+      <li><b>Monolithic (from scratch)</b>：第 2 次从空白开始；</li>
+      <li><b>Long-term fusion [26]</b>：voxel 距离更新 > 5 cm 则覆盖；</li>
+      <li><b>Ours (GT)</b> + <b>Ours (Detectron)</b>。</li>
+    </ul>
+    <p>统一 $\nu = 5$ cm（公平比较）。</p>
+
+    <h3>11.2 关键结果</h3>
+    <div class="box box-good">
+      <div class="box-title">🎯 三个观察</div>
+      <ol>
+        <li><b>Ours 的 reconstruction 误差稳定在 ~1.4 cm</b>（discretization level） —— 即"完美级别"；</li>
+        <li><b>Monolithic (continue)</b> 不抓变化，误差高且不降；</li>
+        <li><b>Long-term fusion [26]</b> 能降误差，但<b>语义不一致导致"碎片"</b>，误差降不下来 discretization；</li>
+        <li><b>Ours 通过包含 matching 的旧数据，coverage 增长显著快于 from-scratch</b>；</li>
+        <li><b>GT vs Detectron 差距小</b>，证明对 imperfect segmentation 鲁棒（"only assumes semantic consistency of each submap"）。</li>
+      </ol>
+    </div>
+
+    <h3>11.3 Fig. 1 的核心定性</h3>
+    <p>Fig. 1 是论文最直观的图：左边 monolithic map 留下"红色 ghost"（旧物体不消失）；<b>右边 panoptic multi-TSDFs 干净地把 persistent / absent 用 solid / shaded 区分</b>。这是"submap 是变化最小单位"的视觉证明。</p>
+  </section>
+
+  <!-- ============ 12. Exp C ============ -->
+  <section id="exp-rio">
+    <h2><span class="num">12</span> 实验 C：RIO 真实数据</h2>
+
+    <h3>12.1 设置</h3>
+    <p>RIO dataset [35]（"3d object instance re-localization in changing indoor environments"）：scan 466（2 runs）和 scan 27（4 runs）。用 ground truth pose 或优化 pose。</p>
+    <p>调整 $\xi_{sdf} = 2\nu$（因为传感器噪声更大），$\tau_{new} = 1$，其他不变。</p>
+
+    <h3>12.2 结果（Fig. 8, 9）</h3>
+    <ul>
+      <li><b>第 1 次运行</b>：各方法误差相近；</li>
+      <li><b>第 2+ 次运行</b>：
+        <ul>
+          <li>monolithic (with map)：高 coverage 但<b>含旧数据 ghost</b>（overestimate）；</li>
+          <li>monolithic (from scratch)：低 coverage；</li>
+          <li><b>Ours</b>：与 from-scratch 质量相当，coverage 显著更大；</li>
+        </ul>
+      </li>
+      <li>Fig. 8 定性：(a) 没 prior map → 完整重建，(b) 有 prior → 缺片 + 合并物体伪影；<b>(c)(d) Ours → 干净 + 个体保留</b>。</li>
+    </ul>
+
+    <div class="box box-tip">
+      <div class="box-title">📌 论文坦诚的限制</div>
+      "Detectron2 detections" 比 GT 更少 + 更碎，所以 Ours (Detectron) 的 mesh 看起来更 noisy（Fig. 8(d)）。但仍展示了 system 对 imperfect segmentation 的鲁棒性。
+    </div>
+  </section>
+
+  <!-- ============ 13. Computation ============ -->
+  <section id="exp-comp">
+    <h2><span class="num">13</span> 计算性能（Tab. I）</h2>
+
+    <table>
+      <thead><tr><th>Setting</th><th>Resolution</th><th>Tracking (ms)</th><th>Integration (ms)</th><th>Management (ms)</th><th>FPS*</th></tr></thead>
+      <tbody>
+        <tr><td>Flat, GT</td><td>2-5 cm</td><td>70.2 ± 8.4</td><td>104.3 ± 14.4</td><td>199.1 ± 54.1</td><td>5.1</td></tr>
+        <tr><td>Flat, GT</td><td>4-10 cm</td><td>63.9 ± 4.4</td><td>89.2 ± 7.8</td><td>182.1 ± 44.3</td><td>5.8</td></tr>
+        <tr><td>Flat, Detectron</td><td>2-5 cm</td><td>57.8 ± 5.5</td><td>91.1 ± 11.1</td><td>192.1 ± 54.3</td><td>5.9</td></tr>
+        <tr><td>Flat, Detectron</td><td>4-10 cm</td><td>54.7 ± 5.1</td><td>80.3 ± 7.4</td><td>183.5 ± 49.2</td><td>6.5</td></tr>
+        <tr><td><b>RIO, Detectron</b></td><td>2-5 cm</td><td>21.8 ± 4.6</td><td>21.8 ± 5.9</td><td>33.2 ± 23.8</td><td><b>21.3</b></td></tr>
+        <tr><td><b>RIO, Detectron</b></td><td>4-10 cm</td><td>16.8 ± 3.4</td><td>13.3 ± 3.5</td><td>9.5 ± 4.5</td><td><b>32.2</b></td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:0.85rem;color:var(--text-light);">* FPS = change detection every 10 frames</p>
+
+    <div class="box box-key">
+      <div class="box-title">🎯 关键观察</div>
+      <ul>
+        <li><b>CPU only</b>（i7-8550U @1.80GHz）能跑 5-6 FPS（flat 640×480）/ 21-32 FPS（RIO 224×172）；</li>
+        <li>Detectron2 不算在这个时间里——论文写 "66 ms / frame on V100 GPU"；</li>
+        <li>RIO 显著快是因为传感器分辨率低 + 物体少 → submap 少；</li>
+        <li>integration 与 tracking 等量级，management（change detection）最重——但只每 10 帧做一次。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 14. 优势 ============ -->
+  <section id="strength">
+    <h2><span class="num">14</span> 方法优势与代价</h2>
+
+    <div class="pros-cons">
+      <div class="pros">
+        <b>✅ 论文显式声明的优势</b>
+        <ul>
+          <li><b>真正 lifelong（long-term）</b>：support 多次 session、change detection 双向（unknown ↔ persistent/absent）；</li>
+          <li><b>multi-resolution 内生</b>：按类自适应 $\nu$，memory 大幅节省；</li>
+          <li><b>object-level 变化粒度</b>：避免 voxel 级"碎片"伪影；</li>
+          <li><b>CPU only 实时</b>（5-30 FPS on i7）；</li>
+          <li><b>对 imperfect seg 鲁棒</b>：用 Detectron2 raw 输出仍能跑；</li>
+          <li><b>3 μs / query</b> 的 spatio-temporal lookup；</li>
+          <li><b>开源 + 数据集开源</b>。</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <b>⚠️ 论文没说但能看到的代价</b>
+        <ul>
+          <li><b>不处理 open-vocab</b>：依赖 Detectron2 的 panoptic 类（COCO 类集）；</li>
+          <li><b>无 evidential 或 epistemic uncertainty</b>：用 $P_b(v)$ 但作为"belonging count"，非 epistemic；</li>
+          <li><b>change detection 是 binary 三态</b>：没有"不太确定"的中间态；</li>
+          <li><b>无 dynamic object</b>：明确把 short-term dynamics 留给 [5][6][7][13]；</li>
+          <li><b>submap 间无 loop closure 优化</b>："left for future work"；</li>
+          <li><b>关联用 iso-surface render + IoU 计算重</b>（70 ms / frame for tracking）；</li>
+          <li><b>无 instance retrieval / language query</b>（仅 geometric + semantic class）；</li>
+          <li><b>fusion 触发依赖类匹配</b>：分类错就不融合。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 15. 局限 ============ -->
+  <section id="limit">
+    <h2><span class="num">15</span> 局限与未来工作（§V）</h2>
+
+    <div class="box box-quote">
+      "In future work, our approach can be readily combined with methods for segmentation refinement and to also account for short-term dynamics. Recognition and re-localization of changed objects could further boost performance." —— §V
+    </div>
+
+    <h3>15.1 三条 future works</h3>
+    <ol>
+      <li><b>segmentation refinement</b>：与 [3][4][7][8][13][14] 结合；</li>
+      <li><b>short-term dynamics</b>：物体跟踪 [5]-[7][13] —— <b>这正是后来 Khronos (T1.1) 走的路</b>；</li>
+      <li><b>changed object re-localization</b>：检测+重定位变化物体 → boost performance。</li>
+    </ol>
+
+    <h3>15.2 我们读出来的关键缺口</h3>
+    <ul>
+      <li><b>uncertainty 仅作 belonging probability，无 epistemic</b>：$P_b(v)$ 是 frequency count，不是真正的 "I don't know"；</li>
+      <li><b>change detection 是 categorical（persistent/absent/unobserved），不是连续的</b>：错过了"渐变 confidence"；</li>
+      <li><b>fusion 依赖 IoU + class match 双条件</b>：脆弱；</li>
+      <li><b>$\tau_{new}=3, \tau_{active}=5$ 是 hand-tuned</b>：不同场景需重调；</li>
+      <li><b>无 voxel-level decay</b>：只有 submap-level 状态变化。<mark>这是 EvidLife-Map §III.M3 voxel decay 想补的空白</mark>。</li>
+    </ul>
+  </section>
+
+  <!-- ============ 16. 与 EvidLife-Map 的关系 ============ -->
+  <section id="evidlife">
+    <h2><span class="num">16</span> ★ 与 EvidLife-Map 的关系（差异化定位）</h2>
+
+    <h3>16.1 方法学差异表</h3>
+    <table>
+      <thead><tr><th>维度</th><th>Panoptic Multi-TSDFs (T1.12)</th><th>EvidLife-Map (我们)</th></tr></thead>
+      <tbody>
+        <tr><td><b>变化最小单位</b></td><td>submap（= 整个物体）</td><td>voxel（细粒度）</td></tr>
+        <tr><td><b>分辨率策略</b></td><td>multi-resolution（按类 $\nu$ 自适应）</td><td>single-resolution voxel grid</td></tr>
+        <tr><td><b>语义模型</b></td><td>Panoptic seg (Detectron2 COCO 类)</td><td>closed-set K 类 + open-set vacuity</td></tr>
+        <tr><td><b>"不确定"建模</b></td><td>$P_b(v)$ 是 frequency count</td><td>vacuity $u = K/S$ (Dirichlet)</td></tr>
+        <tr><td><b>change detection</b></td><td>三态 categorical: persistent / unobserved / absent</td><td>continuous decay rate $\dot\alpha = -\beta u$</td></tr>
+        <tr><td><b>change 决策</b></td><td>SDF 比较 + 阈值 ($\xi_{sdf}, \tau_{abs}, \tau_{rel}$)</td><td>vacuity 驱动衰减</td></tr>
+        <tr><td><b>fusion 触发</b></td><td>IoU + class match 双条件</td><td>无 fusion 概念（voxel 持续衰减/激活）</td></tr>
+        <tr><td><b>loop closure</b></td><td>无</td><td>vacuity-driven keyframe</td></tr>
+        <tr><td><b>open-set rejection</b></td><td>无（限于 Detectron2 类）</td><td>vacuity > τ → reject</td></tr>
+        <tr><td><b>真机 GPU</b></td><td>CPU only (i7-8550U)</td><td>消费级 GPU 目标</td></tr>
+      </tbody>
+    </table>
+
+    <h3>16.2 §9 — 与 EvidLife-Map 的关系（技术诚实版，~330 字）</h3>
+    <div class="box box-key">
+      <p>Panoptic Multi-TSDFs（Schmid et al., ICRA 2022）是 Schmid 在 Khronos（T1.1）<b>之前</b>的 lifelong 工作；从代码上看，<a href="https://github.com/ethz-asl/panoptic_mapping" style="color:inherit">github.com/ethz-asl/panoptic_mapping</a> 也是 Khronos 的代码祖先。它是 EvidLife-Map 在 RQ4（lifelong）方向上必须明确 differentiate 的"前传"。三个核心差异：</p>
+      <p>(i) <b>变化粒度</b>：Schmid 用 <b>submap 作为变化最小单位</b>，整个物体一起进入 persistent/absent；这避免了 voxel 级碎片，<b>但代价是丢失"局部变化"</b>（沙发上换个抱枕无法表达）。EvidLife-Map §III.M3 用 voxel-level decay，<mark>同一 submap 内不同 voxel 可以有不同衰减速率</mark>——细粒度但需控制噪声。我们必须在论文中坦言："Schmid 的 object-level granularity 在 robotic interaction（"哪个物体不见了"）上更直接；我们的 voxel-level 在 incremental fidelity（"沙发缺了一角"）上更细"。</p>
+      <p>(ii) <b>多分辨率 vs 单分辨率</b>：Schmid 按类自适应 $\nu \in [2, 10]$ cm，<b>memory ↓ ×23</b> 是硬数据。EvidLife-Map 用 single-resolution——必须诚实写明 "single-resolution simplifies the vacuity decay but at higher memory cost; multi-resolution evidential decay is left as future work"。<b>这是 Schmid 对我们的真实威胁，要正面回应</b>。</p>
+      <p>(iii) <b>哲学差异</b>：Schmid 的 long-term consistency 是<b>显式优化</b>（三态机 + SDF 阈值）；EvidLife-Map 是<b>隐式驱动</b>（vacuity 升高自动衰减）。前者可调可控但 hand-tuned；后者无超参一致但需 evidential head 训练好。<b>这是 design philosophy 差异，没有谁更优</b>。</p>
+      <p>(iv) <b>$P_b(v)$ vs vacuity</b>：Schmid 已经用了 16-bit "weighted frequency count"做"voxel-belongingness"，这<mark>形式上与 vacuity 接近但语义不同</mark>——$P_b$ 是 "voxel 属于这个 submap 的频次"，vacuity 是 "voxel 类别预测的 epistemic 不确定性"。Reviewer 可能混淆，需明确划分。</p>
+    </div>
+
+    <h3>16.3 Panoptic Multi-TSDFs vs EvidLife-Map 的优势分布</h3>
+    <table>
+      <thead><tr><th>领域</th><th>Schmid 2022 强</th><th>EvidLife-Map 强</th></tr></thead>
+      <tbody>
+        <tr><td>Memory efficiency</td><td>✅（multi-res ↓×23）</td><td>—</td></tr>
+        <tr><td>Object-level interaction</td><td>✅（submap 自然对应物体）</td><td>—</td></tr>
+        <tr><td>Long-term consistency</td><td>✅（三态机 + change detection）</td><td>✅（vacuity decay）</td></tr>
+        <tr><td>细粒度变化</td><td>—</td><td>✅（voxel-level）</td></tr>
+        <tr><td>Epistemic uncertainty</td><td>—</td><td>✅（$u = K/S$）</td></tr>
+        <tr><td>Open-set rejection</td><td>—</td><td>✅</td></tr>
+        <tr><td>无超参/hand-tuned</td><td>—</td><td>✅（vacuity 自驱）</td></tr>
+        <tr><td>CPU-only real-time</td><td>✅</td><td>—（依赖 GPU）</td></tr>
+      </tbody>
+    </table>
+
+    <div class="box box-warn">
+      <div class="box-title">⚠️ 战术建议（写论文时务必）</div>
+      <ol>
+        <li>§II 必须给 "Panoptic Multi-TSDFs (Schmid 2022)" 单独一段，并明确 lineage："this work pioneered submap-based change detection; Khronos extended to dynamic; we propose voxel-level evidential decay"；</li>
+        <li>§I 卖点不要碰 "multi-resolution"——Schmid 已经做了；改为 "single-resolution but uncertainty-aware"；</li>
+        <li>§III.M3 voxel decay 必须有一个 figure 直接对比 Schmid 的 submap-level vs 我们的 voxel-level（用同一场景）；</li>
+        <li>实验：复用 Schmid 的 flat dataset（已开源）做 long-term consistency 对比，<b>这是最公平且最有说服力的对比基准</b>；</li>
+        <li>future work：multi-resolution evidential decay（与 Schmid 的 multi-res 思路融合）——这把 Schmid 从对手变成<b>未来扩展的灵感来源</b>。</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ 17. 总结 ============ -->
+  <section id="takeaway">
+    <h2><span class="num">17</span> 总结与启示</h2>
+
+    <h3>17.1 一句话总结</h3>
+    <div class="box box-key" style="font-size: 1.05rem;">
+      <mark>"Panoptic Multi-TSDFs 把 panoptic segmentation 作为 governing factor，让 submap 成为变化最小单位 + 让 $\nu$ 按类自适应，从而在 CPU only 的 i7 上实现 5-30 FPS 的 multi-resolution 长时一致 volumetric mapping，相对 Supereight memory ↓ ×23 且 reconstruction 误差稳定在 ~1.4 cm 的 discretization level。"</mark>
+    </div>
+
+    <h3>17.2 三个 takeaway</h3>
+    <ol>
+      <li><b>"semantic 是组织 geometry 的最佳手段"</b> —— Schmid 把这一点用 multi-resolution 与 submap-as-change-unit 两个角度落地；</li>
+      <li><b>"object-level change detection 比 voxel-level 干净"</b> —— 我们的 voxel decay 必须在 figure 上证明能 match 或超越；</li>
+      <li><b>"frequency count + 16-bit 编码"</b> 是非常优雅的 lifelong 内存设计 —— EvidLife-Map 在做 vacuity 存储时可借鉴。</li>
+    </ol>
+
+    <h3>17.3 给我们论文的具体动作清单</h3>
+    <div class="box box-tip">
+      <div class="box-title">🎯 必做项</div>
+      <ol>
+        <li>§II 增加 lifelong mapping 子节，按 Krajník→Lázaro→Schmid (T1.12)→Khronos (T1.1)→Ours 的时间脉络梳理；</li>
+        <li>§III.M3 voxel decay 一定要有 vs Schmid 的对比 figure；</li>
+        <li>实验：用 Schmid 的 flat dataset + 自造 lifelong scenes 做长时一致性测试；</li>
+        <li>future work：multi-res evidential decay 是漂亮扩展；</li>
+        <li>§I 的 "lifelong" claim 必须避开 "multi-resolution" 关键词。</li>
+      </ol>
+    </div>
+  </section>
+
+  <footer>
+    <p>📄 论文：<i>Panoptic Multi-TSDFs: a Flexible Representation for Online Multi-resolution Volumetric Mapping and Long-term Dynamic Scene Consistency</i><br>
+    🏢 IEEE ICRA 2022 · arXiv:2109.10165v2 (2022-02-22)<br>
+    👥 Lukas Schmid, Jeffrey Delmerico, Johannes L. Schönberger, Juan Nieto, Marc Pollefeys, Roland Siegwart, Cesar Cadena (ETH Zürich + Microsoft)<br>
+    🔗 Open source: https://github.com/ethz-asl/panoptic_mapping<br>
+    📅 精读报告生成日期：2026-05-28 · 由 paper_reader_agent 基于 PDF 原文逐节重写</p>
+  </footer>
+
+</div>
+
+</body>
+</html>

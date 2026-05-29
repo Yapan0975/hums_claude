@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Generated weights (regenerable; large)
+code/evidlife_map/weights/*.pt
+code/evidlife_map/weights/*.ckpt
+code/evidlife_map/runs/
+
+# Large source artifacts (re-downloadable from arXiv)
+refs/*.pdf
+refs/_T*.txt
+refs/_h5/
+
+# Mobile renders (generated from canonical HTML)
+**/_h5/
+
+# OS junk
+.DS_Store
+Thumbs.db
+*~
+
+# Editor
+.vscode/
+.idea/
+
+# Local-only experiment runs
+code/evidlife_map/experiments/runs/
+code/evidlife_map/.coverage

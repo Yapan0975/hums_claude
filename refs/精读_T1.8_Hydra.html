@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T1.8 精读：Hydra — Real-time 3D Scene Graph Construction（RSS 2022）</title>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<style>
+  :root {
+    --primary: #1d4ed8;
+    --primary-dark: #1e3a8a;
+    --primary-light: #3b82f6;
+    --accent: #dc2626;
+    --warning: #f59e0b;
+    --success: #16a34a;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #111827;
+    --text-light: #6b7280;
+    --border: #e5e7eb;
+    --code-bg: #f1f5f9;
+    --hero-grad: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif; line-height: 1.78; color: var(--text); background: var(--bg); margin: 0; padding: 0; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 28px 80px; }
+  .hero { background: var(--hero-grad); color: white; border-radius: 16px; padding: 64px 56px 56px; margin-bottom: 32px; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3); }
+  .hero::before { content: '🐍'; position: absolute; top: -20px; right: -20px; font-size: 220px; opacity: 0.07; transform: rotate(-15deg); }
+  .hero .badge { display: inline-block; background: rgba(255,255,255,0.18); color: #fff; padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 600; margin-bottom: 18px; backdrop-filter: blur(4px); }
+  .hero h1 { margin: 0 0 16px; font-size: 2.1rem; line-height: 1.3; font-weight: 700; }
+  .hero .sub { font-size: 1.05rem; opacity: 0.92; margin-bottom: 24px; font-weight: 300; }
+  .hero .info { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 28px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,0.2); }
+  .hero .info div .label { font-size: 0.78rem; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.5px; }
+  .hero .info div .value { font-size: 1rem; font-weight: 600; margin-top: 2px; }
+  .toc { position: sticky; top: 16px; z-index: 50; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: 12px; padding: 16px 22px; margin-bottom: 28px; box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
+  .toc summary { cursor: pointer; font-weight: 600; color: var(--primary-dark); list-style: none; display: flex; align-items: center; gap: 8px; }
+  .toc summary::before { content: '📑'; }
+  .toc ol { margin: 12px 0 0; padding-left: 20px; columns: 2; column-gap: 28px; }
+  .toc li { margin: 6px 0; break-inside: avoid; }
+  .toc a { color: var(--text); text-decoration: none; font-size: 0.93rem; }
+  .toc a:hover { color: var(--primary); }
+  section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 36px 40px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); scroll-margin-top: 80px; }
+  section h2 { font-size: 1.7rem; color: var(--primary-dark); margin: 0 0 6px; display: flex; align-items: baseline; gap: 12px; }
+  section h2 .num { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; background: var(--primary); color: white; border-radius: 50%; font-size: 1rem; flex-shrink: 0; }
+  section .lead { color: var(--text-light); font-size: 1rem; margin: 0 0 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  section h3 { margin: 28px 0 10px; color: var(--primary); font-size: 1.18rem; border-left: 4px solid var(--primary); padding-left: 14px; }
+  section h4 { margin: 20px 0 8px; font-size: 1.02rem; color: var(--text); }
+  section p { margin: 10px 0; }
+  section ul, section ol { padding-left: 24px; }
+  section li { margin: 6px 0; }
+  .box { border-radius: 10px; padding: 16px 22px; margin: 18px 0; border-left: 4px solid; }
+  .box-key   { background: #eff6ff; border-color: var(--primary); }
+  .box-warn  { background: #fef2f2; border-color: var(--accent); }
+  .box-tip   { background: #fffbeb; border-color: var(--warning); }
+  .box-good  { background: #f0fdf4; border-color: var(--success); }
+  .box-quote { background: #f8fafc; border-color: var(--text-light); font-style: italic; color: #475569; }
+  .box-title { font-weight: 700; margin-bottom: 6px; }
+  .box-key .box-title { color: var(--primary-dark); }
+  .box-warn .box-title { color: var(--accent); }
+  .box-tip .box-title { color: #b45309; }
+  .box-good .box-title { color: #166534; }
+  code { background: var(--code-bg); padding: 2px 7px; border-radius: 4px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.88em; color: #be185d; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 18px 22px; border-radius: 10px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  .formula { background: #fafbfc; border: 1px solid var(--border); border-radius: 8px; padding: 14px 20px; margin: 12px 0; font-size: 1.05rem; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.93rem; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; vertical-align: top; }
+  th { background: linear-gradient(180deg, #1d4ed8, #1e3a8a); color: white; font-weight: 600; }
+  tbody tr:nth-child(even) { background: #fafbfc; }
+  tbody tr:hover { background: #eff6ff; }
+  td .win { color: var(--success); font-weight: 700; }
+  td .lose { color: var(--accent); font-weight: 700; }
+  td .num-big { font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); }
+  .diagram { background: #0f172a; color: #e2e8f0; padding: 22px 28px; border-radius: 10px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.85rem; line-height: 1.5; overflow-x: auto; white-space: pre; margin: 16px 0; }
+  .diagram .hl { color: #fbbf24; font-weight: bold; }
+  .diagram .arrow { color: #60a5fa; }
+  .diagram .label { color: #34d399; }
+  .arch { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 20px 0; }
+  .arch .mod { background: linear-gradient(135deg, #ffffff, #f1f5f9); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+  .arch .mod h5 { margin: 0 0 8px; color: var(--primary-dark); font-size: 1rem; display: flex; align-items: center; gap: 6px; }
+  .arch .mod p { font-size: 0.9rem; color: var(--text-light); margin: 4px 0; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 22px 0; }
+  .stat { background: linear-gradient(135deg, #dbeafe, #ffffff); border-radius: 12px; padding: 16px 20px; text-align: center; border: 1px solid #bfdbfe; }
+  .stat .num { font-size: 1.8rem; font-weight: 800; color: var(--primary-dark); line-height: 1.1; }
+  .stat .lbl { font-size: 0.85rem; color: var(--text-light); margin-top: 4px; }
+  .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .pros, .cons { padding: 16px 20px; border-radius: 10px; }
+  .pros { background: #f0fdf4; border-left: 4px solid var(--success); }
+  .cons { background: #fef2f2; border-left: 4px solid var(--accent); }
+  .chip { display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; margin-right: 6px; margin-bottom: 4px; }
+  .chip-blue { background: #dbeafe; color: #1e40af; }
+  .chip-green { background: #dcfce7; color: #166534; }
+  .chip-red { background: #fee2e2; color: #991b1b; }
+  .chip-yellow { background: #fef3c7; color: #92400e; }
+  mark { background: linear-gradient(transparent 55%, #fde68a 55%); padding: 0 2px; font-weight: 600; }
+  footer { margin-top: 36px; padding-top: 22px; border-top: 1px solid var(--border); color: var(--text-light); font-size: 0.88rem; text-align: center; }
+  @media (max-width: 720px) {
+    .container { padding: 16px 14px; }
+    .hero { padding: 36px 24px 30px; }
+    .hero h1 { font-size: 1.5rem; }
+    section { padding: 22px 20px; }
+    .arch, .pros-cons { grid-template-columns: 1fr; }
+    .toc ol { columns: 1; }
+  }
+  @media print {
+    body { background: white; }
+    .toc { position: static; }
+    section, .hero { page-break-inside: avoid; box-shadow: none; }
+    .hero { background: #1e3a8a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ============ HERO ============ -->
+  <div class="hero">
+    <span class="badge">🐍 Tier 1 文献精读 · T1.8 Hydra</span>
+    <h1>Hydra: A Real-time Spatial Perception System<br>for 3D Scene Graph Construction and Optimization</h1>
+    <div class="sub">把 Kimera 的 offline scene graph 改造成 real-time 增量构建<br>+ 首个 hierarchical loop-closure detection + scene graph deformation graph optimization</div>
+    <div class="info">
+      <div><div class="label">📚 发表</div><div class="value">RSS 2022</div></div>
+      <div><div class="label">📅 类别</div><div class="value">3D Scene Graph · MSM</div></div>
+      <div><div class="label">🏢 单位</div><div class="value">MIT SPARK Lab (LIDS)</div></div>
+      <div><div class="label">👥 一作 / 通讯</div><div class="value">Nathan Hughes / Luca Carlone</div></div>
+      <div><div class="label">🔗 代码</div><div class="value">MIT-SPARK/Hydra</div></div>
+      <div><div class="label">🎯 角色</div><div class="value">canonical 在线 MSM；RQ4 lifelong baseline 候选</div></div>
+      <div><div class="label">📊 关键提升</div><div class="value">batch 40+ s → real-time（const-time mid-level）</div></div>
+      <div><div class="label">💻 测试</div><div class="value">AMD Ryzen9 3960X · Nvidia Xavier NX</div></div>
+    </div>
+  </div>
+
+  <!-- ============ TOC ============ -->
+  <details class="toc" open>
+    <summary>目录（点击展开 / 收起）</summary>
+    <ol>
+      <li><a href="#bg">背景：从 Kimera offline scene graph 到 real-time 的鸿沟</a></li>
+      <li><a href="#contrib">论文的三大贡献</a></li>
+      <li><a href="#overview">方法总览：thinking fast and slow 三级延迟</a></li>
+      <li><a href="#layers">§III 增量构建 layer 1-3：Mesh / Objects / Places (GVD)</a></li>
+      <li><a href="#rooms">§III-B 增量 Room detection：膨胀 + community detection</a></li>
+      <li><a href="#lcd">§IV-A Hierarchical loop closure detection</a></li>
+      <li><a href="#opt">§IV-B Scene graph optimization via deformation graph</a></li>
+      <li><a href="#exp-setup">实验设置：uHumans2 + SidPac</a></li>
+      <li><a href="#exp-acc">Objects / Places / Rooms 精度</a></li>
+      <li><a href="#exp-lcd">Loop closure ablation：SG-LC vs V-LC</a></li>
+      <li><a href="#exp-time">Runtime：incremental vs batch (Kimera) + Xavier NX</a></li>
+      <li><a href="#limits">局限与作者承诺的未来工作</a></li>
+      <li><a href="#evidlife">§9 与 EvidLife-Map 的关系（核心）</a></li>
+      <li><a href="#takeaway">总结与启示</a></li>
+    </ol>
+  </details>
+
+  <!-- ============ 1. 背景 ============ -->
+  <section id="bg">
+    <h2><span class="num">1</span> 背景：从 Kimera offline scene graph 到 real-time 的鸿沟</h2>
+    <p class="lead">3D scene graph（3D-SG）是一种层次化场景表示——节点是不同 abstraction level 的 spatial concept（mesh → objects → places → rooms → buildings），边是它们的语义/几何关系。Kimera-DSG (Rosinol et al., 2020/2021) 首次从 sensor data 构造完整 5-layer 3D-SG，但<b>整套 pipeline 是 offline</b>——一次性处理 entire ESDF。Hydra 的任务是把它改成实时增量。</p>
+
+    <h3>1.1 为什么 real-time 难（论文 §I 第三段）</h3>
+    <ol>
+      <li>Kimera-DSG 需要构造<b>全场景</b> ESDF——ESDF 内存随场景线性增长，不 scalable；</li>
+      <li>Places 与 rooms 的抽取是 <b>batch 算法</b>，处理整个 ESDF，开销随时间累积；</li>
+      <li>ESDF 依赖机器人轨迹估计；loop closure 修正轨迹后，<b>整个 scene graph 必须从头重建</b>，与 real-time 不兼容；</li>
+      <li>"flat" 3D-SG 工作（[26, 63, 67]）可以 real-time 但只关心 objects，<b>缺乏 hierarchical 抽象</b>。</li>
+    </ol>
+
+    <div class="box box-quote">
+      "While 3D scene graphs can serve as an advanced 'mental model' for robots, how to build such a rich representation in real-time remains uncharted territory." —— §I
+    </div>
+
+    <h3>1.2 高层定位（论文核心创新点）</h3>
+    <div class="box box-key">
+      <div class="box-title">🎯 三句话定位</div>
+      <ol>
+        <li>把 ESDF 限制在一个 8 m 半径的 <b>active window</b>，于是 mid-level 模块（mesh / places）是 <b>constant time</b>；</li>
+        <li>用 GVD 增量抽 places、用<b>膨胀 + 连通分量 + community detection</b>增量抽 rooms，毫秒级；</li>
+        <li>引入<b>scene graph deformation graph</b>——loop closure 来时同时优化 mesh + places + agent + room，不重建。</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ 2. 贡献 ============ -->
+  <section id="contrib">
+    <h2><span class="num">2</span> 论文的三大贡献</h2>
+    <div class="arch">
+      <div class="mod">
+        <h5>① 增量 scene graph 构建</h5>
+        <p>本地 ESDF + GVD 增量提取 places + 基于膨胀的 incremental room detection。computation 不随 map size 线性增长。</p>
+      </div>
+      <div class="mod">
+        <h5>② Hierarchical loop closure</h5>
+        <p>每个 agent node 关联多层 descriptor（DBoW2 visual + object histogram + place histogram）；<b>top-down 检测 + bottom-up 几何验证</b>（places → objects → visual / visual → objects via TEASER++）。比 V-LC 多 ~2× 高质量 loops。</p>
+      </div>
+      <div class="mod">
+        <h5>③ Scene graph optimization</h5>
+        <p>首个对完整 3D-SG 做 loop closure 修正的算法。把 agent pose graph + mesh control points + places MST 组成 deformation graph，<b>单次优化同时校正所有 layer</b>（mesh, places, objects, rooms 自动 reconcile）。</p>
+      </div>
+      <div class="mod">
+        <h5>📌 工程影响</h5>
+        <p>开源 MIT-SPARK/Hydra，已被 Khronos (Schmid et al., RSS 2024)、Clio (Maggio et al., RAL 2024) 等直接复用为 MSM 基底；本论文是 SPARK Lab 系列工作的转折点。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3. Overview ============ -->
+  <section id="overview">
+    <h2><span class="num">3</span> 方法总览：thinking fast and slow 三级延迟</h2>
+    <p class="lead">Hydra 名字来自其多头并行架构。论文 §V 明确以 "low-level / mid-level / high-level perception" 划分三组进程，对应三档延迟。</p>
+
+    <div class="diagram">┌──────────────────────────────────────────────────────────────────────┐
+│  <span class="hl">Low-level (early) perception — latency: sensor rate</span>                  │
+│    Kimera-VIO front-end (feature tracking)                            │
+│    2D semantic segmentation (HRNet → ADE20k)                          │
+│    Depth reconstruction (Kinect / dense stereo)                       │
+└──────────────────────────────────────────────────────────────────────┘
+                                │
+                                <span class="arrow">▼</span>
+┌──────────────────────────────────────────────────────────────────────┐
+│  <span class="hl">Mid-level perception — latency: 5-10 Hz (const-time)</span>                  │
+│    Kimera-VIO back-end (factor graph)                                 │
+│    Mesh + ESDF in <b>active window (8m radius)</b>                            │
+│    Places subgraph from <b>GVD</b> (Generalized Voronoi Diagram)             │
+│    Objects via Euclidean clustering of mesh vertices                  │
+│    Scene Graph Frontend (assemble nodes/edges)                        │
+└──────────────────────────────────────────────────────────────────────┘
+                                │
+                                <span class="arrow">▼</span>
+┌──────────────────────────────────────────────────────────────────────┐
+│  <span class="hl">High-level perception — latency: grows with map (persistent)</span>          │
+│    Hierarchical Loop Closure Detection                                │
+│    Scene Graph Backend (embedded deformation graph optimization)       │
+│    Room detection (multi-dilation + connected components + Louvain)    │
+└──────────────────────────────────────────────────────────────────────┘
+                                │
+                                <span class="arrow">▼</span>
+              <span class="label">globally consistent persistent 5-layer DSG</span></div>
+
+    <div class="box box-tip">
+      <div class="box-title">💡 关键工程思想</div>
+      "active window" 让 mid-level <mark>不依赖全场景大小</mark>——这正是 Kimera-DSG 缺的 piece。从此 Hydra 的 mesh / places 提取是 constant-time，可以一直跑下去而不卡。
+    </div>
+  </section>
+
+  <!-- ============ 4. Layers 1-3 ============ -->
+  <section id="layers">
+    <h2><span class="num">4</span> §III 增量构建 Layer 1-3：Mesh / Objects / Places</h2>
+
+    <h3>4.1 Layer 1 — Metric-semantic mesh</h3>
+    <p>基于 Voxblox [43]，但<b>spatially windowed</b>——只在以当前机器人位置为中心 <b>8 m 半径</b>球内维护 TSDF + ESDF。当 mesh / places 离开 window，被 freeze 后送给 Scene Graph Frontend。改动 marching cubes：把 zero-crossing voxel 标记为 "parents"，并记录对应 mesh vertex。每个 ESDF voxel 不仅存到最近 obstacle 距离，还存"哪个 parent 是最近 obstacle"，<mark>这样 places 抽取时可以把 place 与最近 mesh vertex 直接关联</mark>。</p>
+
+    <h3>4.2 Layer 2 — Objects</h3>
+    <p>对 active-window 的 metric-semantic mesh，按 semantic class 分别做 <b>Euclidean clustering</b>。每个 putative object 估 centroid + bounding box。Incremental 操作：若 putative object 与现有 object node 同类且 centroid 落在对方 bounding box 内（"contained-in")，则合并；否则新建。</p>
+
+    <h3>4.3 Layer 3 — Places via GVD</h3>
+    <p><b>核心创新</b>。Places 是自由空间的拓扑图——节点是 obstacle-free 位置，边表示直线可达性。Hydra 用 <b>Generalized Voronoi Diagram (GVD)</b> 增量抽取：</p>
+    <ol>
+      <li>GVD 定义：等距 ≥ 2 个 obstacle ("basis points") 的 voxel 集合，相当于自由空间骨架；</li>
+      <li>GVD 作为 ESDF 集成的<b>副产品</b>得到（Lau et al. [30] 的 brushfire 算法）；</li>
+      <li>把 GVD 增量稀疏化为 places subgraph：
+        <ul>
+          <li>新 GVD voxel 若 basis points ≥ 3，则可作为 node 或 edge 候选；</li>
+          <li>basis points ≥ 4 或匹配 corner template [44] → 成为 node；</li>
+          <li>两 phase：(a) flood-fill 给 GVD voxel 标最近 node ID 生成 putative edges；(b) 把偏离 GVD 太远的 edge 切开，插入新 node；</li>
+          <li>flood-fill 阶段也合并近邻 node。最后给 active window 内的 disconnected components 加额外 edge 保连通。</li>
+        </ul>
+      </li>
+    </ol>
+
+    <div class="box box-key">
+      <div class="box-title">🎯 增量 vs Kimera batch 的本质区别</div>
+      Kimera-DSG 用 Oleynikova et al. [44] 的<b>批处理</b>稀疏化整张 ESDF；Hydra 用<b>增量</b> flood-fill + template matching，<mark>每帧只处理 active window 内的新 GVD voxel</mark>，所以 places 提取在每个时刻都是 constant time。
+    </div>
+  </section>
+
+  <!-- ============ 5. Room ============ -->
+  <section id="rooms">
+    <h2><span class="num">5</span> §III-B Layer 4 — Room detection：膨胀 + 连通分量 + community detection</h2>
+    <p class="lead">这是 Hydra 与 Kimera 在 room detection 上的另一个重大改进。Kimera 假设"切一个固定高度的 2D ESDF 切片"，不能处理多层、过道、复杂户型；Hydra 直接在 3D places subgraph $\mathcal{G}_p$ 上做拓扑推理。</p>
+
+    <h3>5.1 两个 insight</h3>
+    <ol>
+      <li>对 voxel map 做 <b>dilation</b> → 小开口（门）逐渐闭合 → 自然把场景分成若干 disconnected components（即 rooms）；</li>
+      <li>每个 place node 存"到最近 obstacle 距离"，<b>voxel 膨胀 ↔ 在 $\mathcal{G}_p$ 上删掉距离 < $\delta$ 的 node</b>——直接在拓扑图上做。</li>
+    </ol>
+
+    <h3>5.2 算法流程</h3>
+    <ol>
+      <li>用 10 个 $\delta$（uniformly in $[0.45, 1.2]$ m）膨胀 → 得 10 个 $\mathcal{G}_{p,\delta}$；</li>
+      <li>对每个 $\mathcal{G}_{p,\delta}$ 数 connected components 个数；</li>
+      <li>取 <b>中位数</b> $n_r$（对 $\delta$ 选择鲁棒），挑选最大的 $\mathcal{G}_{p,\delta^\star}$ 满足有 $n_r$ 个 components；</li>
+      <li>未标记的 place node（落在门洞 / 边界）用 Louvain modularity (Blondel et al. [8]) 做 <b>partially seeded community detection</b>，seed 是已检测到的 components；</li>
+      <li>所有 node 都标上 room ID，得 Layer 4。</li>
+    </ol>
+
+    <div class="box box-good">
+      <div class="box-title">✅ 设计优势</div>
+      <ul>
+        <li>不需要 ceiling height 这种 Kimera 的强假设；</li>
+        <li>对 split-level / multi-floor 自然 work（Fig. 8 显示 SidPac Apt 显著优于 Kimera）；</li>
+        <li>毫秒级（uH2 office 实测均值 <b>19 ms</b>）；</li>
+        <li>只调两个参数：min/max 开口尺寸。</li>
+      </ul>
+    </div>
+
+    <p><b>局限</b>：只看几何拓扑——对 open floor plan 里的 semantically distinct rooms（如餐厅+客厅一体）会切不开。</p>
+  </section>
+
+  <!-- ============ 6. LCD ============ -->
+  <section id="lcd">
+    <h2><span class="num">6</span> §IV-A Hierarchical Loop Closure Detection</h2>
+    <p class="lead">Hydra 的 LCD 是<b>层次的</b>：top-down 比较多层 descriptor 找 putative match，bottom-up 用 geometric verification 算 pose。</p>
+
+    <h3>6.1 多层描述子（每个 agent node 一组，仅在生成时算一次）</h3>
+    <ol>
+      <li><b>Visual</b>：标准 DBoW2 [19] 外观描述子；</li>
+      <li><b>Object descriptor</b>：以 agent node 为中心给定半径内 object label 的 <b>histogram</b>；</li>
+      <li><b>Place descriptor</b>：同半径内 place node 的"到最近 obstacle 距离"的 <b>histogram</b>（描述局部几何）。</li>
+    </ol>
+
+    <h3>6.2 Top-down match（Fig. 3 左）</h3>
+    <p>查询 node 与所有过去 agent node 比较，<b>从高 abstraction 走到低</b>：先比 place 描述子，距离小于阈值（论文 Table III: <code>0.5</code>）才比 object 描述子（阈值 <code>0.3</code>），再才比 visual 描述子（阈值 <code>0.01</code>）。任一层 hit putative match 即进入 geometric verification。</p>
+
+    <h3>6.3 Bottom-up geometric verification（Fig. 3 右）</h3>
+    <p>从低层走到高层：</p>
+    <ol>
+      <li>visual hit → 标准 RANSAC（5-point）尝试相对位姿，失败则 fall back；</li>
+      <li>object hit → 用 <b>TEASER++ [69]</b> 做 object registration（论文 Table III: TEASER noise bound <code>0.1 m</code>，min inliers <code>5</code>），失败则 reject；</li>
+      <li>place 层只用于过滤，不直接做 verification。</li>
+    </ol>
+
+    <div class="box box-key">
+      <div class="box-title">🎯 为什么 hierarchical 更好</div>
+      传统 DBoW2 视觉 LCD 对<b>视角/光照变化敏感</b>，遇到强 daylight、glass、long corridor 等场景 fail。Object-based descriptor 抽象到语义层，对像素级变化鲁棒；Place histogram 进一步抓住"局部几何形状"。<br>
+      实测（Fig. 10）：SG-LC 在 |error| < 10 cm 的 high-quality loops 数量约为 V-LC permissive 的 <b>2 倍</b>，比 V-LC nominal 多 2 倍多。
+    </div>
+  </section>
+
+  <!-- ============ 7. Optimization ============ -->
+  <section id="opt">
+    <h2><span class="num">7</span> §IV-B Scene Graph Optimization via Deformation Graph</h2>
+    <p class="lead">检测到 loop closure 后必须修正<b>全部</b> 5 个 layer。Hydra 把 scene graph 的一个子图当成 deformation graph 来优化（Sumner et al. [59]），然后 interpolate 其余 node。</p>
+
+    <h3>7.1 Deformation graph 构造</h3>
+    <p>子图由以下三部分组成（论文 §IV-B 与 Fig. 4 一致）：</p>
+    <ol>
+      <li><b>Agent layer</b>：pose graph 含 odometry edges + loop closure edges；</li>
+      <li><b>Mesh control points</b>：用 octree-based vertex clustering 把 full mesh 简化为较小子集；</li>
+      <li><b>Places 的 minimum spanning tree</b>（用 MST 是为保持稀疏性，便于优化）。</li>
+    </ol>
+    <p>这三层通过 frontend 加的 inter-layer edges（object/agent → 最近 place）连通。</p>
+
+    <h3>7.2 优化与 reconciliation</h3>
+    <ol>
+      <li>用 [50] 的 rigid-transform reformulation（而非 [59] 的 affine），转化为标准 pose graph optimization；</li>
+      <li>GTSAM 的 <b>Graduated Non-Convexity (GNC)</b> 求解器同时做 outlier loop rejection；</li>
+      <li>优化结束后：place node 直接更新位置；mesh 全部 vertex 用 [59] 插值方法变形；objects 的 centroid + bbox 从更新后 mesh vertex 重算；</li>
+      <li><b>Reconciliation</b>：places 距离 < 0.4 m 合并，objects 同 class 且 bbox 互含合并；保留<b>未合并版本</b>以便 GNC 后续把 loop 标为 outlier 时撤销；最后用 §III-B 的 room detection 重抽 rooms。</li>
+    </ol>
+
+    <div class="box box-tip">
+      <div class="box-title">💡 工程巧思</div>
+      <b>"保留未合并版本"</b>是个 underrated 细节——它让 Hydra 可以"<mark>undo wrong loop closures</mark>"。loop 一开始被接受、后被 GNC 判为 outlier 时不会破坏地图。这是 lifelong-mapping 的关键能力。
+    </div>
+  </section>
+
+  <!-- ============ 8. Experiments setup ============ -->
+  <section id="exp-setup">
+    <h2><span class="num">8</span> 实验设置</h2>
+
+    <table>
+      <thead><tr><th>Dataset</th><th>Type</th><th>Scenes</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><b>uHumans2 (uH2)</b> [50]</td><td>Unity simulation</td><td>Apartment / Office / Subway</td><td>提供 VI + GT depth + 2D semantics + GT trajectory</td></tr>
+        <tr><td><b>SidPac</b></td><td>real-world handheld</td><td>Floor 1-3, Floor 3-4 (~400 m 轨迹)</td><td>Kinect Azure + RealSense T265；含玻璃、强阳光、单调长廊</td></tr>
+      </tbody>
+    </table>
+
+    <h3>8.1 Hydra 三种配置</h3>
+    <ul>
+      <li><span class="chip chip-blue">GT-Trajectory</span> 用 GT 位姿（用来上界判断 graph quality）</li>
+      <li><span class="chip chip-blue">VIO + V-LC</span> Kimera-VIO + 视觉 LCD（DBoW2）</li>
+      <li><span class="chip chip-green">VIO + SG-LC</span> Kimera-VIO + 本文 hierarchical LCD</li>
+    </ul>
+
+    <h3>8.2 评测指标</h3>
+    <ul>
+      <li><b>Objects: % Found</b>（GT 中有正确语义 estimate 在 thresh 内的比例）+ <b>% Correct</b>（estimate 中能匹配上 GT 的比例）；</li>
+      <li><b>Places: Position Error</b>（estimate place 到 GT GVD 最近 voxel 的距离）；</li>
+      <li><b>Rooms: Precision / Recall</b>（按 [9] 定义，但用 3D voxel 而非 2D pixel）。</li>
+    </ul>
+  </section>
+
+  <!-- ============ 9. 主结果 ============ -->
+  <section id="exp-acc">
+    <h2><span class="num">9</span> Objects / Places / Rooms 精度（Fig. 7-8）</h2>
+
+    <h3>9.1 Objects + Places (Fig. 7)</h3>
+    <ul>
+      <li><b>GT-Trajectory</b>：80-100% Found / Correct，places error <b>sub-25 cm</b>。这说明<mark>给定轨迹，Hydra 的 real-time scene graph 与 Kimera 离线版本 quality comparable</mark>；</li>
+      <li><b>VIO+V-LC vs VIO+SG-LC</b>：在小/中尺度（Apartment, Office）两者差距小（标准差内）；</li>
+      <li><b>大尺度 (SidPac)</b>：SG-LC <b>显著优于</b> V-LC——object accuracy 涨，而且 std 变小（loops 更可靠）；</li>
+      <li>Places position error 在 subway 最大（开阔空间 node 间距更宽）。</li>
+    </ul>
+
+    <h3>9.2 Rooms (Fig. 8)</h3>
+    <ul>
+      <li>Office（单层）：Hydra GT-Traj 与 Kimera 相当；</li>
+      <li>Apartment（split-level）：Hydra 显著高于 Kimera——Kimera 单切片假设崩；</li>
+      <li>SidPac Floor 3-4：<mark>Kimera precision 0.88 但 recall 仅 0.06</mark>（10 个 GT rooms 只切对 2 个）；Hydra precision/recall 一致地好（略 over-segment）；</li>
+      <li>Hydra 在 VIO+SG-LC 配置下也基本保持精度（loop closure 不会拖垮 room detection）。</li>
+    </ul>
+  </section>
+
+  <!-- ============ 10. LCD ablation ============ -->
+  <section id="exp-lcd">
+    <h2><span class="num">10</span> Loop closure ablation（Fig. 10, Table II/III）</h2>
+    <p>Office 场景上对三种 LCD 配置画 "loop 个数 vs translation/rotation error" 散点图：</p>
+    <ul>
+      <li><b>V-LC (Nominal)</b>：少而准（DBoW2 L1 score thresh <code>0.4</code>）；</li>
+      <li><b>V-LC (Permissive)</b>：放宽到 <code>0.05</code> + 减少 RANSAC inlier 要求 → 多但低质；</li>
+      <li><b>SG-LC (本文)</b>：<mark>|trans| < 10 cm + |rot| < 1° 的 high-quality loops 约为 V-LC permissive 的 2 倍</mark>，且总 loop 数也更多。</li>
+    </ul>
+
+    <h3>10.1 关键超参（论文 Appendix Table II / III）</h3>
+    <table>
+      <thead><tr><th>Parameter</th><th>V-LC Nominal</th><th>V-LC Permissive</th><th>SG-LC</th></tr></thead>
+      <tbody>
+        <tr><td>L1 Score Threshold</td><td>0.4</td><td>0.05</td><td>—</td></tr>
+        <tr><td>Min RANSAC Correspondences</td><td>15</td><td>12</td><td>15</td></tr>
+        <tr><td>5pt RANSAC Inlier Thresh</td><td>0.001</td><td>0.01</td><td>0.001</td></tr>
+        <tr><td>Lowe Ratio</td><td>0.9</td><td>0.8</td><td>—</td></tr>
+        <tr><td>Agent L1 Match Thresh</td><td>—</td><td>—</td><td>0.01</td></tr>
+        <tr><td>Object L1 Match Thresh</td><td>—</td><td>—</td><td>0.3</td></tr>
+        <tr><td>Places L1 Match Thresh</td><td>—</td><td>—</td><td>0.5</td></tr>
+        <tr><td>Object L1 Reg. Thresh</td><td>—</td><td>—</td><td>0.8</td></tr>
+        <tr><td>Object Min. Inliers</td><td>—</td><td>—</td><td>5</td></tr>
+        <tr><td>TEASER Noise Bound</td><td>—</td><td>—</td><td>0.1 m</td></tr>
+        <tr><td>Descriptor Radius</td><td>—</td><td>—</td><td>13 m</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 11. Runtime ============ -->
+  <section id="exp-time">
+    <h2><span class="num">11</span> Runtime（Fig. 9 + Table I）</h2>
+
+    <h3>11.1 Hydra vs Kimera（SidPac Floor 1-3, AMD Ryzen9 3960X）</h3>
+    <ul>
+      <li><b>Kimera (batch)</b>：随时间线性增长，<mark>1400 s 时 ~40 s</mark> 生成 scene graph；</li>
+      <li><b>Hydra Mid-Level</b>：固定开销（const-time），始终在 ms-级；</li>
+      <li><b>Hydra High-Level</b>：略有缓慢上升（来自 room detection + scene graph optimization），但远远低于 Kimera；spike 出现在 1400 s 附近（loop closure 触发 optimization）。</li>
+    </ul>
+
+    <h3>11.2 Table I — 各层 mid-level 时延</h3>
+    <table>
+      <thead><tr><th>Scene</th><th>Objects [ms]</th><th>Places [ms]</th><th>Rooms [ms]</th></tr></thead>
+      <tbody>
+        <tr><td>uH2 Apartment</td><td>32.4 ± 12.9</td><td>5.3 ± 1.4</td><td>4.4 ± 2.1</td></tr>
+        <tr><td>uH2 Office</td><td>24.1 ± 12.8</td><td>8.1 ± 1.3</td><td>19.0 ± 12.3</td></tr>
+        <tr><td>uH2 Subway</td><td>9.8 ± 9.3</td><td>5.9 ± 0.7</td><td>16.5 ± 10.6</td></tr>
+        <tr><td>SP Floor 1-3</td><td>50.4 ± 30.3</td><td>3.4 ± 1.0</td><td>11.4 ± 14.4</td></tr>
+        <tr><td>SP Floor 3-4</td><td>75.3 ± 37.0</td><td>4.2 ± 2.1</td><td>15.0 ± 14.6</td></tr>
+      </tbody>
+    </table>
+
+    <h3>11.3 Nvidia Xavier NX（uH2 Office）</h3>
+    <ul>
+      <li>Objects: <b>75 ± 35 ms</b></li>
+      <li>Places: <b>33 ± 6 ms</b></li>
+      <li>Rooms: <b>55 ± 41 ms</b></li>
+      <li>"target real-time rate" = keyframe rate (5 Hz) → 嵌入式仍满足</li>
+    </ul>
+
+    <div class="stat-grid">
+      <div class="stat"><div class="num">40+ s</div><div class="lbl">Kimera batch (1400 s 后)</div></div>
+      <div class="stat"><div class="num">const</div><div class="lbl">Hydra mid-level</div></div>
+      <div class="stat"><div class="num">~2×</div><div class="lbl">SG-LC vs V-LC high-quality loops</div></div>
+      <div class="stat"><div class="num">5 Hz</div><div class="lbl">Xavier NX 目标实时率</div></div>
+      <div class="stat"><div class="num">8 m</div><div class="lbl">active window 半径</div></div>
+      <div class="stat"><div class="num">5</div><div class="lbl">scene graph layers</div></div>
+    </div>
+  </section>
+
+  <!-- ============ 12. Limits ============ -->
+  <section id="limits">
+    <h2><span class="num">12</span> 局限与作者承诺的未来工作</h2>
+
+    <div class="pros-cons">
+      <div class="pros">
+        <b>✅ 优势</b>
+        <ul>
+          <li>第一个 real-time full 5-layer scene graph 系统；</li>
+          <li>CPU-only（除 2D semseg）；</li>
+          <li>开源 + 已是后续 Khronos/Clio 基底；</li>
+          <li>能 undo wrong loop closures（保留未合并版本）；</li>
+          <li>Room detection 摆脱 ceiling-height 假设。</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <b>⚠️ 局限（作者明示）</b>
+        <ul>
+          <li>Room 节点<b>无语义标签</b>（不会标 "kitchen" / "bedroom"）；future work 提到接入 [60] neural trees；</li>
+          <li>边的 relation 集合有限（无 affordances）；future work 提到学习 [67]-style relations；</li>
+          <li>Scene graph optimization 当前用 dense pose graph，没用 sparsification；</li>
+          <li><b>没有 dynamic entities 处理</b>（虽然 Kimera 有 dynamic masking，Hydra 论文未明确启用）；</li>
+          <li><b>没有 open-set / uncertainty</b>——object semantic label 来自固定 closed-set HRNet；</li>
+          <li><b>没有 lifelong decay</b>——node 一旦加入就永久存在，只能合并不能"遗忘"；</li>
+          <li>Active window 大小（8 m）是经验值，没系统调；</li>
+          <li>开放户型（无墙）会导致 room over-merge。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 13. EvidLife-Map 关系 ============ -->
+  <section id="evidlife">
+    <h2><span class="num">13</span> §9 与 EvidLife-Map 的关系</h2>
+    <p class="lead">Hydra 是 SPARK Lab 的 canonical 在线 MSM 系统，是我们 RQ4 lifelong baseline 的候选。我们必须搞清四件事：表示差异、§III 末段如何加 scene-graph 兼容讨论、loop closure 差异、多分辨率 mesh 与 voxel decay 的结合。</p>
+
+    <h3>13.1 表示差异：hierarchical scene graph vs flat evidential voxel</h3>
+    <p>Hydra 用 5-layer hierarchical scene graph（mesh → objects → places → rooms → buildings），强调"高 abstraction 节点的 compact 表示便于推理"；EvidLife-Map 用 <b>flat Dirichlet voxel grid</b>，每个 voxel 一组浓度向量 $\boldsymbol{\alpha}$，强调"vacuity 标量同时承担 open-set / loop-closure / map-decay 三任务"。<mark>两者不是替代关系而是互补关系</mark>——Hydra 的 graph 抽象帮助 task planning，我们的 voxel evidence 给底层 perception 提供 calibrated 不确定度，并且对 unknown class 提前预警。</p>
+
+    <h3>13.2 §III 末加一节："Post-processing into 3D scene graph"</h3>
+    <p>论文 §III.M1-M5 描述 voxel-level evidential update / decay / open-set / loop-closure。<mark>建议在 §III 末（M6 或 §III-G）加 ~200 字段落</mark>：</p>
+    <ol>
+      <li>说明 EvidLife-Map 的 voxel grid 与 Hydra 的 Layer 1 metric-semantic mesh<b>等价</b>——marching cubes on argmax(α) 就得 Hydra Layer 1；</li>
+      <li>因此 Hydra 的 Layer 2-5 提取算法（GVD places + dilation rooms）<b>can be plugged directly</b> on top of EvidLife-Map without modification；</li>
+      <li>更进一步：Hydra 的 object Euclidean clustering 可以利用我们的 vacuity，把高 vacuity voxel 排除在 cluster 之外，自动得到 "(known object, unknown object)" 双 layer，呼应 RQ2 open-set；</li>
+      <li>把 §V Hydra-on-EvidLife 列为 future work（不必本文做实验）。</li>
+    </ol>
+
+    <h3>13.3 Loop closure 差异：SG-LC vs 我们的 §III.M2</h3>
+    <p>Hydra 的 SG-LC 用 (DBoW2 visual + object hist + place hist) 三层 descriptor + TEASER++ object registration。我们 §III.M2 用<b>同一个 Dirichlet vacuity 标量</b>作为 LC trigger——当 query agent node 周围 voxel 的 vacuity 与候选历史 node 周围的 vacuity 分布相似度高，触发候选。差异：</p>
+    <ul>
+      <li><b>Hydra 需要存历史 visual + object + place descriptor</b>，每 agent node 多 KB；EvidLife-Map 只需 voxel-level vacuity histogram，存储更省；</li>
+      <li>Hydra 的 visual layer 易受光照影响；vacuity 来自<b>多模态</b>融合后的不确定度，<mark>光照不变性更好</mark>；</li>
+      <li>但 Hydra 的 TEASER++ object registration 给出精确 6-DoF 相对位姿；我们的 vacuity-LC 只给"是否是同一地点"的弱信号，<b>仍需要 RANSAC 或 TEASER 做几何 verification</b>——所以 vacuity-LC 是 Hydra SG-LC 的 <b>complement</b>，不是 replacement；</li>
+      <li><b>写法建议</b>：§III.M2 明确"借用 Hydra 的 bottom-up verification stack，只替换 top-down descriptor"，承认底层兼容性。</li>
+    </ul>
+
+    <h3>13.4 Multi-resolution mesh ↔ voxel decay 结合性</h3>
+    <p>Hydra 的 mesh control points 是<b>静态 octree clustering</b> 得到——离机器人远的区域被 cluster 得粗。这与我们 voxel decay 思路天然契合：</p>
+    <ul>
+      <li>当 voxel 的 evidence weight $\sum \alpha$ 衰减到阈值以下（一段时间没被观察 + decay 算子），我们可以<b>主动把它合并到 octree 的父节点</b>，几何与语义都"晋升"到更粗分辨率；</li>
+      <li>这等价于"forget 局部细节，保留区域记忆"——与 Hydra §VII 提到的 "label nodes for richer reasoning" 兼容；</li>
+      <li>对 RQ4 lifelong 来说这是天然 baseline 设计：<b>Hydra-with-vacuity-decay</b>，看能否在长期运行的 Habitat-Lifelong / NeRF lifelong 数据集上同时维持 map quality 和 bounded memory。</li>
+    </ul>
+
+    <div class="box box-key">
+      <div class="box-title">💡 一句话定位</div>
+      Hydra 提供 R2 的 <b>scene-graph 抽象骨架</b>与<b>3D-SG loop-closure stack</b>；EvidLife-Map 贡献的是 voxel-level evidential 量度，可以作为 Hydra 上的<mark>正交插件</mark>（top-down descriptor + decay 触发的 multi-resolution merge），这正是 RQ4 lifelong baseline 的最自然选择。
+    </div>
+  </section>
+
+  <!-- ============ 14. 总结 ============ -->
+  <section id="takeaway">
+    <h2><span class="num">14</span> 总结与启示</h2>
+
+    <h3>14.1 一句话总结</h3>
+    <div class="box box-key" style="font-size: 1.05rem;">
+      <mark>"Hydra = active-window ESDF + 增量 GVD-places + dilation-based rooms + hierarchical loop-closure + scene-graph deformation-graph optimization；首个 real-time 全 5-layer 3D scene graph 系统，是 Khronos/Clio 的直接前身。"</mark>
+    </div>
+
+    <h3>14.2 对 R2 / EvidLife-Map 的关键启示</h3>
+    <ol>
+      <li><b>"active window" 是 const-time scaling 的核心</b>——我们 evidential decay 也应该用类似 window/lifespan 设计而非全图扫描；</li>
+      <li><b>多层 descriptor 用于 LCD</b>是个普适思路——我们可以把 vacuity histogram 加进去作为第四层 descriptor，与 Hydra 的 (visual + object + place) 互补；</li>
+      <li><b>"保留未合并版本以便 undo"</b>是 lifelong-mapping 的关键工程模式，应该明确写入我们 §III.M5 (lifelong decay)；</li>
+      <li><b>scene-graph deformation graph</b>提供了"一次优化校正全 layer"的范式——若我们做 evidential lifelong map 的 LCD 后修正，应该考虑用同样思路同时校正 voxel 浓度 + agent pose；</li>
+      <li><b>room detection 摆脱 ceiling-height 假设</b>展示了"用拓扑而非几何切分"的力量——可以用同样思路给 EvidLife-Map 加 zone-level abstraction。</li>
+    </ol>
+
+    <h3>14.3 该看哪个 follow-up</h3>
+    <div class="box box-tip">
+      <div class="box-title">🎓 延伸阅读</div>
+      <ol>
+        <li><b>Hydra-Multi</b> (Chang et al., 2023)：多机器人版本，加分布式 scene graph merging；</li>
+        <li><b>Khronos</b> (Schmid et al., RSS 2024) = T1.1：把 Hydra 扩展到 4D（时间维度），处理 dynamic + persistent objects；</li>
+        <li><b>Clio</b> (Maggio et al., RAL 2024) = T1.2：在 Hydra 基础上加 task-driven object clustering + open-set 语义；</li>
+        <li><b>3DSG benchmark</b>：用 Habitat-Matterport 评测各种 scene graph methods 的标准；</li>
+        <li><b>Hughes 等的 2024 RSS workshop talk</b>：Hydra 在 lifelong 设定下的扩展讨论。</li>
+      </ol>
+    </div>
+  </section>
+
+  <footer>
+    <p>📄 论文：<i>Hydra: A Real-time Spatial Perception System for 3D Scene Graph Construction and Optimization</i><br>
+    🏢 RSS 2022 · 👥 Nathan Hughes, Yun Chang, Luca Carlone (MIT LIDS / SPARK Lab)<br>
+    🔗 Code: github.com/MIT-SPARK/Hydra · 📅 精读报告生成日期：2026-05-28 · 由 Claude 基于全文 PDF 重写</p>
+  </footer>
+
+</div>
+
+</body>
+</html>

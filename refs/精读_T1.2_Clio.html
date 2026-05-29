@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>论文精读 T1.2：Clio - 任务驱动的实时开放集 3D 场景图（RA-L 2024）</title>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<style>
+  :root {
+    --primary: #047857;
+    --primary-dark: #064e3b;
+    --primary-light: #10b981;
+    --accent: #dc2626;
+    --warning: #f59e0b;
+    --success: #16a34a;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #111827;
+    --text-light: #6b7280;
+    --border: #e5e7eb;
+    --code-bg: #f1f5f9;
+    --hero-grad: linear-gradient(135deg, #064e3b 0%, #047857 50%, #0d9488 100%);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif; line-height: 1.78; color: var(--text); background: var(--bg); margin: 0; padding: 0; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 28px 80px; }
+  .hero { background: var(--hero-grad); color: white; border-radius: 16px; padding: 64px 56px 56px; margin-bottom: 32px; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3); }
+  .hero::before { content: '🎯'; position: absolute; top: -20px; right: -20px; font-size: 220px; opacity: 0.07; transform: rotate(-15deg); }
+  .hero .badge { display: inline-block; background: rgba(255,255,255,0.18); color: #fff; padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 600; margin-bottom: 18px; backdrop-filter: blur(4px); }
+  .hero h1 { margin: 0 0 16px; font-size: 2.1rem; line-height: 1.3; font-weight: 700; }
+  .hero .sub { font-size: 1.05rem; opacity: 0.92; margin-bottom: 24px; font-weight: 300; }
+  .hero .info { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 28px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,0.2); }
+  .hero .info div .label { font-size: 0.78rem; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.5px; }
+  .hero .info div .value { font-size: 1rem; font-weight: 600; margin-top: 2px; }
+  .toc { position: sticky; top: 16px; z-index: 50; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: 12px; padding: 16px 22px; margin-bottom: 28px; box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
+  .toc summary { cursor: pointer; font-weight: 600; color: var(--primary-dark); list-style: none; display: flex; align-items: center; gap: 8px; }
+  .toc summary::before { content: '📑'; }
+  .toc ol { margin: 12px 0 0; padding-left: 20px; columns: 2; column-gap: 28px; }
+  .toc li { margin: 6px 0; break-inside: avoid; }
+  .toc a { color: var(--text); text-decoration: none; font-size: 0.93rem; }
+  .toc a:hover { color: var(--primary); }
+  section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 36px 40px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); scroll-margin-top: 80px; }
+  section h2 { font-size: 1.7rem; color: var(--primary-dark); margin: 0 0 6px; display: flex; align-items: baseline; gap: 12px; }
+  section h2 .num { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; background: var(--primary); color: white; border-radius: 50%; font-size: 1rem; flex-shrink: 0; }
+  section .lead { color: var(--text-light); font-size: 1rem; margin: 0 0 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  section h3 { margin: 28px 0 10px; color: var(--primary); font-size: 1.18rem; border-left: 4px solid var(--primary); padding-left: 14px; }
+  section h4 { margin: 20px 0 8px; font-size: 1.02rem; color: var(--text); }
+  section p { margin: 10px 0; }
+  section ul, section ol { padding-left: 24px; }
+  section li { margin: 6px 0; }
+  .box { border-radius: 10px; padding: 16px 22px; margin: 18px 0; border-left: 4px solid; }
+  .box-key   { background: #ecfdf5; border-color: var(--primary); }
+  .box-warn  { background: #fef2f2; border-color: var(--accent); }
+  .box-tip   { background: #fffbeb; border-color: var(--warning); }
+  .box-good  { background: #f0fdf4; border-color: var(--success); }
+  .box-quote { background: #f8fafc; border-color: var(--text-light); font-style: italic; color: #475569; }
+  .box-title { font-weight: 700; margin-bottom: 6px; }
+  .box-key .box-title { color: var(--primary-dark); }
+  .box-warn .box-title { color: var(--accent); }
+  .box-tip .box-title { color: #b45309; }
+  .box-good .box-title { color: #166534; }
+  code { background: var(--code-bg); padding: 2px 7px; border-radius: 4px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.88em; color: #be185d; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 18px 22px; border-radius: 10px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  .formula { background: #fafbfc; border: 1px solid var(--border); border-radius: 8px; padding: 14px 20px; margin: 12px 0; font-size: 1.05rem; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.93rem; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; vertical-align: top; }
+  th { background: linear-gradient(180deg, #047857, #064e3b); color: white; font-weight: 600; }
+  tbody tr:nth-child(even) { background: #fafbfc; }
+  tbody tr:hover { background: #ecfdf5; }
+  td .win { color: var(--success); font-weight: 700; }
+  td .lose { color: var(--accent); font-weight: 700; }
+  td .num-big { font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); }
+  .diagram { background: #0f172a; color: #e2e8f0; padding: 22px 28px; border-radius: 10px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.85rem; line-height: 1.5; overflow-x: auto; white-space: pre; margin: 16px 0; }
+  .diagram .hl { color: #fbbf24; font-weight: bold; }
+  .diagram .arrow { color: #60a5fa; }
+  .diagram .label { color: #34d399; }
+  .arch { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 20px 0; }
+  .arch .mod { background: linear-gradient(135deg, #ffffff, #f1f5f9); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+  .arch .mod h5 { margin: 0 0 8px; color: var(--primary-dark); font-size: 1rem; display: flex; align-items: center; gap: 6px; }
+  .arch .mod p { font-size: 0.9rem; color: var(--text-light); margin: 4px 0; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 22px 0; }
+  .stat { background: linear-gradient(135deg, #d1fae5, #ffffff); border-radius: 12px; padding: 16px 20px; text-align: center; border: 1px solid #a7f3d0; }
+  .stat .num { font-size: 1.8rem; font-weight: 800; color: var(--primary-dark); line-height: 1.1; }
+  .stat .lbl { font-size: 0.85rem; color: var(--text-light); margin-top: 4px; }
+  .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .pros, .cons { padding: 16px 20px; border-radius: 10px; }
+  .pros { background: #f0fdf4; border-left: 4px solid var(--success); }
+  .cons { background: #fef2f2; border-left: 4px solid var(--accent); }
+  .chip { display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; margin-right: 6px; margin-bottom: 4px; }
+  .chip-blue { background: #dbeafe; color: #1e40af; }
+  .chip-green { background: #dcfce7; color: #166534; }
+  .chip-red { background: #fee2e2; color: #991b1b; }
+  .chip-yellow { background: #fef3c7; color: #92400e; }
+  mark { background: linear-gradient(transparent 55%, #fde68a 55%); padding: 0 2px; font-weight: 600; }
+  footer { margin-top: 36px; padding-top: 22px; border-top: 1px solid var(--border); color: var(--text-light); font-size: 0.88rem; text-align: center; }
+  .rival-section { background: linear-gradient(135deg, #064e3b 0%, #1e3a8a 100%); color: white; }
+  .rival-section h2, .rival-section h3 { color: #fde68a !important; }
+  .rival-section .lead { color: #fef3c7 !important; border-color: rgba(255,255,255,0.2); }
+  .rival-section p, .rival-section li { color: #f1f5f9; }
+  .rival-section code { background: rgba(255,255,255,0.15); color: #fbbf24; }
+  .rival-section .box-key { background: rgba(255,255,255,0.08); border-color: #fbbf24; }
+  .rival-section .box-key .box-title { color: #fde68a; }
+  @media (max-width: 720px) {
+    .container { padding: 16px 14px; }
+    .hero { padding: 36px 24px 30px; }
+    .hero h1 { font-size: 1.5rem; }
+    section { padding: 22px 20px; }
+    .arch, .pros-cons { grid-template-columns: 1fr; }
+    .toc ol { columns: 1; }
+  }
+  @media print {
+    body { background: white; }
+    .toc { position: static; }
+    section, .hero { page-break-inside: avoid; box-shadow: none; }
+    .hero { background: #064e3b !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ============ HERO ============ -->
+  <div class="hero">
+    <span class="badge">🎯 Tier 1 文献精读 · T1.2 · open-set 主要参照</span>
+    <h1>Clio：实时任务驱动的开放集 3D 场景图<br><span style="font-size:1.1rem;opacity:.85;font-weight:400">Real-time Task-Driven Open-Set 3D Scene Graphs</span></h1>
+    <div class="sub">让"地图粒度"由"机器人的任务"来决定 —— 用 Information Bottleneck 把 SAM 切碎的 over-segmentation 聚成"任务相关物体" + "任务相关区域"<br>—— 与 ConceptGraphs 相比快约 6×、only-CLIP 即可、Spot 真机上 71.4% 成功率</div>
+    <div class="info">
+      <div><div class="label">📚 发表</div><div class="value">IEEE RA-L Vol. 9, No. 10, 2024</div></div>
+      <div><div class="label">📅 接收</div><div class="value">2024-08-10 · arXiv 2404.13696v4</div></div>
+      <div><div class="label">📄 页码</div><div class="value">8921–8928 + 附录</div></div>
+      <div><div class="label">🆔 DOI</div><div class="value">10.1109/LRA.2024.3451395</div></div>
+      <div><div class="label">🏢 单位</div><div class="value">MIT LIDS + MIT Lincoln Lab</div></div>
+      <div><div class="label">👥 通讯</div><div class="value">D. Maggio · Y. Chang · N. Hughes (equal) · L. Carlone</div></div>
+      <div><div class="label">🎯 任务</div><div class="value">Task-driven open-set 3D scene graph</div></div>
+      <div><div class="label">🏆 关键</div><div class="value">F1 0.62（Cubicle）· TPF 0.30 s · 6× faster than CG</div></div>
+    </div>
+  </div>
+
+  <!-- ============ TOC ============ -->
+  <details class="toc" open>
+    <summary>目录（点击展开 / 收起）</summary>
+    <ol>
+      <li><a href="#bg">背景与问题定位：地图粒度到底由谁决定？</a></li>
+      <li><a href="#contrib">四大贡献</a></li>
+      <li><a href="#problem">问题形式化：task-driven 3D scene understanding</a></li>
+      <li><a href="#ib">理论基础：Information Bottleneck（IB）</a></li>
+      <li><a href="#agg-ib">Agglomerative IB 算法 + 增量化</a></li>
+      <li><a href="#prob-dist">$p(y|x)$ 的构造：CLIP + null task + top-k</a></li>
+      <li><a href="#system">Clio 系统：frontend + backend</a></li>
+      <li><a href="#exp-setup">实验设置：四个真实数据集 + Spot 真机</a></li>
+      <li><a href="#exp-objects">主结果：open-set object clustering（Table I）</a></li>
+      <li><a href="#exp-closed">闭集对比 Replica（Table II）</a></li>
+      <li><a href="#exp-places">Place / region clustering（Table III）</a></li>
+      <li><a href="#exp-spot">Spot 真机抓取实验</a></li>
+      <li><a href="#limit">作者声明的局限</a></li>
+      <li><a href="#evidlife">⭐ 与我们 EvidLife-Map 的关系 ⭐</a></li>
+      <li><a href="#takeaway">总结与启示</a></li>
+    </ol>
+  </details>
+
+  <!-- ============ 1. 背景 ============ -->
+  <section id="bg">
+    <h2><span class="num">1</span> 背景与问题定位</h2>
+    <p class="lead">SAM 一刀切出几百段、CLIP 给每段一个语义向量——之后呢？要不要把它们合成"一个物体"？合到什么粒度？目前的做法是<b>调阈值</b>，但 Clio 指出：粒度本质上由"任务"决定，<u>没有任务就没有正确粒度</u>。</p>
+
+    <h3>1.1 钢琴的隐喻</h3>
+    <div class="box box-quote">
+      "Consider a robot tasked with moving a piano across a room. The robot gains almost no value by distinguishing the location of all the keys and strings, but can instead complete the task by considering the piano as one large object. On the other hand, a robot tasked with playing the piano must consider the piano as many objects (i.e., the keys). A robot tasked with tuning the piano must view the piano as even more objects — considering the strings, tuning pins, and so forth." —— §I
+    </div>
+    <p>这是 Clio 全文的核心隐喻：<mark>同样的物理实体，在不同任务下应该被切成不同粒度</mark>。"森林应该当成一片绿，还是 trunk+branches+leaves？"——回答此问题的不是几何、不是语义，而是<b>任务</b>。</p>
+
+    <h3>1.2 现有 open-set 3D 工作的缺口</h3>
+    <ul>
+      <li><b>ConceptFusion [8]</b>：每点存 CLIP 向量，没有"物体" 概念；</li>
+      <li><b>ConceptGraphs [9]</b>：按 cos sim 阈值合并 segment，<b>调阈值</b>等同于任意定粒度；</li>
+      <li><b>OpenMask3D [50]</b>：需要完整 3D 重建，<b>不能在线</b>；</li>
+      <li><b>HOV-SG [51]</b>：层次开集场景图，<b>不实时</b>。</li>
+    </ul>
+
+    <div class="box box-key">
+      <div class="box-title">🎯 一句话定位</div>
+      Clio = "把 Information Bottleneck 搬到机器人地图构建" —— 把 over-segmentation primitives 当原始信号 $X$、把任务列表当目标信号 $Y$，最小化 $I(X; \tilde X) - \beta I(\tilde X; Y)$ 得到任务相关的物体/区域集合 $\tilde X$。<b>用 Agglomerative IB 增量化，实时跑在 Spot 上</b>。
+    </div>
+  </section>
+
+  <!-- ============ 2. 贡献 ============ -->
+  <section id="contrib">
+    <h2><span class="num">2</span> 四大贡献</h2>
+    <div class="arch">
+      <div class="mod">
+        <h5>📐 ① 问题形式化</h5>
+        <p>首次提出 <b>task-driven 3D scene understanding</b> 问题：给定自然语言任务列表，构建最小但足够支持任务的 3D 表示。</p>
+      </div>
+      <div class="mod">
+        <h5>🧠 ② IB 算法</h5>
+        <p>把 Slonim & Tishby [14] 的 Agglomerative IB 应用于 3D 聚类，用 CLIP 估 $p(y|x)$。<b>增量版本</b>：按连通分量独立聚类，可在线运行。</p>
+      </div>
+      <div class="mod">
+        <h5>⚙️ ③ Clio 实时系统</h5>
+        <p>Frontend（FastSAM + CLIP + Khronos-style primitive 抽取 + Hydra-style places 图）+ Backend（增量 AIB on objects & places）。<b>只用 CLIP，不需要 LLM/VLM</b>，可在 onboard laptop 实时跑。</p>
+      </div>
+      <div class="mod">
+        <h5>📊 ④ 大量评测</h5>
+        <p>Replica + 四个自录数据集（Office/Apartment/Cubicle/Building）。Spot 真机 7 trial × 3 grab = 21 attempts，<b>57% full success，71% 若忽略 grasp 失败</b>。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3. 问题形式化 ============ -->
+  <section id="problem">
+    <h2><span class="num">3</span> 问题形式化</h2>
+
+    <h3>3.1 设定</h3>
+    <ul>
+      <li>$X$：task-agnostic primitives（3D segments + 3D places），<mark>SAM/FastSAM 给我们海量 over-segmentation</mark>；</li>
+      <li>$Y$：自然语言任务列表，例如 <code>"wash the dishes"</code> 或 <code>"read brown textbook"</code>；</li>
+      <li>$\tilde X$：要找的<b>任务相关 cluster</b>，每个 cluster 一个 object / region；</li>
+      <li>$p(\tilde x | x)$：要学的 hard assignment。</li>
+    </ul>
+
+    <h3>3.2 IB 目标</h3>
+    <div class="formula">
+      $$\min_{p(\tilde x | x)}\ I(X; \tilde X) - \beta\, I(\tilde X; Y) \tag{1}$$
+    </div>
+    <ul>
+      <li>$I(X; \tilde X)$：压缩程度（越小压缩越多）；</li>
+      <li>$I(\tilde X; Y)$：任务相关性（越大越保留任务信息）；</li>
+      <li>$\beta$：trade-off 旋钮。</li>
+    </ul>
+    <p>这就是经典 Tishby IB。Clio 的创新在于<mark>怎么在 3D 几何归纳偏置下高效求解，并且增量化</mark>。</p>
+  </section>
+
+  <!-- ============ 4. Agglomerative IB ============ -->
+  <section id="agg-ib">
+    <h2><span class="num">4</span> Agglomerative IB 算法 + 增量化</h2>
+
+    <h3>4.1 标准 Agglomerative IB（Slonim & Tishby 1999 [14]）</h3>
+    <p>每个 primitive 初始化为一个 cluster；每轮合并相邻 cluster 中"task-distribution 最相似"的一对。合并打分：</p>
+    <div class="formula">
+      $$d_{ij} = (p(\tilde x_i) + p(\tilde x_j)) \cdot D_{JS}\left[p(y|\tilde x_i),\ p(y|\tilde x_j)\right] \tag{2}$$
+    </div>
+    <p>$D_{JS}$ 是 Jensen-Shannon divergence。每轮停止条件用<b>fractional information loss</b>：</p>
+    <div class="formula">
+      $$\delta(k) = \frac{I(\tilde X_k; Y) - I(\tilde X_{k-1}; Y)}{I(X; Y)} \tag{3}$$
+    </div>
+    <p>当 $\delta(k) > \bar\delta$（论文里的"压缩控制阈值"，与 $\beta$ 同等地位）就停。$\bar\delta = 0$ 不压缩、$\bar\delta = 1$ 全合并。</p>
+
+    <h3>4.2 增量化（Clio 的算法贡献）</h3>
+    <p>关键观察：<mark>当 primitives 图有多个连通分量时，可以在每个 connected component 上独立聚类</mark>。Clio 推导了 $\delta_c(k)$ 的"分量化"形式：</p>
+    <div class="formula">
+      $$\delta_c(k) = \frac{|X_c|}{|X|} \cdot \frac{I((\tilde X_c)_k; Y) - I((\tilde X_c)_{k-1}; Y)}{I(X; Y)} \tag{6}$$
+    </div>
+    <p>由此可证 (Appendix B)：<b>"全图 AIB" 与 "在每个连通分量上跑 AIB，使用上式停止条件"完全等价</b>。这让 Clio 只对"被新观测影响的子图"重跑 AIB，<b>计算复杂度与已建图规模解耦</b>。</p>
+
+    <pre><code>Algorithm 2: Incremental AIB
+Input:  C (set of connected sub-graphs), Xnew (newly received primitives)
+Output: p(̃x|x) hard assignment
+1: 把 Xnew 分发到对应 sub-graph
+2: for each c in C:
+3:    if c 更新过 then
+4:        update p(̃x|x), x∈Xc 用 Algorithm 1 + 停止条件 (6)
+5:    end if
+6: return p(̃x|x)</code></pre>
+  </section>
+
+  <!-- ============ 5. p(y|x) ============ -->
+  <section id="prob-dist">
+    <h2><span class="num">5</span> $p(y|x)$ 的构造：CLIP + null task + top-k</h2>
+
+    <p>AIB 需要一个 conditional distribution $p(y|x)$ —— 即"每个 primitive 对每个 task 有多相关"。Clio 用：</p>
+
+    <ol>
+      <li><b>每个 primitive $x_i$</b> 用 CLIP 编 $f_{x_i}$（segment 内多帧 CLIP feature 平均）；</li>
+      <li><b>每个 task $t_j$</b> 用 CLIP 编 $f_{t_j}$；</li>
+      <li>额外加一个 <b>null task $t_0$</b>，相似度阈值 $\alpha$（论文默认 <code>α = 0.23</code>）；</li>
+      <li>对每个 primitive 算 $\phi(f_{x_i}, f_{t_j})$ 余弦相似度。</li>
+    </ol>
+
+    <h3>5.1 形式化</h3>
+    <p>定义 $\theta(x_i) \in \mathbb{R}^{m+1}$：</p>
+    <div class="formula">
+      $$\theta(x_i)_j = \begin{cases}\alpha, & j = 0\\ \phi(f_{x_i}, f_{t_j}), & j = 1, \dots, m\end{cases} \tag{4}$$
+    </div>
+    <p>然后：</p>
+    <div class="formula">
+      $$p(y|x_i) = \begin{cases}[1\ 0\ \dots\ 0]^T, & \text{if } \max_{t_j} \phi(f_{x_i}, f_{t_j}) < \alpha\\ \eta \sum_{l=1}^{k} \gamma_l(\theta(x_i)), & \text{otherwise}\end{cases} \tag{5}$$
+    </div>
+    <p>其中 $\eta$ 是归一化常数，$\gamma_l$ 保留 top-$l$ 个最大值并把第 $l$ 个乘 $k-l+1$（提供"排名衰减"），其余清零。</p>
+
+    <h3>5.2 设计意图</h3>
+    <ul>
+      <li><b>null task</b>：所有相似度都低于 $\alpha$ 的 primitive 直接判"任务无关"，one-hot 给 $t_0$，<mark>等同于背景过滤器</mark>；</li>
+      <li><b>top-k + 加权</b>：只看最相关的几个任务，避免低相似 task 干扰；</li>
+      <li><b>$\alpha$ 是唯一关键超参</b>：CLIP ViT-L/14 用 0.23，OpenCLIP ViT-H-14 用 0.26。</li>
+    </ul>
+  </section>
+
+  <!-- ============ 6. 系统 ============ -->
+  <section id="system">
+    <h2><span class="num">6</span> Clio 系统：frontend + backend</h2>
+
+    <div class="diagram">┌────────────────────────────────────────────────────────────┐
+│                       <span class="hl">FRONTEND</span>                              │
+│  RGB-D + Pose                                                │
+│    ├─► <span class="label">FastSAM [27]</span>  → per-frame class-agnostic segments  │
+│    ├─► <span class="label">CLIP [11]</span>     → per-segment embedding              │
+│    │                                                         │
+│    ├─► <span class="label">3D Object Primitives (Khronos-style)</span>               │
+│    │     · temporally associate within window τ              │
+│    │     · cos-sim ≥ θ_track1, 3D IoU ≥ γ                   │
+│    │     · greedy assoc., 持久化为 3D segment + averaged CLIP │
+│    │                                                         │
+│    ├─► <span class="label">Background mesh</span> (coarse reconstruction)            │
+│    │                                                         │
+│    └─► <span class="label">3D Place Primitives (Hydra-style [7])</span>              │
+│          · Generalized Voronoi Diagram → 稀疏 places graph   │
+│          · 每个 place node 赋平均 CLIP feature (从可见图像)   │
+└────────────────────────────────────────────────────────────┘
+                              │
+                              <span class="arrow">▼</span>
+┌────────────────────────────────────────────────────────────┐
+│                       <span class="hl">BACKEND</span>                               │
+│  Tasks (natural language list)                               │
+│    │                                                         │
+│    ├─► <span class="label">Task-Driven Object Detection (Incremental AIB)</span>    │
+│    │     · nodes = object primitives                         │
+│    │     · edges = 3D BBox 有重叠                            │
+│    │     · α = 0.23, 按 (5) 算 p(y|x), 然后跑 Alg. 2         │
+│    │                                                         │
+│    └─► <span class="label">Task-Driven Place Clustering (Incremental AIB)</span>    │
+│          · nodes = place primitives                          │
+│          · edges = places sub-graph 的现存边                  │
+│          · 同样 α 设定                                       │
+└────────────────────────────────────────────────────────────┘
+                              │
+                              <span class="arrow">▼</span>
+              <span class="label">Hierarchical 3D Scene Graph (objects ⊆ regions)</span></div>
+
+    <h3>6.1 两种执行模式</h3>
+    <ul>
+      <li><b>Clio-batch</b>：先收集全部 primitives，再一次性跑 AIB；</li>
+      <li><b>Clio-online</b>：实时流入 primitives，按 Alg. 2 增量聚类，<b>必要时丢帧以保实时</b>。</li>
+    </ul>
+  </section>
+
+  <!-- ============ 7. 实验设置 ============ -->
+  <section id="exp-setup">
+    <h2><span class="num">7</span> 实验设置</h2>
+
+    <h3>7.1 数据集</h3>
+    <table>
+      <thead><tr><th>数据集</th><th>类型</th><th>对象数</th><th>用途</th></tr></thead>
+      <tbody>
+        <tr><td><b>Replica</b> [17]</td><td>公开闭集</td><td>—</td><td>与 ConceptGraphs/OpenMask3D 公平对比</td></tr>
+        <tr><td><b>Office</b></td><td>自录</td><td>33</td><td>开集 object detection</td></tr>
+        <tr><td><b>Apartment</b></td><td>自录</td><td>28</td><td>开集 object detection</td></tr>
+        <tr><td><b>Cubicle</b></td><td>自录</td><td>18</td><td>开集 object detection + task granularity 演示</td></tr>
+        <tr><td><b>Building</b></td><td>自录</td><td>5 floors</td><td>大规模 place clustering</td></tr>
+      </tbody>
+    </table>
+
+    <h3>7.2 评测指标（新定义）</h3>
+    <ul>
+      <li><b>open-set Recall (osR)</b>：对每个任务，查 top-$n$ 个最相关 object（$n$ 是 GT object 数），correct detections / $n$；</li>
+      <li><b>open-set Precision (osP)</b>：correct detections / 所有"对某个任务 cos sim ≥ 0.90"的 detections；</li>
+      <li><b>Strict vs Relaxed</b>：strict 要求 estimated bbox 与 GT bbox 互含对方的中心点；relaxed 只要满足一个；</li>
+      <li><b>F1, IOU, Objs, TPF</b>：常规 + 物体数 + time per frame。</li>
+    </ul>
+
+    <h3>7.3 对比方法</h3>
+    <table>
+      <thead><tr><th>方法</th><th>是否 task-aware</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>ConceptGraphs (CG) [9]</td><td>否</td><td>用 CLIP 替代 LLaVA+GPT（公平对照）</td></tr>
+        <tr><td>Khronos [61]</td><td>否</td><td>$\theta_{track} = 0.7, \gamma = 0.4$</td></tr>
+        <tr><td>Clio-Prim</td><td>否</td><td>Clio 的 frontend 输出，<b>不跑 IB</b></td></tr>
+        <tr><td>CG-task</td><td>是</td><td>用任务做过滤，但合并仍非 task-driven</td></tr>
+        <tr><td>Khronos-task</td><td>是</td><td>同上</td></tr>
+        <tr><td><b>Clio-batch / Clio-online</b></td><td>是</td><td>完整 Clio</td></tr>
+      </tbody>
+    </table>
+    <p>硬件：CLIP ViT-L/14，RTX 3090 GPU + Intel i9-12900K CPU。</p>
+  </section>
+
+  <!-- ============ 8. 主结果 ============ -->
+  <section id="exp-objects">
+    <h2><span class="num">8</span> 主结果：open-set object clustering（Table I）</h2>
+    <p class="lead">对三个数据集分别测 Strict / Relaxed 两套指标。<mark>下面数字 1:1 照抄 Table I</mark>。</p>
+
+    <h3>8.1 Cubicle（18 对象）</h3>
+    <table>
+      <thead><tr><th>Method</th><th colspan="3" style="text-align:center">Strict</th><th colspan="3" style="text-align:center">Relaxed</th><th>IOU</th><th>Objs</th><th>TPF [s]</th></tr>
+      <tr><th></th><th>osR</th><th>osP</th><th>F1</th><th>osR</th><th>osP</th><th>F1</th><th></th><th></th><th></th></tr></thead>
+      <tbody>
+        <tr><td>CG [9]</td><td>0.44</td><td>0.17</td><td>0.25</td><td>0.61</td><td>0.28</td><td>0.39</td><td>0.06</td><td>181</td><td>2.0</td></tr>
+        <tr><td>Khronos [61]</td><td>0.78</td><td>0.12</td><td>0.21</td><td>0.83</td><td>0.11</td><td>0.20</td><td>0.17</td><td>628</td><td>0.31</td></tr>
+        <tr><td>Clio-Prim</td><td>0.72</td><td>0.09</td><td>0.16</td><td>0.72</td><td>0.10</td><td>0.17</td><td>0.18</td><td>1070</td><td>0.28</td></tr>
+        <tr><td>CG-task</td><td>0.44</td><td>0.38</td><td>0.41</td><td>0.61</td><td>0.50</td><td>0.55</td><td>0.06</td><td>26</td><td>2.0</td></tr>
+        <tr><td>Khronos-task</td><td>0.78</td><td>0.14</td><td>0.24</td><td>0.83</td><td>0.14</td><td>0.24</td><td>0.17</td><td>133</td><td>0.31</td></tr>
+        <tr><td><b>Clio-batch</b></td><td><b>0.83</b></td><td>0.33</td><td>0.47</td><td><b>1.0</b></td><td>0.40</td><td>0.57</td><td>0.17</td><td>48</td><td>0.31*</td></tr>
+        <tr><td><b>Clio-online</b></td><td><b>0.89</b></td><td><b>0.48</b></td><td><b>0.62</b></td><td>0.89</td><td><b>0.48</b></td><td><b>0.63</b></td><td><b>0.22</b></td><td>92</td><td>0.30</td></tr>
+      </tbody>
+    </table>
+
+    <h3>8.2 Office（33 对象）</h3>
+    <table>
+      <thead><tr><th>Method</th><th colspan="3" style="text-align:center">Strict</th><th colspan="3" style="text-align:center">Relaxed</th><th>IOU</th><th>Objs</th><th>TPF [s]</th></tr>
+      <tr><th></th><th>osR</th><th>osP</th><th>F1</th><th>osR</th><th>osP</th><th>F1</th><th></th><th></th><th></th></tr></thead>
+      <tbody>
+        <tr><td>CG [9]</td><td>0.24</td><td>0.09</td><td>0.13</td><td>0.52</td><td>0.16</td><td>0.25</td><td>0.07</td><td>751</td><td>8.1</td></tr>
+        <tr><td>Khronos [61]</td><td><b>0.67</b></td><td>0.24</td><td>0.35</td><td>0.67</td><td>0.25</td><td>0.36</td><td><b>0.15</b></td><td>1202</td><td>0.31</td></tr>
+        <tr><td>Clio-Prim</td><td><b>0.70</b></td><td>0.18</td><td>0.29</td><td>0.73</td><td>0.19</td><td>0.30</td><td><b>0.17</b></td><td>1883</td><td>0.27</td></tr>
+        <tr><td>CG-task</td><td>0.19</td><td>0.37</td><td>0.25</td><td>0.45</td><td>0.63</td><td>0.50</td><td>0.06</td><td>40</td><td>8.1</td></tr>
+        <tr><td>Khronos-task</td><td>0.55</td><td>0.28</td><td>0.37</td><td>0.55</td><td>0.30</td><td>0.38</td><td>0.12</td><td>163</td><td>0.31</td></tr>
+        <tr><td><b>Clio-batch</b></td><td>0.64</td><td>0.45</td><td>0.53</td><td><b>0.76</b></td><td>0.55</td><td>0.64</td><td>0.13</td><td>84</td><td>0.30*</td></tr>
+        <tr><td><b>Clio-online</b></td><td>0.55</td><td><b>0.65</b></td><td><b>0.60</b></td><td>0.61</td><td><b>0.69</b></td><td><b>0.65</b></td><td>0.12</td><td>49</td><td>0.29</td></tr>
+      </tbody>
+    </table>
+
+    <h3>8.3 Apartment（28 对象）</h3>
+    <table>
+      <thead><tr><th>Method</th><th colspan="3" style="text-align:center">Strict</th><th colspan="3" style="text-align:center">Relaxed</th><th>IOU</th><th>Objs</th><th>TPF [s]</th></tr>
+      <tr><th></th><th>osR</th><th>osP</th><th>F1</th><th>osR</th><th>osP</th><th>F1</th><th></th><th></th><th></th></tr></thead>
+      <tbody>
+        <tr><td>CG [9]</td><td>0.38</td><td>0.17</td><td>0.23</td><td>0.62</td><td>0.25</td><td>0.35</td><td>0.07</td><td>339</td><td>2.2</td></tr>
+        <tr><td>Khronos [61]</td><td>0.45</td><td>0.08</td><td>0.14</td><td><b>0.76</b></td><td>0.12</td><td>0.21</td><td>0.11</td><td>1093</td><td>0.26</td></tr>
+        <tr><td>Clio-Prim</td><td>0.35</td><td>0.07</td><td>0.12</td><td>0.59</td><td>0.09</td><td>0.16</td><td>0.12</td><td>1694</td><td>0.20</td></tr>
+        <tr><td>CG-task</td><td>0.21</td><td>0.30</td><td>0.25</td><td>0.35</td><td>0.45</td><td>0.39</td><td>0.03</td><td>21</td><td>2.2</td></tr>
+        <tr><td>Khronos-task</td><td>0.41</td><td>0.15</td><td>0.22</td><td><b>0.72</b></td><td>0.21</td><td>0.32</td><td>0.11</td><td>162</td><td>0.26</td></tr>
+        <tr><td><b>Clio-batch</b></td><td><b>0.52</b></td><td><b>0.34</b></td><td><b>0.41</b></td><td><b>0.72</b></td><td><b>0.45</b></td><td><b>0.55</b></td><td>0.11</td><td>90</td><td>0.23*</td></tr>
+        <tr><td><b>Clio-online</b></td><td>0.35</td><td>0.31</td><td>0.33</td><td>0.52</td><td>0.42</td><td>0.46</td><td>0.07</td><td>99</td><td>0.26</td></tr>
+      </tbody>
+    </table>
+
+    <div class="box box-good">
+      <div class="box-title">📈 主结论</div>
+      <ul>
+        <li><b>task-aware 方法 osP 全面提升、objects 数量大幅下降</b>，验证"地图必须任务驱动"；</li>
+        <li>Clio-batch / Clio-online <b>除 Office IOU 与 strict osR 外其余全部第一或第二</b>；</li>
+        <li>对 task-aware 基线（CG-task, Khronos-task）：它们只能"过滤无关 object"但<b>不能在合并时利用任务信息</b>，所以 osR 下降；</li>
+        <li><b>速度</b>：Clio TPF ≈ 0.30s，比 ConceptGraphs (2.0–8.1s) <b>快约 6 倍</b>；</li>
+        <li>Clio 在 Cubicle 上甚至达到 <b>Relaxed osR = 1.0</b>（完美召回）。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 9. 闭集 Replica ============ -->
+  <section id="exp-closed">
+    <h2><span class="num">9</span> 闭集对比 Replica（Table II）</h2>
+    <p>把 Replica 的类别标签直接作为 task list（"an image of {class}"）。结论：Clio 在闭集上也能 <b>持平 leading methods</b>。</p>
+
+    <table>
+      <thead><tr><th>Method</th><th>mAcc</th><th>F-mIOU</th></tr></thead>
+      <tbody>
+        <tr><td>MaskCLIP [32]</td><td>4.53</td><td>0.94</td></tr>
+        <tr><td>Mask2former [33] + Global CLIP</td><td>10.42</td><td>13.11</td></tr>
+        <tr><td>ConceptFusion [8]</td><td>24.16</td><td>31.31</td></tr>
+        <tr><td>ConceptFusion + SAM</td><td>31.53</td><td>38.70</td></tr>
+        <tr><td>ConceptGraphs [9]</td><td><b>40.63</b></td><td>35.95</td></tr>
+        <tr><td>ConceptGraphs-Detector [9]</td><td>38.72</td><td>35.82</td></tr>
+        <tr><td>OpenMask3D [50]</td><td>39.54</td><td><b>49.26</b></td></tr>
+        <tr><td><b>Clio-batch</b></td><td>37.95</td><td>36.98</td></tr>
+      </tbody>
+    </table>
+
+    <p class="lead">注：OpenMask3D 用 3D segmentation network + 完整重建，所以 F-mIOU 高，但<b>不能在线</b>。Clio 在 mAcc 上接近 SOTA，证明 task-driven 设计<b>不会损害闭集性能</b>。</p>
+  </section>
+
+  <!-- ============ 10. Place ============ -->
+  <section id="exp-places">
+    <h2><span class="num">10</span> Place / region clustering（Table III）</h2>
+
+    <table>
+      <thead><tr><th>Dataset</th><th>Method</th><th>Precision</th><th>Recall</th><th>F1</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="3"><b>Apartment</b></td><td>Hydra [7]</td><td><b>0.93 ± 0.01</b></td><td><b>0.87 ± 0.01</b></td><td><b>0.90 ± 0.00</b></td></tr>
+        <tr><td>Clio (closest)</td><td>0.87 ± 0.06</td><td>0.78 ± 0.02</td><td>0.82 ± 0.01</td></tr>
+        <tr><td>Clio (average)</td><td>0.98 ± 0.02</td><td>0.54 ± 0.00</td><td>0.69 ± 0.00</td></tr>
+        <tr><td rowspan="3"><b>Office</b></td><td>Hydra [7]</td><td>0.61 ± 0.03</td><td><b>0.84 ± 0.03</b></td><td>0.70 ± 0.01</td></tr>
+        <tr><td>Clio (closest)</td><td>0.67 ± 0.03</td><td>0.79 ± 0.01</td><td>0.72 ± 0.01</td></tr>
+        <tr><td><b>Clio (average)</b></td><td><b>0.73 ± 0.01</b></td><td>0.80 ± 0.00</td><td><b>0.76 ± 0.01</b></td></tr>
+        <tr><td rowspan="3"><b>Building</b></td><td>Hydra [7]</td><td><b>0.87 ± 0.01</b></td><td>0.71 ± 0.02</td><td>0.78 ± 0.01</td></tr>
+        <tr><td>Clio (closest)</td><td>0.72 ± 0.04</td><td>0.82 ± 0.01</td><td>0.77 ± 0.02</td></tr>
+        <tr><td><b>Clio (average)</b></td><td>0.79 ± 0.02</td><td><b>0.84 ± 0.01</b></td><td><b>0.81 ± 0.01</b></td></tr>
+      </tbody>
+    </table>
+
+    <div class="box box-tip">
+      <div class="box-title">📌 关键观察</div>
+      <ul>
+        <li><b>Apartment（几何鲜明）</b>：Hydra 几何分割就赢——Clio 反而 over-segment（高 P 低 R）；</li>
+        <li><b>Office + Building（语义相似但连通）</b>：Clio (average) 赢，因为<b>开放厨房 / 楼梯</b> 这类需要语义才能识别的区域无法靠几何分；</li>
+        <li>Clio (average) 是<b>所有"看见此 place node 的图像 CLIP 取平均"</b>，比 (closest) 鲁棒。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 11. Spot 实验 ============ -->
+  <section id="exp-spot">
+    <h2><span class="num">11</span> Spot 真机抓取实验</h2>
+
+    <h3>11.1 设置</h3>
+    <ul>
+      <li>Boston Dynamics Spot + 机械臂；前左/前右 RGB-D + odometry；</li>
+      <li>Onboard laptop：Intel i9-13950HX + 64 GB RAM + RTX 4090 Laptop；</li>
+      <li>7 trial × 3 grasp = <b>21 unique grasp attempts</b>；</li>
+      <li>对象：rope dog toy, snorkel, stuffed animal, backpack, measuring tape, water bottle, 两个彩色塑料锥；</li>
+      <li>策略：Dijkstra on places graph → 到达后取当前 segment 中 cos sim 最高的 pixel centroid → Spot API grasp。</li>
+    </ul>
+
+    <h3>11.2 结果分解</h3>
+    <div class="stat-grid">
+      <div class="stat"><div class="num">71.4%</div><div class="lbl">Success (full + retry)</div></div>
+      <div class="stat"><div class="num">38.1%</div><div class="lbl">Full Success</div></div>
+      <div class="stat"><div class="num">33.3%</div><div class="lbl">Partial Success</div></div>
+      <div class="stat"><div class="num">14.3%</div><div class="lbl">Success (retry)</div></div>
+      <div class="stat"><div class="num">28.6%</div><div class="lbl">Failure 总和</div></div>
+      <div class="stat"><div class="num">4.8%</div><div class="lbl">Wrong Object（Clio 错）</div></div>
+      <div class="stat"><div class="num">23.8%</div><div class="lbl">Planning Issue</div></div>
+      <div class="stat"><div class="num">19.0%</div><div class="lbl">Spot API Failure</div></div>
+    </div>
+
+    <div class="box box-good">
+      <div class="box-title">🎯 关键</div>
+      <b>Clio 把"选错物体"率压到 4.8%</b>——21 次只有 1 次拿错。剩余失败几乎全在 navigation / planning / Spot API。说明 Clio 的 scene graph 是<b>可被下游 pipeline 信任的语义来源</b>。
+    </div>
+  </section>
+
+  <!-- ============ 12. 局限 ============ -->
+  <section id="limit">
+    <h2><span class="num">12</span> 作者声明的局限</h2>
+    <div class="pros-cons">
+      <div class="pros">
+        <b>✅ 强项</b>
+        <ul>
+          <li>第一个 task-driven 3D scene graph 形式化；</li>
+          <li>不依赖 LLM/VLM 在线推理，only CLIP；</li>
+          <li>增量 AIB 真正在线，Spot 可部署；</li>
+          <li>开源 + 公开数据集。</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <b>⚠️ 局限（§VII）</b>
+        <ul>
+          <li>对 prompt 高度敏感，CLIP 选型显著影响性能（Appendix H）；</li>
+          <li>合并时只<b>简单平均 CLIP 向量</b>，没有 grounded 的语义融合；</li>
+          <li><mark>可能 <b>over-cluster</b>：两个物体对同一 task 相似度高就被合并</mark>（如"摆桌"任务下叉子和刀被错误合并）；</li>
+          <li>只处理<b>简单单步任务</b>，未做"端到端复杂任务理解"；</li>
+          <li>需要 task list 在<b>启动时给定</b>，不能动态变化。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 13. 与 EvidLife-Map 关系 ============ -->
+  <section id="evidlife" class="rival-section">
+    <h2><span class="num">13</span> ⭐ 与我们 EvidLife-Map 的关系 ⭐</h2>
+    <p class="lead">Clio 不是 EvidLife-Map 的"头对头对手"——它的舞台是 task-driven scene graph，我们的舞台是 voxel-level lifelong evidential mapping。但 Clio 是 RQ2（open-set OOD 检测）章节最重要的<b>参照系</b>之一，也是 baseline 列表里的 <code>Clio-LiDAR-stub</code> 的来源。</p>
+
+    <h3>13.1 方法关系：互补而非直接竞争</h3>
+    <div class="box box-key">
+      <div class="box-title">🎯 总判定</div>
+      <b>Clio 与 EvidLife-Map = "scene graph 层" vs "metric-semantic voxel 层"</b>。<br>
+      Clio 的输出是<u>稀疏 object/region 节点</u>（dozens of objects）；EvidLife-Map 的输出是<u>稠密体素地图</u>（百万体素带 Dirichlet $\alpha$）。两者在<mark>表示粒度上正交</mark>——理论上可以把 EvidLife-Map 作为 Clio 的 frontend（替换 Khronos primitive 抽取），把 Clio 作为 EvidLife-Map 的 scene-graph 后端。
+    </div>
+
+    <h3>13.2 我们引用它的理由</h3>
+    <ul>
+      <li><b>§II Related Work — Open-Set Semantics</b>：Clio 是当前 open-set 3D scene graph 的代表，必须引用并讨论"它怎么处理 open-set / 我们怎么处理 open-set"；</li>
+      <li><b>§II Related Work — Task-Driven Representations</b>：Clio 的 IB 形式化是新方向，我们如果以后想做 "task-aware vacuity"（让 vacuity 阈值随任务相关性调整）就可以借鉴；</li>
+      <li><b>§IV.B Open-Set Head</b>：要明确说"我们与 Clio 的 open-set 路径不同 —— Clio 靠 CLIP cos sim + null task 阈值 $\alpha$；<mark>我们靠 Dirichlet vacuity</mark> —— 一个 model-intrinsic 不确定信号"；</li>
+      <li><b>§V RQ2</b>：把 Clio 的 <b>α-null-task</b> 当作 open-set baseline 之一（<code>Clio-LiDAR-stub</code>：我们把 Clio 的 frontend 改成喂 LiDAR 点云 + 同样的 CLIP 流程做 fair comparison，但只比较 open-set detection 那一步）；</li>
+      <li><b>§II 系统对比表</b>：Clio 列入 "open-set, online, semantic" 一栏。</li>
+    </ul>
+
+    <h3>13.3 实验对手：Clio-LiDAR-stub 的实现</h3>
+    <div class="box box-warn">
+      <div class="box-title">⚠️ 关键技术决定</div>
+      Clio 原生是 RGB-D 输入（FastSAM + CLIP），<b>不能直接吃 LiDAR</b>。为了在 RQ2 拉一行公平的对比，我们的 <code>Clio-LiDAR-stub</code>：
+      <ol>
+        <li>用 LiDAR 投影到摄像头 + 时间同步的 RGB 图，跑 FastSAM + CLIP 得 primitives；</li>
+        <li>用 LiDAR 给 primitives 算 3D bbox（而非 RGB-D 深度）；</li>
+        <li>跑标准 AIB，按 $\alpha = 0.23$ 做 null-task 过滤；</li>
+        <li>open-set OOD = "落到 null task 的 primitives 的体素占比"。</li>
+      </ol>
+      <b>这个 stub 不是 Clio 作者的官方支持，<u>必须在论文 §V.B 写明实现细节</u></b>。如果不能做（CLIP 在 LiDAR-only 模态下不工作），就改成"仅 RGB 子集" 对比，并坦诚。
+    </div>
+
+    <h3>13.4 它的哪些设计可以借鉴</h3>
+    <ol>
+      <li><b>Incremental connected-component AIB（公式 6 + Alg. 2）</b>—— 我们的 voxel decay marginalization 也可以按 connected component 触发，省去全局重算；</li>
+      <li><b>null task = $\alpha$ 阈值</b> 的思路 —— 我们 vacuity 也有阈值，未来可以让 vacuity 阈值<b>按 task list 动态调整</b>（task-aware vacuity）；</li>
+      <li><b>open-set Precision / Recall (osP/osR)</b> 评估方式 —— 可以直接搬到 RQ2 评测，避免自创指标；</li>
+      <li><b>Clio (average)</b> 的"多帧 CLIP 平均"思路 —— 我们 evidential aggregation 在 frame 间累积 Dirichlet 浓度，<b>本质思想一致</b>，但我们做的是 evidence 累加而非特征平均。</li>
+    </ol>
+
+    <h3>13.5 我们 §III 需要明确 differentiate 的点</h3>
+    <div class="box box-key">
+      <div class="box-title">差异化定位</div>
+      <ol>
+        <li><b>表示层级</b>：Clio 输出<b>scene graph + objects</b>（dozens 量级），EvidLife-Map 输出<b>稠密 voxel 地图</b>（millions 量级带 evidential 不确定）。我们的目标是支撑下游 traversability + loop closure，<b>需要 voxel 粒度</b>，scene graph 不够；</li>
+        <li><b>不确定性来源</b>：Clio 的 "task 相关性 = CLIP cos sim"，本质是<b>外部 prior</b>；EvidLife-Map 的 vacuity 是<b>模型内部的 epistemic 不确定</b>，对 OOD 更敏感（CLIP 见过的 OOD 物体仍会给高 sim）；</li>
+        <li><b>Lifelong 性</b>：Clio 当前不处理<b>场景变化</b>（一次性建图）；我们的 voxel decay 是 lifelong 核心；</li>
+        <li><b>task-awareness</b>：<u>这是 Clio 的优势</u>，EvidLife-Map 目前 task-agnostic。我们可以坦诚承认，并把 "task-aware vacuity" 作为 future work；</li>
+        <li><b>语义表示</b>：Clio 用 CLIP 向量；EvidLife-Map 用 Dirichlet $\alpha \in \mathbb{R}^K$（K 个类的证据强度）—— 不同模态，各有适用场景。</li>
+      </ol>
+    </div>
+
+    <div class="box box-warn">
+      <div class="box-title">⚠️ 不要装腔作势</div>
+      <ul>
+        <li>Clio 的<b>真机抓取成功率 (71.4% on Spot)</b> 是非常扎实的 system 贡献，我们的 RQ5 任何系统成熟度争论都不能站；</li>
+        <li>Clio 的<b>task-driven IB 形式化</b>是 deep theoretical contribution，我们的 vacuity 是 single-scalar trick——理论深度上 Clio 占优；</li>
+        <li>我们的"一标量三用途"优势是<b>工程统一性</b>，但不要吹成 theoretical breakthrough；</li>
+        <li>Clio 与我们都来自 MIT SPARK Lab 系（Yun Chang、Lukas Schmid、Luca Carlone）—— 比 GS-LIVO 的 HKUST 系更"内行"会读我们论文，<b>必须严格诚实</b>。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 14. 总结 ============ -->
+  <section id="takeaway">
+    <h2><span class="num">14</span> 总结与启示</h2>
+
+    <h3>14.1 一句话</h3>
+    <div class="box box-key" style="font-size:1.05rem">
+      <mark>Clio 把 Information Bottleneck 引入 3D 场景理解，用 task list + CLIP + Agglomerative IB 在线把 SAM over-segmentation 聚合成 task-relevant objects / regions，<b>第一次让"地图粒度"成为可形式化的优化目标</b>。</mark>
+    </div>
+
+    <h3>14.2 给 EvidLife-Map 的 4 个具体行动项</h3>
+    <ol>
+      <li><b>§II Related Work — Open-Set 子节</b>必须用两段比较 Clio：(i) 它的 null-task α 是什么；(ii) 它跟我们 vacuity 的根本差别；</li>
+      <li><b>§V RQ2 baseline 列表</b>纳入 <code>Clio-LiDAR-stub</code>，并在 §V.B 写清实现细节（透明降级到 RGB-only 是诚实选择）；</li>
+      <li>评测<b>沿用 osP/osR (Clio 提出)</b> 作为补充指标之一；</li>
+      <li><b>§VI Discussion</b> 提一句"task-aware vacuity 是未来方向" —— 把 task list 引入 EvidLife-Map 的 marginalization 阈值。</li>
+    </ol>
+
+    <h3>14.3 学习路径建议</h3>
+    <div class="box box-tip">
+      <div class="box-title">🎓 关联文献</div>
+      <ul>
+        <li><b>Tishby & Pereira [13]</b> Information Bottleneck 原始论文；</li>
+        <li><b>Slonim & Tishby [14]</b> Agglomerative IB；</li>
+        <li><b>ConceptGraphs [9]</b> (ICRA 2024) 主要竞品；</li>
+        <li><b>HOV-SG [51]</b> (RSS 2024) 同期 hierarchical open-set scene graph；</li>
+        <li><b>Khronos [61]</b>（T1.1）作为 Clio 的 frontend 借鉴对象；</li>
+        <li><b>Hydra [7]</b> places graph 来源。</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <p>📄 论文：<i>Clio: Real-time Task-Driven Open-Set 3D Scene Graphs</i><br>
+    🏢 IEEE Robotics and Automation Letters, Vol. 9, No. 10, 2024 · DOI: 10.1109/LRA.2024.3451395<br>
+    👥 D. Maggio*, Y. Chang*, N. Hughes*, M. Trang, D. Griffith, C. Dougherty, E. Cristofalo, L. Schmid, L. Carlone (MIT LIDS + MIT Lincoln Lab)<br>
+    🔗 开源：https://github.com/MIT-SPARK/Clio<br>
+    📅 精读报告生成日期：2026-05-28 · 由 paper_reader_agent 基于 PDF 原文逐节重写 · 为 EvidLife-Map (IROS 2027) RQ2 准备</p>
+  </footer>
+
+</div>
+
+</body>
+</html>
