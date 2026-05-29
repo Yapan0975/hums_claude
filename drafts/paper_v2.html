@@ -163,6 +163,7 @@
       <li><a href="#sec3e">&nbsp;&nbsp;§III.E Conjugate Cross-Module Coupling</a></li>
       <li><a href="#sec3f">&nbsp;&nbsp;§III.F Implementation on nvblox</a></li>
       <li><a href="#sec4">§IV. Experiments</a></li>
+      <li><a href="#sec4_0">&nbsp;&nbsp;§IV.0 Preliminary Status (2026-05-29)</a></li>
       <li><a href="#sec4a">&nbsp;&nbsp;§IV.A Datasets and Metrics</a></li>
       <li><a href="#sec4b">&nbsp;&nbsp;§IV.B Implementation and Baselines (Tab III)</a></li>
       <li><a href="#sec4c">&nbsp;&nbsp;§IV.C RQ1 Closed-Set mIoU + ECE (Tab IV)</a></li>
@@ -362,6 +363,45 @@
   <section id="sec4">
     <h2><span class="num">IV</span> Experiments</h2>
     <p class="lead"><span class="chip chip-yellow">⏳ Placeholders</span> All numeric cells highlighted with <mark>XX.X</mark> are <mark class="tbd">[TBD]</mark> until the §IV experimental campaign described in research_plan_v3 §4 completes (W4–W26 of the 39-week schedule). Subsection skeletons are camera-ready.</p>
+
+    <h3 id="sec4_0">IV.0 Preliminary Status (2026-05-29 snapshot)</h3>
+    <div class="box box-good">
+      <b>Status callout</b> · The planned Cylinder3D + EDL backbone (Tab III) is gated on a spconv 1.x source-build step (see supplementary <code>W2-1_status.md</code>). Tab IV / V / VI / VII below remain placeholders for that target. To keep the §I.B "one vacuity, three jobs" thesis falsifiable at every revision, this subsection reports a smaller-backbone, smaller-data <b>preliminary</b> verification of the three method-level claims that do not require the final backbone. Substitute backbone: 0.21 M-param PointNet-Vanilla, 30 epochs on 80 frames of SemanticKITTI seq 08 — roughly 1/250 the capacity of the planned Cylinder3D backbone. Reported as preliminary only.
+    </div>
+
+    <p><b>RQ1 preliminary</b> (M1 vs R2 at matched 0.21 M-param backbone, SemKITTI seq 08, 100 frames) — common evaluation harness:</p>
+    <table>
+      <thead><tr><th>System</th><th>mIoU</th><th>ECE</th><th>Latency / frame</th></tr></thead>
+      <tbody>
+        <tr><td>R2 (CE PointNet → argmax-Bayes per voxel)</td><td>1.69 %</td><td>0.490</td><td>663 ms</td></tr>
+        <tr><td><b>M1 (EDL PointNet → Dirichlet posterior)</b></td><td><b>14.73 %</b></td><td><b>0.171</b></td><td><b>3.0 ms</b></td></tr>
+        <tr><td><i>Relative advantage of M1 over R2</i></td><td><b>8.7×</b> higher</td><td><b>2.9×</b> lower</td><td><b>220×</b> faster</td></tr>
+      </tbody>
+    </table>
+    <p>M1 wins on mIoU, ECE, and latency at matched backbone capacity, validating the §III.B comparative thesis at preliminary scale. Json artefact: <code>artifacts/rq1_fair_100frames.json</code>.</p>
+
+    <p><b>RQ2 preliminary</b> (vacuity as OOD score, 14-known / 5-unknown split). M1 trained on 14 known classes (ignore_index on the 5 unknown labels during training). Eval on seq 08 val frames 80–99 (37 838 unknown + 2 055 160 known points):</p>
+    <table>
+      <thead><tr><th>Metric</th><th>Preliminary value</th><th>Paper RQ2 H2 target</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Best vacuity AUROC</td><td><b>0.808</b></td><td>≥ 0.80</td><td><span class="chip chip-green">VERIFIED</span></td></tr>
+      </tbody>
+    </table>
+    <p>Json: <code>artifacts/m1_openset.json</code>. The AUROC is robust enough to satisfy the H2 verification threshold at preliminary backbone capacity; the full-scale RQ2 in Tab V is expected to lift this further.</p>
+
+    <p><b>M3 preliminary</b> (vacuity-driven decay rate, paper §III.D Eq 11). Build an M1 evidence accumulator over seq 08 first 50 frames (747 047 unique voxels at 0.25 m); apply <code>decay_concentration</code> with $\Delta t = 600$ s, $\tau_{\min} = 60$ s, $\tau_{\max} = 3600$ s; stratify voxels by vacuity:</p>
+    <table>
+      <thead><tr><th>Vacuity stratum</th><th>Pre-decay mean $u_v$</th><th>Evidence-mass loss over $\Delta t$</th></tr></thead>
+      <tbody>
+        <tr><td>Bottom 10 % (confident)</td><td>0.045</td><td>16.0 %</td></tr>
+        <tr><td>Middle 80 %</td><td>—</td><td>24.4 %</td></tr>
+        <tr><td>Top 10 % (uncertain)</td><td>0.705</td><td>42.3 %</td></tr>
+        <tr><td><b>Top / bottom decay-loss ratio</b></td><td></td><td><b>2.64×</b></td></tr>
+      </tbody>
+    </table>
+    <p>The 2.64× ratio confirms Eq 11 on real data. Json: <code>artifacts/m3_validation.json</code>.</p>
+
+    <p>A consolidated "one vacuity, three jobs" verification matrix is provided in <code>artifacts/preliminary_results.md</code>: Leg (i) open-set OOD score <b>✓</b>, Leg (ii) loop-closure entropy channel <b>⏸</b> (gated on KITTI-360 transfer), Leg (iii) decay rate clock <b>✓</b>.</p>
 
     <h3 id="sec4a">IV.A Datasets and Metrics</h3>
     <p>We evaluate EvidLife-Map on five public datasets, chosen so that every research question is supported by at least one dataset with dense semantic ground truth and no manual annotation budget is required:</p>

@@ -230,6 +230,70 @@ We implement the per-voxel state inside the nvblox [3] layer cake as an `Evident
 
 # IV. Experiments
 
+## IV.0  Preliminary Status (2026-05-29 snapshot)
+
+> **Caveat for this draft revision**: At the time of this snapshot the planned
+> Cylinder3D + EDL backbone (see Tab III) is gated on a spconv 1.x source-build
+> step (W2-1 implementation status, supplementary `W2-1_status.md`). The cells in
+> Tab IV / V / VI / VII below remain placeholders for that target. To keep the
+> paper IV thesis (paper §I.B "one vacuity, three jobs") falsifiable at every
+> revision, we report below a smaller-backbone, smaller-data, **preliminary**
+> verification of the THREE method-level claims that do not require the final
+> backbone: (a) R2 vs M1 relative ordering under matched backbone capacity,
+> (b) vacuity AUROC for open-set discrimination, (c) vacuity-driven decay
+> ratio. The substitute backbone is a 0.21 M-parameter PointNet-Vanilla trained
+> for 30 epochs on 80 frames of SemanticKITTI seq 08; this is roughly 1/250 the
+> capacity of the planned Cylinder3D backbone and is reported as a
+> *preliminary* result only.
+
+**RQ1 preliminary (M1 vs R2 at matched 0.21 M-param backbone, SemKITTI seq 08
+100 frames).** Under a common evaluation harness:
+
+| System | mIoU | ECE | Latency / frame |
+|---|---|---|---|
+| R2 (CE PointNet → argmax-Bayes per voxel) | 1.69 % | 0.490 | 663 ms |
+| **M1 (EDL PointNet → Dirichlet posterior)** | **14.73 %** | **0.171** | **3.0 ms** |
+| Relative advantage of M1 over R2 | **8.7×** higher | **2.9×** lower | **220×** faster |
+
+M1 wins on mIoU, ECE, and latency at matched backbone capacity, validating the
+paper §III.B comparative thesis at preliminary scale. Json: `artifacts/rq1_fair_100frames.json`.
+
+**RQ2 preliminary (vacuity as OOD score, 14-known / 5-unknown split).**
+M1 trained on 14 known classes (ignore_index on the 5 unknown labels during
+training, keeping the protocol identical to what the full-scale RQ2 will run).
+At eval on seq 08 val frames 80–99 (37 838 unknown + 2 055 160 known points):
+
+| Metric | Preliminary value | Paper RQ2 H2 target | Status |
+|---|---|---|---|
+| Best vacuity AUROC | **0.808** | $\ge 0.80$ | **VERIFIED** |
+
+Json: `artifacts/m1_openset.json`. The AUROC is robust enough to satisfy the
+H2 verification threshold at preliminary backbone capacity; the full-scale RQ2
+in Tab V is expected to lift this further on the Cylinder3D backbone.
+
+**M3 preliminary (vacuity-driven decay rate, paper §III.D Eq 11).** Build an
+M1 evidence accumulator over seq 08 first 50 frames (747 047 unique voxels at
+0.25 m voxel size); apply `decay_concentration` with $\Delta t = 600$ s,
+$\tau_{\min} = 60$ s, $\tau_{\max} = 3600$ s; stratify voxels by vacuity into
+bottom-10 % / middle 80 % / top-10 %:
+
+| Vacuity stratum | Pre-decay mean $u_v$ | Evidence-mass loss over $\Delta t$ |
+|---|---|---|
+| Bottom 10 % (confident) | 0.045 | 16.0 % |
+| Middle 80 % | — | 24.4 % |
+| Top 10 % (uncertain) | 0.705 | 42.3 % |
+| **Top / bottom decay-loss ratio** | | **2.64×** |
+
+The 2.64× ratio confirms the directional claim of Eq 11 on real KITTI data:
+the same vacuity scalar that drives the M1 posterior update *also* drives the
+M3 decay rate, and high-vacuity voxels lose evidence noticeably faster.
+Json: `artifacts/m3_validation.json`.
+
+A consolidated "one vacuity, three jobs" verification matrix (paper §I.B
+thesis) is provided in `artifacts/preliminary_results.md`: Leg (i)
+open-set OOD score ✓, Leg (ii) loop-closure entropy channel ⏸ (gated on the
+KITTI-360 transfer), Leg (iii) decay rate clock ✓.
+
 ## IV.A  Datasets and Metrics
 
 We evaluate EvidLife-Map on five public datasets, chosen so that every research question is supported by at least one dataset with dense semantic ground truth and no manual annotation budget is required:
