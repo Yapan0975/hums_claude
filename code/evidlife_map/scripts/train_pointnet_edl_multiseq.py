@@ -77,6 +77,9 @@ def main():
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--out", type=Path,
                     default=Path("weights/pointnet_edl_multiseq.pt"))
+    ap.add_argument("--backbone", default="vanilla",
+                    choices=["vanilla", "lite"],
+                    help="vanilla = PointNetVanilla 0.21M, lite = PointNet2Lite 0.28M (with kNN context)")
     ap.add_argument("--seed", type=int, default=20260529)
     args = ap.parse_args()
 
@@ -94,8 +97,8 @@ def main():
     val_loader = DataLoader(val_ds, batch_size=1, shuffle=False, collate_fn=_collate)
 
     C = SEMANTIC_KITTI_NUM_CLASSES
-    model = PointNetEDL(in_channels=4, num_classes=C).to(device)
-    print(f"\nparams: {sum(p.numel() for p in model.parameters())/1e6:.3f} M")
+    model = PointNetEDL(in_channels=4, num_classes=C, backbone=args.backbone).to(device)
+    print(f"\nbackbone: {args.backbone}, params: {sum(p.numel() for p in model.parameters())/1e6:.3f} M")
 
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(

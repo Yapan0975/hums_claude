@@ -53,11 +53,28 @@ def _make_xyzi(entry, *, device, range_m: float = 100.0) -> torch.Tensor:
 class PointNetEDL(nn.Module):
     """PointNet feature extractor + Dirichlet evidential head."""
 
-    def __init__(self, in_channels: int, num_classes: int) -> None:
+    def __init__(
+        self,
+        in_channels: int,
+        num_classes: int,
+        *,
+        backbone: str = "vanilla",
+    ) -> None:
         super().__init__()
-        self.backbone = PointNetVanilla(
-            in_channels=in_channels, num_classes=num_classes
-        )
+        if backbone == "vanilla":
+            self.backbone = PointNetVanilla(
+                in_channels=in_channels, num_classes=num_classes
+            )
+        elif backbone == "lite":
+            from evidlife_map.models.pointnet2_lite import PointNet2Lite
+            self.backbone = PointNet2Lite(
+                in_channels=in_channels, num_classes=num_classes,
+                k=16, sigma=1.0,
+            )
+        else:
+            raise ValueError(f"unknown backbone {backbone!r}; "
+                             f"must be 'vanilla' or 'lite'")
+        self.backbone_name = backbone
         # The backbone's classifier outputs (N, num_classes) logits.
         # We feed those into the EDL head which internally adds +1 for unknown.
         self.edl_head = EDLHead(
