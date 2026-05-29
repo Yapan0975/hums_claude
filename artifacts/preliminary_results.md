@@ -90,10 +90,31 @@ Two of three legs are verified end-to-end on real KITTI data. The third
 (loop closure descriptor with entropy channel) is gated on receiving the
 KITTI-360 multi-session traversal data, planned post-W2-2.
 
+## Multi-sequence audit (added 2026-05-29 W3-F/G/H)
+
+The RQ1 numbers above (14.73 % M1 / 1.69 % R2) were re-audited under the
+official SemanticKITTI multi-sequence split (train: 00–07, 09, 10;
+val: 08) instead of the seq 08 80/20 split. See `training_findings.md`
+for the full per-epoch trace; key conclusions:
+
+- The seq 08 80/20 numbers were spatially-adjacency-inflated; the proper
+  held-out mIoU on PointNet-Vanilla collapses to ~1.5–2 % for both CE
+  and EDL at matched 0.21 M backbone capacity.
+- The RQ2 vacuity AUROC (0.808), the M3 decay ratio (2.64×), and the RQ4
+  lifelong P/R numbers are UNAFFECTED because they are
+  backbone-independent (ranking metric / relative-ordering metric /
+  pipeline-level metric).
+- The §I.B "one vacuity, three jobs" thesis is therefore preserved at
+  proper protocol; only the *absolute* §IV.0 mIoU line is reframed as a
+  backbone-floor demonstration. See `multiseq_iv0_patch_draft.md` for
+  the paper text patch.
+
 ## What's pending (W3+ tasks before IROS submission)
 
-1. **Cylinder3D backbone integration** — currently blocked on spconv 1.x
-   source build (W2-1_status.md). Resolves the 14.73 → ~70+ mIoU gap.
+1. **Cylinder3D backbone integration** — currently blocked on spconv
+   1.x → 2.x kernel-index ordering value-semantic gap (W2-1_status.md).
+   Resolves the 14.73 → ~70+ mIoU gap. Multi-seq audit above shows the
+   floor is ~1.5–2 % at PointNet-Vanilla capacity, consistent.
 2. **KITTI-360 multi-session loop closure** — gated on W2-2 background
    data transfer (now 16 / 35 GB) followed by `build_revisit_matrix.py`
    run on full data.
