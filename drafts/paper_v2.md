@@ -157,15 +157,15 @@ with $B_m$ the $m$-th confidence bin over the per-voxel maximum expected probabi
 | 3 | LatentBKI [7] | RA-L 2025 | Latent BKI (NIW conjugate over CLIP $\mathbb{R}^{64}$) | E-optimality in latent space | $\checkmark$ (LSeg encoder) | open-*dict.* (not open-*set*) | MP3D 16.15%; outdoor 61.5% Acc | [NR] | $\times$ (latent-space) |
 | 4 | **EvidLife-Map (ours)** | IROS 2027 (target) | **Dirichlet EDL** — $\alpha \in \mathbb{R}^{C+1}$, no kernel | **Vacuity** $u_v = (C+1)/S_v$ | $\checkmark$ (Cylinder3D + EDL last layer) | $\checkmark$ (vacuity native OOD + unknown channel) | <mark>[TBD-RQ1]</mark> (target $\ge$ +2 vs R2) | <mark>[TBD-RQ1]</mark> (target $-20\%$ vs R2) | $\checkmark$ (single scalar, three consumers) |
 
-## III.C  M2: Vacuity-Conditioned Loop Closure
+## III.C  M2: Dissonance-Conditioned Loop Closure
 
-Loop closure operates on submaps sealed every $D = 50\,\text{m}$ of travelled distance or $T = 30\,\text{s}$ of wall time, whichever first; each submap $\mathcal{S}$ is summarised by a descriptor that explicitly exposes vacuity as a first-class channel rather than collapsing it into a confidence weight. Concretely, the descriptor is
+Loop closure operates on submaps sealed every $D = 50\,\text{m}$ of travelled distance or $T = 30\,\text{s}$ of wall time, whichever first; each submap $\mathcal{S}$ is summarised by a descriptor that explicitly exposes the **dissonance** scalar $d_v$ (Sensoy 2018 §4) as a first-class channel rather than collapsing it into a confidence weight. We use dissonance rather than vacuity in this channel because the W3-UVW Decoupling Ablation (supplementary `decoupling_ablation_finding.md`) measures dissonance to give 0.9992 same-area cosine similarity vs vacuity's 0.9752 on the seq 08 50/50 protocol — the dissonance signal more sharply distinguishes the *epistemic shape* of revisited submaps than vacuity does. The descriptor is
 
 $$
-d(\mathcal{S}) \;=\; \big( h_{\text{class}}(\mathcal{S}), \; h_{\text{vac}}(\mathcal{S}) \big), \tag{7}
+d(\mathcal{S}) \;=\; \big( h_{\text{class}}(\mathcal{S}), \; h_{\text{diss}}(\mathcal{S}) \big), \tag{7}
 $$
 
-where $h_{\text{class}}(\mathcal{S}) \in \mathbb{R}^{C+1}$ is the $L^1$-normalised class histogram over voxels with vacuity below the per-submap median, and $h_{\text{vac}}(\mathcal{S}) \in \mathbb{R}^{B}$ is the histogram of per-voxel vacuity $u_v$ bucketed into $B = 10$ uniform bins over $(0, 1]$. The class channel preserves the conventional submap-fingerprint role and the vacuity channel encodes the *epistemic shape* of the submap — a frequently-revisited submap is dominated by low-vacuity bins, while a recently-explored or sparsely-observed submap concentrates mass in high-vacuity bins.
+where $h_{\text{class}}(\mathcal{S}) \in \mathbb{R}^{C+1}$ is the $L^1$-normalised class histogram over voxels with dissonance below the per-submap median, and $h_{\text{diss}}(\mathcal{S}) \in \mathbb{R}^{B}$ is the histogram of per-voxel dissonance $d_v$ bucketed into $B = 10$ uniform bins over $(0, 1]$. The class channel preserves the conventional submap-fingerprint role and the dissonance channel encodes the *epistemic shape* of the submap — a frequently-revisited submap with concentrated evidence is dominated by low-dissonance bins, while a submap whose evidence is split among competing classes (e.g., taxonomically-close known and unknown points) concentrates mass in high-dissonance bins.
 
 Candidate matches between two submaps $\mathcal{S}_1, \mathcal{S}_2$ are scored by a convex combination of cosine similarity on the class channel and cross-entropy on the vacuity channel,
 
@@ -192,24 +192,24 @@ with $\mathcal{O}$ the overlap voxel set after registration and $\langle \cdot, 
 
 The construction contrasts with the descriptors used in Hydra [10] and Kimera-Multi [16], which encode submap fingerprints either through bag-of-words or through learned aggregation but do not expose epistemic mass as an explicit descriptor channel; it also contrasts with the semantic-graph-with-GAT loop closure of [27] and SA-LOAM [26], whose semantic enrichment is a class-level signal rather than an uncertainty signal.
 
-## III.D  M3: Vacuity-Driven Voxel Decay
+## III.D  M3: Dissonance-Driven Voxel Decay
 
-Voxel decay applies a conjugate exponential pull of $\alpha_v$ toward the uniform prior, with the decay time-constant $\tau$ itself a function of vacuity. Let $a_v = t_{\text{now}} - t_{v,\text{last-update}}$ be the age of voxel $v$ since its last evidence accumulation,
+Voxel decay applies a conjugate exponential pull of $\alpha_v$ toward the uniform prior, with the decay time-constant $\tau$ itself a function of the **dissonance** scalar $d_v$ (Sensoy 2018 §4). We use dissonance rather than vacuity in this rate parameter because the W3-UVW Decoupling Ablation measures dissonance-conditioned $\tau$ to give 5.9× the stale-voxel F1 of vacuity-conditioned $\tau$ at the canonical threshold 0.5 (F1 0.425 vs 0.073), and 9.1× at threshold 0.7. The reason: vacuity collapses sharply under decay (Eq. 12 pulls toward uniform Dirichlet at low $S_v$, so most decayed voxels have vacuity in the 0.3-0.5 band), while dissonance maintains a much smoother distribution. Let $a_v = t_{\text{now}} - t_{v,\text{last-update}}$ be the age of voxel $v$ since its last evidence accumulation,
 
 $$
 a_v \;=\; t_{\text{now}} \,-\, t_{v,\text{last-update}} . \tag{10}
 $$
 
-The decay time-constant is a linear interpolation between $\tau_{\min}$ (high-vacuity voxels age fast) and $\tau_{\max}$ (low-vacuity voxels age slowly):
+The decay time-constant is a linear interpolation between $\tau_{\min}$ (high-dissonance voxels age fast) and $\tau_{\max}$ (low-dissonance voxels age slowly):
 
 $$
-\tau(u_v) \;=\; \tau_{\min} \,+\, (\tau_{\max} - \tau_{\min}) \cdot (1 - u_v) . \tag{11}
+\tau(d_v) \;=\; \tau_{\min} \,+\, (\tau_{\max} - \tau_{\min}) \cdot (1 - d_v) . \tag{11}
 $$
 
-A confidently-known voxel ($u_v \to 0$) decays with $\tau \to \tau_{\max}$ (target $\approx$ one hour); a maximally-uncertain voxel ($u_v \to 1$) decays with $\tau \to \tau_{\min}$ (target $\approx$ one minute). The decay itself is the standard Dirichlet conjugate pull toward the uniform prior, applied to the *concentration* with the unit prior pinned in place so that $\alpha_{v,k} \ge 1$ is preserved (the Dirichlet constraint that makes (2) well-defined):
+A voxel whose evidence concentrates on a single class ($d_v \to 0$) decays with $\tau \to \tau_{\max}$ (target $\approx$ one hour); a voxel whose evidence is split among competing classes ($d_v \to 1$) decays with $\tau \to \tau_{\min}$ (target $\approx$ one minute). The decay itself is the standard Dirichlet conjugate pull toward the uniform prior, applied to the *concentration* with the unit prior pinned in place so that $\alpha_{v,k} \ge 1$ is preserved (the Dirichlet constraint that makes (2) well-defined):
 
 $$
-\alpha_v^{(t + \Delta)} \;=\; \big( \alpha_v^{(t)} - \mathbf{1} \big) \cdot \exp\!\Big( -\frac{\Delta}{\tau(u_v)} \Big) \;+\; \mathbf{1} . \tag{12}
+\alpha_v^{(t + \Delta)} \;=\; \big( \alpha_v^{(t)} - \mathbf{1} \big) \cdot \exp\!\Big( -\frac{\Delta}{\tau(d_v)} \Big) \;+\; \mathbf{1} . \tag{12}
 $$
 
 By construction, (12) preserves the posterior mean direction (the ratio $\alpha_k / S$ is unchanged when $\alpha_v - 1$ is scaled uniformly only as long as no class dominates the prior, which is the regime where the decay is intended to act) and inflates vacuity monotonically with $a_v$. The net behaviour is that stale voxels become *re-writable* — their vacuity rises until fresh evidence either reasserts the previous class identity (drawing vacuity back down) or replaces it (the new evidence dominates the now-small $\alpha_v - 1$ residual).
