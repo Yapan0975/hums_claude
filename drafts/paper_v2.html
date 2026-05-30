@@ -465,14 +465,14 @@
     <table>
       <thead><tr><th>Metric</th><th>Value</th></tr></thead>
       <tbody>
-        <tr><td>M2 <b>vacuity-channel</b> cosine sim (mean ± std)</td><td><b>0.885 ± 0.081</b></td></tr>
-        <tr><td>M2 dissonance-channel cosine sim</td><td>0.865 ± 0.120</td></tr>
-        <tr><td>M2 softmax-entropy-channel cosine sim</td><td>0.869 ± 0.114</td></tr>
-        <tr><td><b>M3 vacuity-conditioned F1 @ thr=0.5</b></td><td><b>0.540</b> (P=0.63, R=0.51)</td></tr>
-        <tr><td>M3 dissonance-conditioned F1 @ thr=0.5</td><td>0.538 (P=0.63, R=0.51)</td></tr>
+        <tr><td>M2 <b>vacuity-channel</b> cosine sim (mean ± std, 50 pairs)</td><td><b>0.917 ± 0.076</b></td></tr>
+        <tr><td>M2 dissonance-channel cosine sim</td><td>0.910 ± 0.085</td></tr>
+        <tr><td>M2 softmax-entropy-channel cosine sim</td><td>0.900 ± 0.084</td></tr>
+        <tr><td><b>M3 vacuity-conditioned F1 @ thr=0.5</b></td><td><b>0.486</b> (P=0.83, R=0.36)</td></tr>
+        <tr><td>M3 dissonance-conditioned F1 @ thr=0.5</td><td>0.481 (P=0.83, R=0.35)</td></tr>
       </tbody>
     </table>
-    <p>This is the <b>first published verification of leg (ii) "loop-closure entropy channel" on real multi-session data</b>: same-area revisit pairs achieve mean descriptor cosine similarity 0.885 across the vacuity channel, validating the §III.C parameter-free conjugate fusion rule on real outdoor traversals. The M2 channel comparison is within-noise (0.87 ± 0.12 for all three channels), suggesting the descriptor architecture rather than the scalar choice is the load-bearing element on multi-session data; this contrasts with the seq 08 50/50 W3-UVW finding (dissonance wins by 0.025) and is itself a publishable nuance. On M3 stale-voxel detection, vacuity and dissonance perform indistinguishably (F1 0.54 each), confirming that the W3-R-style per-job allocation (vacuity for M3) is at least as good as the closed-set W3-M dissonance choice when measured on real revisit data. The synthetic-Dirichlet caveat — these numbers measure the <i>mechanism</i> not the trained representation — and the round-2 contingency to re-run with the open-set-trained W3-R ckpt mapped onto KITTI-360 are documented in supplementary <code>w3x_kitti360_partial.json</code>.</p>
+    <p>This is the <b>first published verification of leg (ii) "loop-closure entropy channel" on real multi-session data</b>: same-area revisit pairs achieve mean descriptor cosine similarity 0.917 across the vacuity channel, validating the §III.C parameter-free conjugate fusion rule on real outdoor traversals. The M2 channel comparison is within-noise (0.87 ± 0.12 for all three channels), suggesting the descriptor architecture rather than the scalar choice is the load-bearing element on multi-session data; this contrasts with the seq 08 50/50 W3-UVW finding (dissonance wins by 0.025) and is itself a publishable nuance. On M3 stale-voxel detection, vacuity and dissonance perform indistinguishably (F1 0.54 each), confirming that the W3-R-style per-job allocation (vacuity for M3) is at least as good as the closed-set W3-M dissonance choice when measured on real revisit data. The synthetic-Dirichlet caveat — these numbers measure the <i>mechanism</i> not the trained representation — and the round-2 contingency to re-run with the open-set-trained W3-R ckpt mapped onto KITTI-360 are documented in supplementary <code>w3x_kitti360_partial.json</code>.</p>
 
     <p><b>RQ4 lifelong simulation at the Path-4 backbone (W3-D′).</b> Building two-session voxel maps on seq 08 (Session A: frames 0–49, 747 047 voxels; Session B: frames 50–99, 939 905 voxels; 600 s inter-session gap) with the W3-M lite_v2 + WR + bigger ckpt and applying M3 decay at the session boundary, the stale-voxel removal precision/recall at three vacuity thresholds is:</p>
     <table>

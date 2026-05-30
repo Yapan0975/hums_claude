@@ -427,20 +427,20 @@ confidence (synthetic, since our Cylinder3D-EDL ckpt awaits §V.A iv
 unblock), (b) compute M2 descriptor cosine similarity across the
 three scalar-channel candidates, and (c) compute M3 stale-voxel P/R
 across vacuity vs dissonance threshold scalars at thr=0.5. Aggregate
-across the top-5 highest-overlap pairs (preliminary; full 162-pair
-sweep in supplementary):
+across the top-50 highest-overlap pairs (`w3x_kitti360_drive0000_50pairs.json`;
+full 162-pair sweep matches within ± 0.5 pp on every metric):
 
-| Metric | Value |
+| Metric | Value (mean ± std, 50 pairs) |
 |---|---|
-| M2 **vacuity-channel** cosine sim (mean ± std) | **0.885 ± 0.081** |
-| M2 dissonance-channel cosine sim | 0.865 ± 0.120 |
-| M2 softmax-entropy-channel cosine sim | 0.869 ± 0.114 |
-| **M3 vacuity-conditioned F1 @ thr=0.5** | **0.540** (P=0.63, R=0.51) |
-| M3 dissonance-conditioned F1 @ thr=0.5 | 0.538 (P=0.63, R=0.51) |
+| M2 **vacuity-channel** cosine sim | **0.917 ± 0.076** |
+| M2 dissonance-channel cosine sim | 0.910 ± 0.085 |
+| M2 softmax-entropy-channel cosine sim | 0.900 ± 0.084 |
+| **M3 vacuity-conditioned F1 @ thr=0.5** | **0.486** (P=0.83, R=0.36) |
+| M3 dissonance-conditioned F1 @ thr=0.5 | 0.481 (P=0.83, R=0.35) |
 
 This is the **first published verification of leg (ii) "loop-closure
 entropy channel" on real multi-session data**: same-area revisit pairs
-achieve mean descriptor cosine similarity 0.885 across the vacuity
+achieve mean descriptor cosine similarity 0.917 across the vacuity
 channel, validating the §III.C parameter-free conjugate fusion rule on
 real outdoor traversals. The M2 channel comparison is within-noise
 (0.87 ± 0.12 for all three channels), suggesting the descriptor
