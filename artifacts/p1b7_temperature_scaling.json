@@ -1,0 +1,14 @@
+{
+  "ckpt": "weights/w3s_ce_lite_v2.pt",
+  "ckpt_epoch": 25,
+  "ckpt_val_mIoU": 0.22542332865957826,
+  "n_val_points": 1804030,
+  "ECE_pre_TS": 0.08773341774940491,
+  "T_star": 1.4999659061431885,
+  "ECE_post_TS": 0.03989133983850479,
+  "rel_improvement_pct": 54.53119135008806,
+  "EDL_baseline_W3M_ECE": 0.1252,
+  "EDL_baseline_W3R_ECE": 0.3197,
+  "post_TS_beats_W3M": true,
+  "post_TS_beats_W3R": true
+}
