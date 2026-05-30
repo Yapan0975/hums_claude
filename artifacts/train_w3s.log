@@ -1,0 +1,51 @@
+device: cuda
+GPU:    NVIDIA GeForce RTX 5090
+==== W3-S CE-lite_v2 matched-protocol R2 baseline ====
+Backbone: PointNet2Lite_v2 (matches W3-M)
+Loss: CrossEntropyLoss (replaces EDL for the R2 baseline)
+Schedule: cosine LR warm-restart (period=5, mirroring W3-M KL warm-restart)
+Train: 600 fr/seq, 25 epochs, 20000 pts/frame subsample
+
+train: 5671 frames total
+  seq 00: 600
+  seq 01: 600
+  seq 02: 600
+  seq 03: 600
+  seq 04: 271
+  seq 05: 600
+  seq 06: 600
+  seq 07: 600
+  seq 09: 600
+  seq 10: 600
+val:   100 / 100 frames from seq 08
+params: 0.494 M
+
+=== Train CE-lite_v2 25 epochs (matched W3-M tier) ===
+
+  ep 1/25: loss=0.8958 val_miou=0.1903 val_ece=0.0783 time=236.7s  [SAVED]
+  ep 2/25: loss=0.6404 val_miou=0.1823 val_ece=0.0605 time=242.1s
+  ep 3/25: loss=0.5287 val_miou=0.2042 val_ece=0.0588 time=239.9s  [SAVED]
+  ep 4/25: loss=0.4520 val_miou=0.2010 val_ece=0.0489 time=238.4s
+  ep 5/25: loss=0.4132 val_miou=0.2165 val_ece=0.0639 time=241.1s  [SAVED]
+  ep 6/25: loss=0.5231 val_miou=0.1813 val_ece=0.0784 time=228.9s
+  ep 7/25: loss=0.4625 val_miou=0.1919 val_ece=0.0675 time=228.4s
+  ep 8/25: loss=0.4059 val_miou=0.1808 val_ece=0.0848 time=230.7s
+  ep 9/25: loss=0.3587 val_miou=0.2180 val_ece=0.0711 time=225.4s  [SAVED]
+  ep 10/25: loss=0.3339 val_miou=0.1898 val_ece=0.0843 time=224.1s
+  ep 11/25: loss=0.4316 val_miou=0.1911 val_ece=0.0383 time=231.8s
+  ep 12/25: loss=0.3893 val_miou=0.1916 val_ece=0.0726 time=230.5s
+  ep 13/25: loss=0.3463 val_miou=0.1971 val_ece=0.0638 time=233.4s
+  ep 14/25: loss=0.3109 val_miou=0.2105 val_ece=0.0854 time=229.7s
+  ep 15/25: loss=0.2918 val_miou=0.1895 val_ece=0.0801 time=231.0s
+  ep 16/25: loss=0.3806 val_miou=0.1918 val_ece=0.0986 time=230.9s
+  ep 17/25: loss=0.3451 val_miou=0.1987 val_ece=0.0722 time=224.8s
+  ep 18/25: loss=0.3099 val_miou=0.2112 val_ece=0.0816 time=225.0s
+  ep 19/25: loss=0.2807 val_miou=0.2087 val_ece=0.0813 time=229.4s
+  ep 20/25: loss=0.2650 val_miou=0.2021 val_ece=0.0937 time=222.1s
+  ep 21/25: loss=0.3464 val_miou=0.1793 val_ece=0.1021 time=222.8s
+  ep 22/25: loss=0.3158 val_miou=0.1875 val_ece=0.0967 time=229.7s
+  ep 23/25: loss=0.2849 val_miou=0.2008 val_ece=0.0986 time=226.4s
+  ep 24/25: loss=0.2594 val_miou=0.1664 val_ece=0.1280 time=224.8s
+  ep 25/25: loss=0.2462 val_miou=0.2254 val_ece=0.0889 time=222.2s  [SAVED]
+
+=== DONE — best val mIoU = 0.2254, total 5750.6s ===

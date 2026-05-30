@@ -1,0 +1,75 @@
+{
+  "ckpt": "w3r_joint_serving",
+  "ckpt_meta": {
+    "epoch": 12.0,
+    "mIoU_known": 0.30310342246144767,
+    "ECE_known": 0.3197449386119843,
+    "vacuity_AUROC": 0.7061822313977869
+  },
+  "M3": {
+    "vacuity": [
+      {
+        "threshold": 0.3,
+        "precision": 0.7291134811402638,
+        "recall": 0.8808059128179453,
+        "f1": 0.7978131920315141,
+        "n_flagged": 588741,
+        "n_a_only": 487348,
+        "n_overlap": 259699
+      },
+      {
+        "threshold": 0.5,
+        "precision": 0.7505265123819818,
+        "recall": 0.7751114193553682,
+        "f1": 0.7626208790099529,
+        "n_flagged": 503312,
+        "n_a_only": 487348,
+        "n_overlap": 259699
+      },
+      {
+        "threshold": 0.7,
+        "precision": 0.7631428867689756,
+        "recall": 0.664471794282525,
+        "f1": 0.7103974622785965,
+        "n_flagged": 424336,
+        "n_a_only": 487348,
+        "n_overlap": 259699
+      }
+    ],
+    "dissonance": [
+      {
+        "threshold": 0.3,
+        "precision": 0.5355589469668066,
+        "recall": 0.08640848018253897,
+        "f1": 0.14880790419415596,
+        "n_flagged": 78630,
+        "n_a_only": 487348,
+        "n_overlap": 259699
+      },
+      {
+        "threshold": 0.5,
+        "precision": 0.5307543443129901,
+        "recall": 0.054587276443116624,
+        "f1": 0.09899324800779949,
+        "n_flagged": 50123,
+        "n_a_only": 487348,
+        "n_overlap": 259699
+      },
+      {
+        "threshold": 0.7,
+        "precision": 0.5250195902832195,
+        "recall": 0.028870540147902527,
+        "f1": 0.05473142894930827,
+        "n_flagged": 26799,
+        "n_a_only": 487348,
+        "n_overlap": 259699
+      }
+    ]
+  },
+  "M2": {
+    "vacuity": 0.9889378790034603,
+    "softmax_entropy": 0.9880328735010769,
+    "dissonance": 1.0
+  },
+  "dissonance_dominates_M3": false
+}

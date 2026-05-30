@@ -1,0 +1,58 @@
+device: cuda
+GPU:    NVIDIA GeForce RTX 5090
+==== W3-R single-checkpoint joint serving ====
+Backbone: PointNet2Lite_v2 (0.49 M)
+KL schedule: LINEAR (not warm-restart; W3-Q showed restart hurts AUROC)
+kl_end: 0.3
+Open-set: 14-known SemKITTI PRIMARY (5 unknown masked -100)
+Unknown classes: [4, 5, 18, 17, 9]
+Pre-registered ckpt criterion: best mIoU subject to AUROC ≥ 0.7
+
+train: 5671 frames total
+  seq 00: 600
+  seq 01: 600
+  seq 02: 600
+  seq 03: 600
+  seq 04: 271
+  seq 05: 600
+  seq 06: 600
+  seq 07: 600
+  seq 09: 600
+  seq 10: 600
+val:   100 / 100 frames from seq 08
+params: 0.494 M
+
+=== Train 25 epochs ===
+
+  ep  1/25: loss=0.4669 mIoU=0.2699 ECE=0.0989 AUROC=0.5353 time=245.4s  (mIoU=0.2699 but AUROC<0.7)
+  ep  2/25: loss=0.4268 mIoU=0.2610 ECE=0.0879 AUROC=0.6098 time=245.9s  (mIoU=0.2610 but AUROC<0.7)
+  ep  3/25: loss=0.4183 mIoU=0.3026 ECE=0.1464 AUROC=0.6647 time=242.3s  (mIoU=0.3026 but AUROC<0.7)
+  ep  4/25: loss=0.4144 mIoU=0.2478 ECE=0.1222 AUROC=0.6329 time=240.5s  (mIoU=0.2478 but AUROC<0.7)
+  ep  5/25: loss=0.4116 mIoU=0.2573 ECE=0.1288 AUROC=0.7358 time=241.5s  [JOINT-BEST SAVED]
+  ep  6/25: loss=0.4103 mIoU=0.2601 ECE=0.1461 AUROC=0.6958 time=244.3s  (mIoU=0.2601 but AUROC<0.7)
+  ep  7/25: loss=0.4079 mIoU=0.2862 ECE=0.1956 AUROC=0.6889 time=240.6s  (mIoU=0.2862 but AUROC<0.7)
+  ep  8/25: loss=0.4048 mIoU=0.2906 ECE=0.2139 AUROC=0.7296 time=242.9s  [JOINT-BEST SAVED]
+  ep  9/25: loss=0.4022 mIoU=0.2612 ECE=0.2503 AUROC=0.6374 time=238.3s  (mIoU=0.2612 but AUROC<0.7)
+  ep 10/25: loss=0.3991 mIoU=0.2872 ECE=0.2767 AUROC=0.7247 time=242.4s  (mIoU=0.2872 but AUROC<0.7)
+  ep 11/25: loss=0.3958 mIoU=0.2999 ECE=0.2763 AUROC=0.7188 time=246.8s  [JOINT-BEST SAVED]
+  ep 12/25: loss=0.3933 mIoU=0.3031 ECE=0.3197 AUROC=0.7062 time=244.2s  [JOINT-BEST SAVED]
+  ep 13/25: loss=0.3903 mIoU=0.2863 ECE=0.2610 AUROC=0.6857 time=246.6s  (mIoU=0.2863 but AUROC<0.7)
+  ep 14/25: loss=0.3864 mIoU=0.2748 ECE=0.2877 AUROC=0.7141 time=244.6s  (mIoU=0.2748 but AUROC<0.7)
+  ep 15/25: loss=0.3833 mIoU=0.2867 ECE=0.2793 AUROC=0.6860 time=242.9s  (mIoU=0.2867 but AUROC<0.7)
+  ep 16/25: loss=0.3801 mIoU=0.2591 ECE=0.3318 AUROC=0.6814 time=243.5s  (mIoU=0.2591 but AUROC<0.7)
+  ep 17/25: loss=0.3779 mIoU=0.2770 ECE=0.3064 AUROC=0.6879 time=246.9s  (mIoU=0.2770 but AUROC<0.7)
+  ep 18/25: loss=0.3758 mIoU=0.2862 ECE=0.3228 AUROC=0.7229 time=261.0s  (mIoU=0.2862 but AUROC<0.7)
+  ep 19/25: loss=0.3745 mIoU=0.2903 ECE=0.2951 AUROC=0.7721 time=246.9s  (mIoU=0.2903 but AUROC<0.7)
+  ep 20/25: loss=0.3732 mIoU=0.2788 ECE=0.2872 AUROC=0.7261 time=270.6s  (mIoU=0.2788 but AUROC<0.7)
+  ep 21/25: loss=0.3728 mIoU=0.2431 ECE=0.3472 AUROC=0.6695 time=277.7s  (mIoU=0.2431 but AUROC<0.7)
+  ep 22/25: loss=0.3732 mIoU=0.2793 ECE=0.3497 AUROC=0.6953 time=252.1s  (mIoU=0.2793 but AUROC<0.7)
+  ep 23/25: loss=0.3743 mIoU=0.2634 ECE=0.3162 AUROC=0.6910 time=263.2s  (mIoU=0.2634 but AUROC<0.7)
+  ep 24/25: loss=0.3763 mIoU=0.2816 ECE=0.3255 AUROC=0.7326 time=265.4s  (mIoU=0.2816 but AUROC<0.7)
+  ep 25/25: loss=0.3785 mIoU=0.2776 ECE=0.3134 AUROC=0.7063 time=253.4s  (mIoU=0.2776 but AUROC<0.7)
+
+=== DONE ===
+Joint-best epoch: 12
+  mIoU=0.3031
+  ECE=0.3197
+  AUROC=0.7062
+json: /home/server/Documents/yping/mapping/code/evidlife_map/artifacts/w3r_joint_serving.json
