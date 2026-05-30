@@ -34,3 +34,5 @@ code/evidlife_map/experiments/runs/
 code/evidlife_map/.coverage
 
 spconv-1.2.1/
+
+datasets/
