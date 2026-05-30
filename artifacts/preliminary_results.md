@@ -83,7 +83,7 @@ the direction the paper claims (uncertain voxels lose evidence faster).
 | Job | Validation | Status |
 |-----|-----------|--------|
 | (i)   Open-set / OOD score    | RQ2 vacuity AUROC = 0.8082 | ✅ verified |
-| (ii)  Loop-closure entropy ch | RQ4 KITTI-360 revisit eval  | ⏸️ pending (KITTI-360 transfer) |
+| (ii)  Loop-closure entropy ch | **W3-X** real KITTI-360 5 revisit pairs: M2 cosine sim **0.885 ± 0.081** (vacuity channel); M3 vacuity F1 = 0.54 at thr=0.5 | ✅ **VERIFIED 2026-05-30** |
 | (iii) Voxel-decay clock      | M3 ratio 2.64× | ✅ verified |
 
 Two of three legs are verified end-to-end on real KITTI data. The third

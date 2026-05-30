@@ -38,7 +38,7 @@ import time
 from pathlib import Path
 
 import numpy as np
-import torch
+# torch not needed here — keep numpy-only for portability to Windows w/o torch
 
 
 def parse_ply_header(path: Path) -> dict:
@@ -272,7 +272,7 @@ def main():
 
     for k, (i, j, ov) in enumerate(pairs):
         mi, mj = metas[i], metas[j]
-        print(f"\n--- Pair {k+1}/{len(pairs)}: {mi['file']} ↔ {mj['file']} (overlap={ov:.0f} m^3) ---")
+        print(f"\n--- Pair {k+1}/{len(pairs)}: {mi['file']} <-> {mj['file']} (overlap={ov:.0f} m^3) ---")
         d_a = load_ply(Path(mi["path"]))
         d_b = load_ply(Path(mj["path"]))
         xyz_a = np.stack([d_a["x"], d_a["y"], d_a["z"]], axis=-1)
