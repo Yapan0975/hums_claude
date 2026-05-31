@@ -1,0 +1,156 @@
+# EvidLife-Map Reproducibility Specification
+# Referenced from paper Tab III and round-2 R&R Response Letter (R2 W3 part B).
+# This document captures every hyperparameter, seed, and CUDA/PyTorch version
+# needed to reproduce the §IV.0 W3-R single-checkpoint joint-serving result and
+# all matched-protocol companions (W3-S, W3-M, P1-B7) on a single RTX 5090.
+
+paper_version: paper_v2 (round-2 R&R)
+hardware:
+  primary: NVIDIA RTX 5090 (32 GB, sm_120)
+  alternative: NVIDIA RTX 4060 (16 GB, sm_89) — sufficient for inference and small ablations
+  cuda: "13.0 (cu130) on sm_120 server; 12.6 (cu126) compatible"
+  torch: "2.11.0"
+  pytorch_geometric: "not used"
+  spconv: "not used (Path-4 backbone is pure-PyTorch)"
+
+dataset:
+  semantickitti:
+    root: /data/shared/SemanticKITTI/dataset/sequences/
+    train_seqs: ["00", "01", "02", "03", "04", "05", "06", "07", "09", "10"]
+    val_seq: "08"
+    val_frames: "0-99 (first 100 frames of seq 08)"
+    open_set_split:
+      primary_unknowns: [bicyclist (4), motorcyclist (5), truck (18), other-vehicle (17), other-ground (9)]
+      robustness_unknowns: [bicyclist (4), motorcyclist (5), other-vehicle (17)]
+    voxel_size_m: 0.25
+  kitti360:
+    root: D:/_7_sci/semantic_mapping/_new_paper/datasets/kitti360/extracted/data_3d_semantics/train/
+    used_drives: ["2013_05_28_drive_0000_sync"] # extension to drive_0002+ deferred to round-3
+
+global:
+  seed: 20260530
+  point_subsample: 20000   # per frame
+  cosine_lr_T_max: epochs * dataset_size
+
+# ── W3-R: Single-Checkpoint Joint Serving (paper §IV.0 headline) ──────────
+w3r_joint_serving:
+  script: scripts/train_w3r_joint_serving.py
+  ckpt_out: weights/w3r_joint_serving.pt
+  metrics_json: artifacts/w3r_joint_serving.json
+  backbone: PointNet2Lite_v2 (k=16, channels=(64,128,256,256), ~0.49 M params)
+  loss: EDL (Sensoy 2018) on (C+1) = 20 classes
+  kl_schedule: linear (NOT warm-restart)
+  kl_lambda_start: 0.0
+  kl_lambda_end: 0.3
+  open_set_training: True (5 PRIMARY unknowns masked → ignore-index -100)
+  train_per_seq: 600
+  epochs: 25
+  optimizer: AdamW
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+  ckpt_selection_criterion: "best val mIoU subject to vacuity AUROC >= 0.70 floor"
+  result_ep12:
+    mIoU_known: 0.3031
+    ECE_known: 0.3197
+    vacuity_AUROC: 0.7062
+    M3_vacuity_F1_thr05: 0.7626
+
+# ── W3-S: CE-lite_v2 Matched-Protocol R2 Baseline ─────────────────────────
+w3s_ce_lite_v2:
+  script: scripts/train_w3s_ce_lite_v2.py
+  ckpt_out: weights/w3s_ce_lite_v2.pt
+  backbone: PointNet2Lite_v2 (identical to W3-R)
+  loss: CrossEntropyLoss (ignore_index=-100)
+  schedule: CosineAnnealingWarmRestarts (T_0 = restart_period * len(train_ds), T_mult=1)
+  restart_period: 5
+  train_per_seq: 600
+  epochs: 25
+  result: {val_mIoU: 0.2254, val_ECE_pre_TS: 0.0889}
+  notes: "Method-effect at matched lite_v2 tier: EDL +0.78 pp mIoU but +0.04 ECE worse vs CE pre-TS"
+
+# ── W3-M: EDL-lite_v2 + Warm-Restart + 600 fr/seq (closed-set) ────────────
+w3m_combined:
+  script: scripts/train_pointnet2lite_v2_warmrestart.py
+  ckpt_out: weights/pointnet2lite_v2_warmrestart_bigger.pt
+  backbone: PointNet2Lite_v2 (identical to W3-R/W3-S)
+  loss: EDL with WARM-RESTART KL (period=5, kl_end=0.3)
+  train_per_seq: 600
+  epochs: 25
+  ckpt_selection: best val mIoU
+  result_ep21: {val_mIoU: 0.2336, val_ECE: 0.1252}
+  notes: "Closed-set training (all 19 classes supervised). Open-set W3-R restores vacuity-for-M3 via the unknown-channel KL pull."
+
+# ── P1-B7: R2-reimpl Post-hoc Temperature Scaling ─────────────────────────
+p1b7_temperature_scaling:
+  script: scripts/p1b7_temperature_scaling.py
+  ckpt_in: weights/w3s_ce_lite_v2.pt
+  method: Guo et al. 2017 single-temperature LBFGS NLL minimisation
+  result:
+    ECE_pre_TS: 0.0877
+    T_star: 1.50
+    ECE_post_TS: 0.0399
+    relative_improvement_pct: +54.5
+  beats_EDL_W3M_by: 3.13x (0.0399 vs 0.1252)
+
+# ── W3-UVW: Decoupling Ablation on W3-M ckpt ─────────────────────────────
+w3uvw_decoupling_ablation:
+  script: scripts/decoupling_ablation.py
+  ckpt_in: weights/pointnet2lite_v2_warmrestart_bigger.pt   # W3-M
+  configs:
+    - vacuity_everywhere
+    - dissonance_for_decay   # use τ(d_v) in Eq 11
+    - softmax_entropy_for_M2 # use H(p) histogram in Eq 7
+  pass_condition: vacuity strictly Pareto-dominates dissonance + softmax-entropy on M3 F1 (3 thresholds) AND M2 cosine sim
+  result: FAIL (vacuity loses M3 at thr 0.5+ and M2 to dissonance on W3-M ckpt)
+  reframe_applied: per-job scalar allocation in §I.B
+  followup_w3r_post_hoc: vacuity recovers M3 dominance on open-set-trained W3-R ckpt (F1 0.7626 vs dissonance 0.0990)
+
+# ── W3-X: KITTI-360 Revisit-Pair Verification ─────────────────────────────
+w3x_kitti360:
+  script: scripts/w3x_kitti360_revisit.py
+  ply_dir: datasets/kitti360/extracted/data_3d_semantics/train/2013_05_28_drive_0000_sync/static/
+  voxel_size_m: 0.25
+  kappa: 10.0   # synthetic Dirichlet evidence weight per labelled point
+  min_overlap_m3: 100.0
+  min_temporal_gap_frames: 200
+  n_pairs_evaluated: 50
+  result:
+    M2_vacuity_mean_sim: 0.917 ± 0.076
+    M2_dissonance_mean_sim: 0.910 ± 0.085
+    M2_softmax_entropy_mean_sim: 0.900 ± 0.084
+    M3_vacuity_F1_mean_thr05: 0.486 (P=0.83, R=0.36)
+    M3_dissonance_F1_mean_thr05: 0.481
+  note: "Uses synthetic Dirichlet stand-in (kappa × confidence on labelled class) pending W3-R-on-KITTI-360 transfer (round-3 W3-Z)."
+
+# ── W3-Y: A-8 Hybrid Spatial-Kernel Ablation (round-3) ────────────────────
+w3y_a8_hybrid_kernel:
+  script: scripts/w3y_a8_hybrid_kernel.py
+  ckpt_in: weights/w3r_joint_serving.pt
+  sigma_m: 0.4   # Gaussian kernel
+  k_neighbors: 8
+  result:
+    baseline_mIoU: 0.3051
+    hybrid_mIoU: 0.3143    # +0.92 pp
+    baseline_ECE: 0.3184
+    hybrid_ECE: 0.3360    # +0.0176 (worse)
+    baseline_AUROC: 0.5976
+    hybrid_AUROC: 0.6047
+  pareto_dominates: False
+  conclusion: "§III.B per-voxel-purity rejection SURVIVES the hybrid ablation."
+
+# ── Deliberate Round-3 Follow-ups (not blocking IROS 2027 submission) ─────
+round3_pending:
+  - W3-T: R2-reimpl iterative confidence-aware Bayes filter reconstruction (~1 week eng)
+  - W3-Z: W3-R-on-KITTI-360 transfer (replace synthetic Dirichlet with real EDL ckpt predictions; requires KITTI-360 → 5090 server transfer)
+  - W3-W: Khronos native-config benchmark (R-17 highest-risk per research_plan v4)
+  - per-class AUROC × taxonomic-distance plot (R3 W4)
+  - Eq. 12 mean-direction drift table (R4 W5)
+  - page budget trim to IEEE 8 pages (camera-ready stage)
+
+# ── Camera-Ready Deliverables (pending) ────────────────────────────────────
+camera_ready:
+  - AI usage disclosure (run /ars-disclosure)
+  - IEEEtran.cls LaTeX conversion (current: generic LaTeX via pandoc, 104 KB)
+  - reproduce.yaml in supplementary directory (this file)
+  - 30-second demo video on Jetson Orin NX
+  - W3 audit-trail internal labels (W3-A ... W3-Y) moved to supplementary `training_findings.md`
