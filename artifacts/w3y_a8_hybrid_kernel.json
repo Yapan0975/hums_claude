@@ -1,0 +1,21 @@
+{
+  "ckpt": "weights/w3r_joint_serving.pt",
+  "ckpt_ep": 12,
+  "sigma_m": 0.4,
+  "baseline": {
+    "mIoU_known": 0.3050969479419473,
+    "ECE_known": 0.31841238632798197,
+    "vacuity_AUROC": 0.5976080400886443
+  },
+  "hybrid": {
+    "mIoU_known": 0.3143270085158185,
+    "ECE_known": 0.33601667582988737,
+    "vacuity_AUROC": 0.6047350047892533
+  },
+  "delta": {
+    "d_mIoU": 0.009230060573871213,
+    "d_ECE": 0.0176042895019054,
+    "d_AUROC": 0.007126964700609029
+  },
+  "hybrid_pareto_dominates": false
+}
